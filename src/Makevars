@@ -1,0 +1,18 @@
+CXX_STD = CXX14
+
+all: $(SHLIB)
+$(SHLIB): cudd_pack/cudd/.libs/libcudd.a
+
+cudd_pack/cudd/.libs/libcudd.a:
+	cd cudd_pack && \
+	  CC="$(CC)" CXX="$(CXX)" \
+	  ./configure --enable-obj && \
+	  $(MAKE) CC="$(CC)" CXX="$(CXX)"
+
+clean:
+	(cd cudd_pack; $(MAKE) clean)
+
+PKG_CPPFLAGS = -Icudd_pack/cudd -Icudd_pack/cplusplus
+PKG_LIBS = -Lcudd_pack/cudd/.libs -lcudd -lm -lpthread -lws2_32 -lpsapi
+
+.PHONY: all cudd_pack clean

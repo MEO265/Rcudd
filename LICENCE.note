@@ -1,0 +1,17 @@
+Rcudd as a whole is distributed under GPL (>= 3), but the CUDD C-library which it is based on is distributed under BSD (3-Clause) license.
+The license file of the CUDD library can be found in the folder `src/cudd_pack`.
+
+The following changes have been made to the original CUDD code:
+- The following optional parts (and their configuration options) have been removed to reduce size and complexity:
+  - `dddmp`
+  - Doxygen documentation
+  - Example program: `nanotrav`
+- Adaptations necessary for CRAN compliance:
+    - All outputs where redirected to the R standard output or error streams using R's `Rprintf` and `REprintf` functions.
+    - All error handling has been adapted to use R's error handling mechanism via the `Rf_error` and `Rf_warning` functions.
+    - Unsafe calls to `sprintf` have been replaced with safer alternatives.
+- Adaptations maybe not totally necessary for CRAN compliance but marked by R CMD check as issues:
+  - Replaced `#define _BSD_SOURCE` with `#define _DEFAULT_SOURCE` to avoid deprecation warnings on recent glibc versions.
+  - Fix overflow in `appendStringStringStream()` function.
+
+

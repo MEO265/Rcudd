@@ -62,7 +62,7 @@
 
 */
 
-#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #include "util.h"
 
 #if HAVE_SYS_TIME_H == 1

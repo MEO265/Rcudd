@@ -138,11 +138,13 @@ int appendCharStringStream(cstringstream ss, char c) {
 int appendStringStringStream(cstringstream ss, char const * s) {
   if (!ss) return -1;
   size_t len = strlen(s);
-  if (resizeStringStream(ss, ss->inUse + len)) return -1;
+  if (resizeStringStream(ss, ss->inUse + len + 1)) return -1;
   /* Now we have space. */
-  strncpy(ss->data + ss->inUse - len, s, len); 
+  memcpy(ss->data + ss->inUse, s, len + 1);
+  ss->inUse += len;
   return 0;
 }
+
 
 int appendIntStringStream(cstringstream ss, int d) {
   char str[256];

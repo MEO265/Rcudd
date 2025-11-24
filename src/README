@@ -1,0 +1,19 @@
+`Rucdd` is based on the [CUDD C-library](https://github.com/cuddorg/cudd),
+for the manipulation of decision diagrams which supports binary decision diagrams (BDDs),
+algebraic decision diagrams (ADDs), and Zero-Suppressed BDDs (ZDDs).
+
+The code (as well as the license information) of the CUDD library can be found in the folder `src/cudd_pack`.
+We use CUDD version 3.0.0, which is licensed under the BSD License.
+
+The following changes have been made to the original CUDD code:
+- The following optional parts (and their configuration options) have been removed to reduce size and complexity:
+  - `dddmp`
+  - Doxygen documentation
+  - Example program: `nanotrav`
+- Adaptations necessary for CRAN compliance:
+    - All outputs where redirected to the R standard output or error streams using R's `Rprintf` and `REprintf` functions.
+    - All error handling has been adapted to use R's error handling mechanism via the `Rf_error` and `Rf_warning` functions.
+    - Unsafe calls to `sprintf` have been replaced with safer alternatives.
+- Adaptations not totally necessary for CRAN compliance but marked by R CMD check as issues:
+  - Replaced `#define _BSD_SOURCE` with `#define _DEFAULT_SOURCE` to avoid deprecation warnings on recent glibc versions.
+  - Fix overflow in `appendStringStringStream()` function.

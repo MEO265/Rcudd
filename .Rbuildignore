@@ -1,8 +1,9 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-.*\.tar\.gz$
+^.*\.tar\.gz$
 ^.*\.log$
-README.*
+^README.*
+^src/README$
 cran-comments.md
 ^\.github$
 ^\.covrignore$
@@ -10,3 +11,9 @@ cran-comments.md
 ^_pkgdown\.yml$
 ^pkgdown$
 ^\.lintr$
+^\.\.Rcheck$
+^.*\.ac$
+^.*\.am$
+^src/cudd_pack/aclocal\.m4$
+^src/cudd_pack/m4/
+^LICENSE\.md$

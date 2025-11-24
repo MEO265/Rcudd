@@ -1,0 +1,12 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+.*\.tar\.gz$
+^.*\.log$
+README.*
+cran-comments.md
+^\.github$
+^\.covrignore$
+^\.idea$
+^_pkgdown\.yml$
+^pkgdown$
+^\.lintr$

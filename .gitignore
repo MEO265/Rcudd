@@ -1,1 +1,10 @@
 .idea
+*.log
+*.json
+*.txt
+*.tar.gz
+.Rproj.user
+README.*
+!README.md
+!README.Rmd
+*.Rcheck

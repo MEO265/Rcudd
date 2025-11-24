@@ -1,12 +1,13 @@
+#include "rcudd.h"
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
 #include <R_ext/Visibility.h>
-#include "rcudd.h"
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"c_run_cudd_example", (DL_FUNC) &run_cudd_example, 2},
+    {"c_bdd_remaining_literals", (DL_FUNC) &bdd_remaining_literals, 1},
+    {"c_bdd_restrict_chain", (DL_FUNC) &bdd_restrict_chain, 2},
     {NULL, NULL, 0}
 };
 }

@@ -1,11 +1,18 @@
 Package: Rcudd
-Title: What the package does (short line)
-Version: 0.0.1
+Title: R-Wrapper for the CUDD BDD Library
+Version: 0.0.0.9999
 Authors@R: c(
-	person("Matthias", "Ollech", email = "matthias@ollech.de", role = c("aut", "cre")),
+	person("Matthias", "Ollech", email = "ollech@gmx.de", role = c("aut", "cre")),
 	person("Regents of the University of Colorado", comment = "Copyright holder of included CUDD library", role = "cph")
   )
-Description: More about what it does (maybe more than one line).
+Description:
+    Wrapper for the CUDD library providing Binary Decision Diagrams (BDDs) functionality in R.
+    For now, only a some functionality for reducing Logical expressions using BDDs is provided.
 License: GPL (>= 3)
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.3
 Encoding: UTF-8
+Depends:
+    R (>= 4.0)
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

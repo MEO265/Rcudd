@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 
 /*---------------------------------------------------------------------------*/
@@ -106,7 +107,7 @@ Cudd_bddExistAbstract(
     DdNode *res;
 
     if (bddCheckPositiveCube(manager, cube) == 0) {
-        (void) fprintf(manager->err,
+        REprintf(
 		       "Error: Can only abstract positive cubes\n");
 	manager->errorCode = CUDD_INVALID_ARG;
         return(NULL);
@@ -148,7 +149,7 @@ Cudd_bddExistAbstractLimit(
     unsigned int saveLimit = manager->maxLive;
 
     if (bddCheckPositiveCube(manager, cube) == 0) {
-        (void) fprintf(manager->err,
+        REprintf(
 		       "Error: Can only abstract positive cubes\n");
 	manager->errorCode = CUDD_INVALID_ARG;
         return(NULL);
@@ -193,7 +194,7 @@ Cudd_bddXorExistAbstract(
     DdNode *res;
 
     if (bddCheckPositiveCube(manager, cube) == 0) {
-        (void) fprintf(manager->err,
+        REprintf(
 		       "Error: Can only abstract positive cubes\n");
 	manager->errorCode = CUDD_INVALID_ARG;
         return(NULL);
@@ -231,7 +232,7 @@ Cudd_bddUnivAbstract(
     DdNode	*res;
 
     if (bddCheckPositiveCube(manager, cube) == 0) {
-	(void) fprintf(manager->err,
+	REprintf(
 		       "Error: Can only abstract positive cubes\n");
 	manager->errorCode = CUDD_INVALID_ARG;
 	return(NULL);
@@ -736,4 +737,3 @@ bddCheckPositiveCube(
     return(0);
 
 } /* end of bddCheckPositiveCube */
-

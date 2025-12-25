@@ -75,6 +75,6 @@ util_print_time(unsigned long t)
 {
     static char s[40];
 
-    (void) sprintf(s, "%lu.%02lu sec", t/1000, (t%1000)/10);
+    (void) snprintf(s, 32, "%lu.%02lu sec", t/1000, (t%1000)/10);
     return s;
 }

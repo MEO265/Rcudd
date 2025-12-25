@@ -46,6 +46,7 @@
 #include "util.h"
 #include "mtrInt.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -177,7 +178,7 @@ Cudd_ReduceHeap(
     switch(heuristic) {
     case CUDD_REORDER_RANDOM:
     case CUDD_REORDER_RANDOM_PIVOT:
-	(void) fprintf(table->out,"#:I_RANDOM  ");
+	Rprintf("#:I_RANDOM  ");
 	break;
     case CUDD_REORDER_SIFT:
     case CUDD_REORDER_SIFT_CONVERGE:
@@ -185,7 +186,7 @@ Cudd_ReduceHeap(
     case CUDD_REORDER_SYMM_SIFT_CONV:
     case CUDD_REORDER_GROUP_SIFT:
     case CUDD_REORDER_GROUP_SIFT_CONV:
-	(void) fprintf(table->out,"#:I_SIFTING ");
+	Rprintf("#:I_SIFTING ");
 	break;
     case CUDD_REORDER_WINDOW2:
     case CUDD_REORDER_WINDOW3:
@@ -193,25 +194,25 @@ Cudd_ReduceHeap(
     case CUDD_REORDER_WINDOW2_CONV:
     case CUDD_REORDER_WINDOW3_CONV:
     case CUDD_REORDER_WINDOW4_CONV:
-	(void) fprintf(table->out,"#:I_WINDOW  ");
+	Rprintf("#:I_WINDOW  ");
 	break;
     case CUDD_REORDER_ANNEALING:
-	(void) fprintf(table->out,"#:I_ANNEAL  ");
+	Rprintf("#:I_ANNEAL  ");
 	break;
     case CUDD_REORDER_GENETIC:
-	(void) fprintf(table->out,"#:I_GENETIC ");
+	Rprintf("#:I_GENETIC ");
 	break;
     case CUDD_REORDER_LINEAR:
     case CUDD_REORDER_LINEAR_CONVERGE:
-	(void) fprintf(table->out,"#:I_LINSIFT ");
+	Rprintf("#:I_LINSIFT ");
 	break;
     case CUDD_REORDER_EXACT:
-	(void) fprintf(table->out,"#:I_EXACT   ");
+	Rprintf("#:I_EXACT   ");
 	break;
     default:
 	return(0);
     }
-    (void) fprintf(table->out,"%8d: initial size",initialSize);
+    Rprintf("%8d: initial size",initialSize);
 #endif
 
     /* See if we should use alternate threshold for maximum growth. */
@@ -225,14 +226,14 @@ Cudd_ReduceHeap(
     }
 
 #ifdef DD_STATS
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
     finalSize = (int) (table->keys - table->isolated);
-    (void) fprintf(table->out,"#:F_REORDER %8d: final size\n",finalSize);
-    (void) fprintf(table->out,"#:T_REORDER %8g: total time (sec)\n",
+    Rprintf("#:F_REORDER %8d: final size\n",finalSize);
+    Rprintf("#:T_REORDER %8g: total time (sec)\n",
 		   ((double)(util_cpu_time() - localTime)/1000.0));
-    (void) fprintf(table->out,"#:N_REORDER %8d: total swaps\n",
+    Rprintf("#:N_REORDER %8d: total swaps\n",
 		   table->ddTotalNumberSwapping);
-    (void) fprintf(table->out,"#:M_REORDER %8d: NI swaps\n",
+    Rprintf("#:M_REORDER %8d: NI swaps\n",
                    table->totalNISwaps);
 #endif
 
@@ -392,9 +393,8 @@ cuddDynamicAllocNode(
 	    (*MMoutOfMemory)(sizeof(DdNode)*(DD_MEM_CHUNK + 1));
 	    table->errorCode = CUDD_MEMORY_OUT;
 #ifdef DD_VERBOSE
-	    (void) fprintf(table->err,
-			   "cuddDynamicAllocNode: out of memory");
-	    (void) fprintf(table->err,"Memory in use = %lu\n",
+	    REprintf("cuddDynamicAllocNode: out of memory");
+	    REprintf("Memory in use = %lu\n",
 			   table->memused);
 #endif
 	    return(NULL);
@@ -510,12 +510,12 @@ cuddSifting(
 	if (!result) goto cuddSiftingOutOfMem;
 #ifdef DD_STATS
 	if (table->keys < (unsigned) previousSize + table->isolated) {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	} else if (table->keys > (unsigned) previousSize + table->isolated) {
-	    (void) fprintf(table->out,"+");	/* should never happen */
-	    (void) fprintf(table->err,"\nSize increased from %d to %u while sifting variable %d\n", previousSize, table->keys - table->isolated, var[i].index);
+	    Rprintf("+");	/* should never happen */
+	    REprintf("\nSize increased from %d to %u while sifting variable %d\n", previousSize, table->keys - table->isolated, var[i].index);
 	} else {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	}
 	fflush(table->out);
 #endif
@@ -623,16 +623,16 @@ cuddSwapping(
 	}
 #ifdef DD_STATS
 	if (table->keys < (unsigned) previousSize + table->isolated) {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	} else if (table->keys > (unsigned) previousSize + table->isolated) {
-	    (void) fprintf(table->out,"+");	/* should never happen */
+	    Rprintf("+");	/* should never happen */
 	} else {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	}
 	fflush(table->out);
 #endif
 #if 0
-	(void) fprintf(table->out,"#:t_SWAPPING %8d: tmp size\n",
+	Rprintf("#:t_SWAPPING %8d: tmp size\n",
 		       table->keys - table->isolated);
 #endif
     }
@@ -851,7 +851,7 @@ cuddSwapInPlace(
 	    newxlist = ALLOC(DdNodePtr, newxslots);
 	    MMoutOfMemory = saveHandler;
 	    if (newxlist == NULL) {
-		(void) fprintf(table->err, "Unable to resize subtable %d for lack of memory\n", i);
+		REprintf("Unable to resize subtable %d for lack of memory\n", i);
 	    } else {
 		table->slots += ((int) newxslots - xslots);
 		table->minDead = (unsigned)
@@ -1076,7 +1076,7 @@ cuddSwapInPlace(
 
 #ifdef DD_DEBUG
 #if 0
-	(void) fprintf(table->out,"Swapping %d and %d\n",x,y);
+	Rprintf("Swapping %d and %d\n",x,y);
 #endif
 	count = 0;
 	idcheck = 0;
@@ -1090,13 +1090,11 @@ cuddSwapInPlace(
 	    }
 	}
 	if (count != newykeys) {
-	    (void) fprintf(table->out,
-			   "Error in finding newykeys\toldykeys = %d\tnewykeys = %d\tactual = %d\n",
+	    Rprintf("Error in finding newykeys\toldykeys = %d\tnewykeys = %d\tactual = %d\n",
 			   oldykeys,newykeys,count);
 	}
 	if (idcheck != 0)
-	    (void) fprintf(table->out,
-			   "Error in id's of ylist\twrong id's = %d\n",
+	    Rprintf("Error in id's of ylist\twrong id's = %d\n",
 			   idcheck);
 	count = 0;
 	idcheck = 0;
@@ -1110,13 +1108,11 @@ cuddSwapInPlace(
 	    }
 	}
 	if (count != newxkeys) {
-	    (void) fprintf(table->out,
-			   "Error in finding newxkeys\toldxkeys = %d \tnewxkeys = %d \tactual = %d\n",
+	    Rprintf("Error in finding newxkeys\toldxkeys = %d \tnewxkeys = %d \tactual = %d\n",
 			   oldxkeys,newxkeys,count);
 	}
 	if (idcheck != 0)
-	    (void) fprintf(table->out,
-			   "Error in id's of xlist\twrong id's = %d\n",
+	    Rprintf("Error in id's of xlist\twrong id's = %d\n",
 			   idcheck);
 #endif
 
@@ -1162,7 +1158,7 @@ cuddSwapInPlace(
     return((int)(table->keys - table->isolated));
 
 cuddSwapOutOfMem:
-    (void) fprintf(table->err,"Error: cuddSwapInPlace out of memory\n");
+    REprintf("Error: cuddSwapInPlace out of memory\n");
 
     return (0);
 
@@ -1855,7 +1851,7 @@ ddShuffle(
 #ifdef DD_STATS
     localTime = util_cpu_time();
     initialSize = table->keys - table->isolated;
-    (void) fprintf(table->out,"#:I_SHUFFLE %8d: initial size\n",
+    Rprintf("#:I_SHUFFLE %8d: initial size\n",
 		   initialSize);
     table->totalNISwaps = 0;
 #endif
@@ -1872,25 +1868,25 @@ ddShuffle(
 	if (!result) return(0);
 #ifdef DD_STATS
 	if (table->keys < (unsigned) previousSize + table->isolated) {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	} else if (table->keys > (unsigned) previousSize + table->isolated) {
-	    (void) fprintf(table->out,"+");	/* should never happen */
+	    Rprintf("+");	/* should never happen */
 	} else {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	}
 	fflush(table->out);
 #endif
     }
 
 #ifdef DD_STATS
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
     finalSize = table->keys - table->isolated;
-    (void) fprintf(table->out,"#:F_SHUFFLE %8d: final size\n",finalSize);
-    (void) fprintf(table->out,"#:T_SHUFFLE %8g: total time (sec)\n",
+    Rprintf("#:F_SHUFFLE %8d: final size\n",finalSize);
+    Rprintf("#:T_SHUFFLE %8g: total time (sec)\n",
 	((double)(util_cpu_time() - localTime)/1000.0));
-    (void) fprintf(table->out,"#:N_SHUFFLE %8d: total swaps\n",
+    Rprintf("#:N_SHUFFLE %8d: total swaps\n",
 		   table->ddTotalNumberSwapping);
-    (void) fprintf(table->out,"#:M_SHUFFLE %8d: NI swaps\n",
+    Rprintf("#:M_SHUFFLE %8d: NI swaps\n",
                    table->totalNISwaps);
 #endif
 

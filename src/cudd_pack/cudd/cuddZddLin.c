@@ -47,6 +47,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -176,12 +177,12 @@ cuddZddLinearSifting(
 	    goto cuddZddSiftingOutOfMem;
 #ifdef DD_STATS
 	if (table->keysZ < (unsigned) previousSize) {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	} else if (table->keysZ > (unsigned) previousSize) {
-	    (void) fprintf(table->out,"+");	/* should never happen */
-	    (void) fprintf(table->out,"\nSize increased from %d to %d while sifting variable %d\n", previousSize, table->keysZ , var[i].index);
+	    Rprintf("+");	/* should never happen */
+	    Rprintf("\nSize increased from %d to %d while sifting variable %d\n", previousSize, table->keysZ , var[i].index);
 	} else {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	}
 	fflush(table->out);
 #endif
@@ -512,7 +513,7 @@ cuddZddLinearInPlace(
     table->univ[y] = cuddT(table->univ[x]);
 
 #if 0
-    (void) fprintf(table->out,"x = %d  y = %d\n", x, y);
+    Rprintf("x = %d  y = %d\n", x, y);
     (void) Cudd_DebugCheck(table);
     (void) Cudd_CheckKeys(table);
 #endif
@@ -520,7 +521,7 @@ cuddZddLinearInPlace(
     return (table->keysZ);
 
 zddSwapOutOfMem:
-    (void) fprintf(table->err, "Error: cuddZddSwapInPlace out of memory\n");
+    REprintf("Error: cuddZddSwapInPlace out of memory\n");
 
     return (0);
 
@@ -703,7 +704,7 @@ cuddZddLinearUp(
 	    if (newsize == 0) goto cuddZddLinearUpOutOfMem;
 #ifdef DD_DEBUG
 	    if (newsize != size) {
-		(void) fprintf(table->err,"Change in size after identity transformation! From %d to %d\n",size,newsize);
+		REprintf("Change in size after identity transformation! From %d to %d\n",size,newsize);
 	    }
 #endif
 	} else {
@@ -785,7 +786,7 @@ cuddZddLinearDown(
 	    newsize = cuddZddLinearInPlace(table,x,y);
 	    if (newsize == 0) goto cuddZddLinearDownOutOfMem;
 	    if (newsize != size) {
-		(void) fprintf(table->err,"Change in size after identity transformation! From %d to %d\n",size,newsize);
+		REprintf("Change in size after identity transformation! From %d to %d\n",size,newsize);
 	    }
 	} else {
 	    size = newsize;
@@ -900,7 +901,7 @@ cuddZddUndoMoves(
 	    if (!size) goto cuddZddUndoMovesOutOfMem;
 	} else { /* must be CUDD_INVERSE_TRANSFORM_MOVE */
 #ifdef DD_DEBUG
-	    (void) fprintf(table->err,"Unforseen event in ddUndoMoves!\n");
+	    REprintf("Unforseen event in ddUndoMoves!\n");
 #endif
 	    invmove->flags = CUDD_LINEAR_TRANSFORM_MOVE;
 	    size = cuddZddSwapInPlace(table,(int)move->x,(int)move->y);
@@ -922,4 +923,3 @@ cuddZddUndoMovesOutOfMem:
     return((Move *) CUDD_OUT_OF_MEM);
 
 } /* end of cuddZddUndoMoves */
-

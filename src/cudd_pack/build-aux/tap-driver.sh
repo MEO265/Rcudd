@@ -299,8 +299,7 @@ function handle_tap_result()
     }
   else if (result_obj["number"] != testno)
     {
-       details = sprintf("%s # OUT-OF-ORDER (expecting %d)",
-                         details, testno);
+       details = " # OUT-OF-ORDER ";
     }
   else if (result_obj["directive"])
     {
@@ -457,7 +456,7 @@ function get_test_exit_message(status)
   else if (status == 127)
     exit_details = " (command not found?)"
   else if (status >= 128 && status <= 255)
-    exit_details = sprintf(" (terminated by signal %d?)", status - 128)
+    exit_details = " (terminated by signal " (status - 128) "?)"
   else if (status > 256 && status <= 384)
     # We used to report an "abnormal termination" here, but some Korn
     # shells, when a child process die due to signal number n, can leave
@@ -465,11 +464,11 @@ function get_test_exit_message(status)
     # Apparently, both behaviours are allowed by POSIX (2008), so be
     # prepared to handle them both.  See also Austing Group report ID
     # 0000051 <http://www.austingroupbugs.net/view.php?id=51>
-    exit_details = sprintf(" (terminated by signal %d?)", status - 256)
+    exit_details = " (terminated by signal " (status - 256) "?)"
   else
     # Never seen in practice.
     exit_details = " (abnormal termination)"
-  return sprintf("exited with status %d%s", status, exit_details)
+  return "exited with status " status exit_details
 }
 
 function write_test_results()
@@ -616,8 +615,8 @@ if (!bailed_out)
     else if (planned_tests != testno)
       {
         bad_amount = testno > planned_tests ? "many" : "few"
-        testsuite_error(sprintf("too %s tests run (expected %d, got %d)",
-                                bad_amount, planned_tests, testno))
+        testsuite_error("too " bad_amount " tests run (expected " planned_tests \
+                        ", got " testno ")")
       }
     if (!ignore_exit)
       {

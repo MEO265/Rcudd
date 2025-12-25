@@ -46,6 +46,7 @@
 #include "util.h"
 #include "cstringstream.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -146,49 +147,40 @@ Cudd_DumpBlif(
 
     /* Write the header (.model .inputs .outputs). */
     if (mname == NULL) {
-	retval = fprintf(fp,".model DD\n.inputs");
+	Rprintf(".model DD\n.inputs");
     } else {
-	retval = fprintf(fp,".model %s\n.inputs",mname);
-    }
-    if (retval == EOF) {
-	FREE(sorted);
-	return(0);
+	Rprintf(".model %s\n.inputs",mname);
     }
 
     /* Write the input list by scanning the support array. */
     for (i = 0; i < nvars; i++) {
 	if (sorted[i]) {
 	    if (inames == NULL) {
-		retval = fprintf(fp," %d", i);
+		Rprintf(" %d", i);
 	    } else {
-		retval = fprintf(fp," %s", inames[i]);
+		Rprintf(" %s", inames[i]);
 	    }
-	    if (retval == EOF) goto failure;
 	}
     }
     FREE(sorted);
     sorted = NULL;
 
     /* Write the .output line. */
-    retval = fprintf(fp,"\n.outputs");
-    if (retval == EOF) goto failure;
+    Rprintf("\n.outputs");
     for (i = 0; i < n; i++) {
 	if (onames == NULL) {
-	    retval = fprintf(fp," f%d", i);
+	    Rprintf(" f%d", i);
 	} else {
-	    retval = fprintf(fp," %s", onames[i]);
+	    Rprintf(" %s", onames[i]);
 	}
-	if (retval == EOF) goto failure;
     }
-    retval = fprintf(fp,"\n");
-    if (retval == EOF) goto failure;
+    Rprintf("\n");
 
     retval = Cudd_DumpBlifBody(dd, n, f, inames, onames, fp, mv);
     if (retval == 0) goto failure;
 
     /* Write trailer and return. */
-    retval = fprintf(fp,".end\n");
-    if (retval == EOF) goto failure;
+    Rprintf(".end\n");
 
     return(1);
 
@@ -252,19 +244,17 @@ Cudd_DumpBlifBody(
     */
     for (i = 0; i < n; i++) {
 	if (onames == NULL) {
-	    retval = fprintf(fp, ".names %" PRIxPTR " f%d\n",
+	    Rprintf(".names %" PRIxPTR " f%d\n",
                 (ptruint) f[i] / (ptruint) sizeof(DdNode), i);
 	} else {
-	    retval = fprintf(fp, ".names %" PRIxPTR " %s\n",
+	    Rprintf(".names %" PRIxPTR " %s\n",
                 (ptruint) f[i] / (ptruint) sizeof(DdNode), onames[i]);
 	}
-	if (retval == EOF) goto failure;
 	if (Cudd_IsComplement(f[i])) {
-	    retval = fprintf(fp,"%s0 1\n", mv ? ".def 0\n" : "");
+	    Rprintf("%s0 1\n", mv ? ".def 0\n" : "");
 	} else {
-	    retval = fprintf(fp,"%s1 1\n", mv ? ".def 0\n" : "");
+	    Rprintf("%s1 1\n", mv ? ".def 0\n" : "");
 	}
-	if (retval == EOF) goto failure;
     }
 
     st_free_table(visited);
@@ -384,120 +374,99 @@ Cudd_DumpDot(
     }
 
     /* Write the header and the global attributes. */
-    retval = fprintf(fp,"digraph \"DD\" {\n");
-    if (retval == EOF) return(0);
-    retval = fprintf(fp,
-	"size = \"7.5,10\"\ncenter = true;\nedge [dir = none];\n");
-    if (retval == EOF) return(0);
+    Rprintf("digraph \"DD\" {\n");
+    Rprintf("size = \"7.5,10\"\ncenter = true;\nedge [dir = none];\n");
 
     /* Write the input name subgraph by scanning the support array. */
-    retval = fprintf(fp,"{ node [shape = plaintext];\n");
-    if (retval == EOF) goto failure;
-    retval = fprintf(fp,"  edge [style = invis];\n");
-    if (retval == EOF) goto failure;
+    Rprintf("{ node [shape = plaintext];\n");
+    Rprintf("  edge [style = invis];\n");
     /* We use a name ("CONST NODES") with an embedded blank, because
     ** it is unlikely to appear as an input name.
     */
-    retval = fprintf(fp,"  \"CONST NODES\" [style = invis];\n");
-    if (retval == EOF) goto failure;
+    Rprintf("  \"CONST NODES\" [style = invis];\n");
     for (i = 0; i < nvars; i++) {
 	if (sorted[dd->invperm[i]]) {
 	    if (inames == NULL || inames[dd->invperm[i]] == NULL) {
-		retval = fprintf(fp,"\" %d \" -> ", dd->invperm[i]);
+		Rprintf("\" %d \" -> ", dd->invperm[i]);
 	    } else {
-		retval = fprintf(fp,"\" %s \" -> ", inames[dd->invperm[i]]);
+		Rprintf("\" %s \" -> ", inames[dd->invperm[i]]);
 	    }
-	    if (retval == EOF) goto failure;
 	}
     }
-    retval = fprintf(fp,"\"CONST NODES\"; \n}\n");
-    if (retval == EOF) goto failure;
+    Rprintf("\"CONST NODES\"; \n}\n");
 
     /* Write the output node subgraph. */
-    retval = fprintf(fp,"{ rank = same; node [shape = box]; edge [style = invis];\n");
-    if (retval == EOF) goto failure;
+    Rprintf("{ rank = same; node [shape = box]; edge [style = invis];\n");
     for (i = 0; i < n; i++) {
 	if (onames == NULL) {
-	    retval = fprintf(fp,"\"F%d\"", i);
+	    Rprintf("\"F%d\"", i);
 	} else {
-	    retval = fprintf(fp,"\"  %s  \"", onames[i]);
+	    Rprintf("\"  %s  \"", onames[i]);
 	}
-	if (retval == EOF) goto failure;
 	if (i == n - 1) {
-	    retval = fprintf(fp,"; }\n");
+	    Rprintf("; }\n");
 	} else {
-	    retval = fprintf(fp," -> ");
+	    Rprintf(" -> ");
 	}
-	if (retval == EOF) goto failure;
     }
 
     /* Write rank info: All nodes with the same index have the same rank. */
     for (i = 0; i < nvars; i++) {
 	if (sorted[dd->invperm[i]]) {
-	    retval = fprintf(fp,"{ rank = same; ");
-	    if (retval == EOF) goto failure;
+	    Rprintf("{ rank = same; ");
 	    if (inames == NULL || inames[dd->invperm[i]] == NULL) {
-		retval = fprintf(fp,"\" %d \";\n", dd->invperm[i]);
+		Rprintf("\" %d \";\n", dd->invperm[i]);
 	    } else {
-		retval = fprintf(fp,"\" %s \";\n", inames[dd->invperm[i]]);
+		Rprintf("\" %s \";\n", inames[dd->invperm[i]]);
 	    }
-	    if (retval == EOF) goto failure;
 	    nodelist = dd->subtables[i].nodelist;
 	    slots = dd->subtables[i].slots;
 	    for (j = 0; j < slots; j++) {
 		scan = nodelist[j];
 		while (scan != NULL) {
 		    if (st_is_member(visited,scan)) {
-			retval = fprintf(fp,"\"%#" PRIxPTR "\";\n",
+			Rprintf("\"%#" PRIxPTR "\";\n",
 			    ((mask & (ptruint) scan) / sizeof(DdNode)));
-			if (retval == EOF) goto failure;
 		    }
 		    scan = scan->next;
 		}
 	    }
-	    retval = fprintf(fp,"}\n");
-	    if (retval == EOF) goto failure;
+	    Rprintf("}\n");
 	}
     }
 
     /* All constants have the same rank. */
-    retval = fprintf(fp,
-	"{ rank = same; \"CONST NODES\";\n{ node [shape = box]; ");
-    if (retval == EOF) goto failure;
+    Rprintf("{ rank = same; \"CONST NODES\";\n{ node [shape = box]; ");
     nodelist = dd->constants.nodelist;
     slots = dd->constants.slots;
     for (j = 0; j < slots; j++) {
 	scan = nodelist[j];
 	while (scan != NULL) {
 	    if (st_is_member(visited,scan)) {
-		retval = fprintf(fp,"\"%#" PRIxPTR "\";\n",
+		Rprintf("\"%#" PRIxPTR "\";\n",
 		    ((mask & (ptruint) scan) / sizeof(DdNode)));
-		if (retval == EOF) goto failure;
 	    }
 	    scan = scan->next;
 	}
     }
-    retval = fprintf(fp,"}\n}\n");
-    if (retval == EOF) goto failure;
+    Rprintf("}\n}\n");
 
     /* Write edge info. */
     /* Edges from the output nodes. */
     for (i = 0; i < n; i++) {
 	if (onames == NULL) {
-	    retval = fprintf(fp,"\"F%d\"", i);
+	    Rprintf("\"F%d\"", i);
 	} else {
-	    retval = fprintf(fp,"\"  %s  \"", onames[i]);
+	    Rprintf("\"  %s  \"", onames[i]);
 	}
-	if (retval == EOF) goto failure;
 	/* Account for the possible complement on the root. */
 	if (Cudd_IsComplement(f[i])) {
-	    retval = fprintf(fp," -> \"%#" PRIxPTR "\" [style = dotted];\n",
+	    Rprintf(" -> \"%#" PRIxPTR "\" [style = dotted];\n",
 		((mask & (ptruint) f[i]) / sizeof(DdNode)));
 	} else {
-	    retval = fprintf(fp," -> \"%#" PRIxPTR "\" [style = solid];\n",
+	    Rprintf(" -> \"%#" PRIxPTR "\" [style = solid];\n",
 		((mask & (ptruint) f[i]) / sizeof(DdNode)));
 	}
-	if (retval == EOF) goto failure;
     }
 
     /* Edges from internal nodes. */
@@ -509,27 +478,22 @@ Cudd_DumpDot(
 		scan = nodelist[j];
 		while (scan != NULL) {
 		    if (st_is_member(visited,scan)) {
-			retval = fprintf(fp,
-			    "\"%#" PRIxPTR "\" -> \"%#" PRIxPTR "\";\n",
+			Rprintf("\"%#" PRIxPTR "\" -> \"%#" PRIxPTR "\";\n",
 			    ((mask & (ptruint) scan) / sizeof(DdNode)),
 			    ((mask & (ptruint) cuddT(scan)) / sizeof(DdNode)));
-			if (retval == EOF) goto failure;
 			if (Cudd_IsComplement(cuddE(scan))) {
-			    retval = fprintf(fp,
-				"\"%#" PRIxPTR "\" -> \"%#" PRIxPTR
+			    Rprintf("\"%#" PRIxPTR "\" -> \"%#" PRIxPTR
                                              "\" [style = dotted];\n",
 				((mask & (ptruint) scan) / sizeof(DdNode)),
 				((mask & (ptruint) cuddE(scan)) /
 				sizeof(DdNode)));
 			} else {
-			    retval = fprintf(fp,
-				"\"%#" PRIxPTR "\" -> \"%#" PRIxPTR
+			    Rprintf("\"%#" PRIxPTR "\" -> \"%#" PRIxPTR
                                              "\" [style = dashed];\n",
 				((mask & (ptruint) scan) / sizeof(DdNode)),
 				((mask & (ptruint) cuddE(scan)) /
 				sizeof(DdNode)));
 			}
-			if (retval == EOF) goto failure;
 		    }
 		    scan = scan->next;
 		}
@@ -544,17 +508,15 @@ Cudd_DumpDot(
 	scan = nodelist[j];
 	while (scan != NULL) {
 	    if (st_is_member(visited,scan)) {
-		retval = fprintf(fp,"\"%#" PRIxPTR "\" [label = \"%g\"];\n",
+		Rprintf("\"%#" PRIxPTR "\" [label = \"%g\"];\n",
 		    ((mask & (ptruint) scan) / sizeof(DdNode)), cuddV(scan));
-		if (retval == EOF) goto failure;
 	    }
 	    scan = scan->next;
 	}
     }
 
     /* Write trailer and return. */
-    retval = fprintf(fp,"}\n");
-    if (retval == EOF) goto failure;
+    Rprintf("}\n");
 
     st_free_table(visited);
     FREE(sorted);
@@ -646,32 +608,25 @@ Cudd_DumpDaVinci(
     visited = st_init_table(st_ptrcmp, st_ptrhash);
     if (visited == NULL) goto failure;
 
-    retval = fprintf(fp, "[");
-    if (retval == EOF) goto failure;
+    Rprintf("[");
     /* Call the function that really gets the job done. */
     for (i = 0; i < n; i++) {
 	if (onames == NULL) {
-	    retval = fprintf(fp,
-			     "l(\"f%d\",n(\"root\",[a(\"OBJECT\",\"f%d\")],",
+	    Rprintf("l(\"f%d\",n(\"root\",[a(\"OBJECT\",\"f%d\")],",
 			     i,i);
 	} else {
-	    retval = fprintf(fp,
-			     "l(\"%s\",n(\"root\",[a(\"OBJECT\",\"%s\")],",
+	    Rprintf("l(\"%s\",n(\"root\",[a(\"OBJECT\",\"%s\")],",
 			     onames[i], onames[i]);
 	}
-	if (retval == EOF) goto failure;
-	retval = fprintf(fp, "[e(\"edge\",[a(\"EDGECOLOR\",\"%s\"),a(\"_DIR\",\"none\")],",
+	Rprintf("[e(\"edge\",[a(\"EDGECOLOR\",\"%s\"),a(\"_DIR\",\"none\")],",
 			 Cudd_IsComplement(f[i]) ? "red" : "blue");
-	if (retval == EOF) goto failure;
 	retval = ddDoDumpDaVinci(dd,Cudd_Regular(f[i]),fp,visited,inames,mask);
 	if (retval == 0) goto failure;
-	retval = fprintf(fp, ")]))%s", i == n-1 ? "" : ",");
-	if (retval == EOF) goto failure;
+	Rprintf(")]))%s", i == n-1 ? "" : ",");
     }
 
     /* Write trailer and return. */
-    retval = fprintf(fp, "]\n");
-    if (retval == EOF) goto failure;
+    Rprintf("]\n");
 
     st_free_table(visited);
     return(1);
@@ -781,14 +736,12 @@ Cudd_DumpDDcal(
     for (i = 0; i < nvars; i++) {
 	if (sorted[dd->invperm[i]]) {
 	    if (inames == NULL || inames[dd->invperm[i]] == NULL) {
-		retval = fprintf(fp,"v%d", dd->invperm[i]);
+		Rprintf("v%d", dd->invperm[i]);
 	    } else {
-		retval = fprintf(fp,"%s", inames[dd->invperm[i]]);
+		Rprintf("%s", inames[dd->invperm[i]]);
 	    }
-	    if (retval == EOF) goto failure;
 	}
-	retval = fprintf(fp,"%s", i == nvars - 1 ? "\n" : " * ");
-	if (retval == EOF) goto failure;
+	Rprintf("%s", i == nvars - 1 ? "\n" : " * ");
     }
     FREE(sorted);
     sorted = NULL;
@@ -802,32 +755,26 @@ Cudd_DumpDDcal(
 	retval = ddDoDumpDDcal(dd,Cudd_Regular(f[i]),fp,visited,inames,mask);
 	if (retval == 0) goto failure;
 	if (onames == NULL) {
-	    retval = fprintf(fp, "f%d = ", i);
+	    Rprintf("f%d = ", i);
 	} else {
-	    retval = fprintf(fp, "%s = ", onames[i]);
+	    Rprintf("%s = ", onames[i]);
 	}
-	if (retval == EOF) goto failure;
-	retval = fprintf(fp, "n%#" PRIxPTR "%s\n",
+	Rprintf("n%#" PRIxPTR "%s\n",
 			 (((ptruint) f[i] & mask) / sizeof(DdNode)),
 			 Cudd_IsComplement(f[i]) ? "'" : "");
-	if (retval == EOF) goto failure;
     }
 
     /* Write trailer and return. */
-    retval = fprintf(fp, "[");
-    if (retval == EOF) goto failure;
+    Rprintf("[");
     for (i = 0; i < n; i++) {
 	if (onames == NULL) {
-	    retval = fprintf(fp, "f%d", i);
+	    Rprintf("f%d", i);
 	} else {
-	    retval = fprintf(fp, "%s", onames[i]);
+	    Rprintf("%s", onames[i]);
 	}
-	if (retval == EOF) goto failure;
-	retval = fprintf(fp, "%s", i == n-1 ? "" : " ");
-	if (retval == EOF) goto failure;
+	Rprintf("%s", i == n-1 ? "" : " ");
     }
-    retval = fprintf(fp, "]\n");
-    if (retval == EOF) goto failure;
+    Rprintf("]\n");
 
     st_free_table(visited);
     return(1);
@@ -882,28 +829,22 @@ Cudd_DumpFactoredForm(
     for (i = 0; i < n; i++) {
         if (printName) {
             if (onames == NULL) {
-		retval = fprintf(fp, "f%d = ", i);
+		Rprintf("f%d = ", i);
             } else {
-		retval = fprintf(fp, "%s = ", onames[i]);
+		Rprintf("%s = ", onames[i]);
             }
         }
-	if (retval == EOF) return(0);
 	if (f[i] == DD_ONE(dd)) {
-	    retval = fprintf(fp, "CONST1");
-	    if (retval == EOF) return(0);
+	    Rprintf("CONST1");
 	} else if (f[i] == Cudd_Not(DD_ONE(dd)) || f[i] == DD_ZERO(dd)) {
-	    retval = fprintf(fp, "CONST0");
-	    if (retval == EOF) return(0);
+	    Rprintf("CONST0");
 	} else {
-	    retval = fprintf(fp, "%s", Cudd_IsComplement(f[i]) ? (Cudd_bddIsVar(dd, Cudd_Regular(f[i])) ? "!" : "!(") : "");
-	    if (retval == EOF) return(0);
+	    Rprintf("%s", Cudd_IsComplement(f[i]) ? (Cudd_bddIsVar(dd, Cudd_Regular(f[i])) ? "!" : "!(") : "");
 	    retval = ddDoDumpFactoredForm(dd,Cudd_Regular(f[i]),fp,inames);
 	    if (retval == 0) return(0);
-	    retval = fprintf(fp, "%s", Cudd_IsComplement(f[i]) && !Cudd_bddIsVar(dd, Cudd_Regular(f[i])) ? ")" : "");
-	    if (retval == EOF) return(0);
+	    Rprintf("%s", Cudd_IsComplement(f[i]) && !Cudd_bddIsVar(dd, Cudd_Regular(f[i])) ? ")" : "");
 	}
-	retval = fprintf(fp, "%s", i == n-1 ? "" : "\n");
-	if (retval == EOF) return(0);
+	Rprintf("%s", i == n-1 ? "" : "\n");
     }
 
     return(1);
@@ -1033,26 +974,18 @@ ddDoDumpBlif(
 
     /* Check for special case: If constant node, generate constant 1. */
     if (f == DD_ONE(dd)) {
-	retval = fprintf(fp, ".names %" PRIxPTR "\n1\n",(ptruint) f / (ptruint) sizeof(DdNode));
-	if (retval == EOF) {
-	    return(0);
-	} else {
-	    return(1);
-	}
+	Rprintf(".names %" PRIxPTR "\n1\n",(ptruint) f / (ptruint) sizeof(DdNode));
+	return(1);
     }
 
     /* Check whether this is an ADD. We deal with 0-1 ADDs, but not
     ** with the general case.
     */
     if (f == DD_ZERO(dd)) {
-	retval = fprintf(fp, ".names %" PRIxPTR "\n%s",
+	Rprintf(".names %" PRIxPTR "\n%s",
 			 (ptruint) f / (ptruint) sizeof(DdNode),
 			 mv ? "0\n" : "");
-	if (retval == EOF) {
-	    return(0);
-	} else {
-	    return(1);
-	}
+	return(1);
     }
     if (cuddIsConstant(f))
 	return(0);
@@ -1067,47 +1000,40 @@ ddDoDumpBlif(
 
     /* Write multiplexer taking complement arc into account. */
     if (names != NULL) {
-	retval = fprintf(fp,".names %s", names[f->index]);
+	Rprintf(".names %s", names[f->index]);
     } else {
 #if SIZEOF_VOID_P == 8 && SIZEOF_INT == 4
-	retval = fprintf(fp,".names %u", f->index);
+	Rprintf(".names %u", f->index);
 #else
-	retval = fprintf(fp,".names %hu", f->index);
+	Rprintf(".names %hu", f->index);
 #endif
     }
-    if (retval == EOF)
-	return(0);
-
     if (mv) {
 	if (Cudd_IsComplement(cuddE(f))) {
-	    retval = fprintf(fp," %" PRIxPTR " %" PRIxPTR " %" PRIxPTR "\n.def 0\n1 1 - 1\n0 - 0 1\n",
+	    Rprintf(" %" PRIxPTR " %" PRIxPTR " %" PRIxPTR "\n.def 0\n1 1 - 1\n0 - 0 1\n",
 		(ptruint) T / (ptruint) sizeof(DdNode),
 		(ptruint) E / (ptruint) sizeof(DdNode),
 		(ptruint) f / (ptruint) sizeof(DdNode));
 	} else {
-	    retval = fprintf(fp," %" PRIxPTR " %" PRIxPTR " %" PRIxPTR "\n.def 0\n1 1 - 1\n0 - 1 1\n",
+	    Rprintf(" %" PRIxPTR " %" PRIxPTR " %" PRIxPTR "\n.def 0\n1 1 - 1\n0 - 1 1\n",
 		(ptruint) T / (ptruint) sizeof(DdNode),
 		(ptruint) E / (ptruint) sizeof(DdNode),
 		(ptruint) f / (ptruint) sizeof(DdNode));
 	}
     } else {
 	if (Cudd_IsComplement(cuddE(f))) {
-	    retval = fprintf(fp," %" PRIxPTR " %" PRIxPTR " %" PRIxPTR "\n11- 1\n0-0 1\n",
+	    Rprintf(" %" PRIxPTR " %" PRIxPTR " %" PRIxPTR "\n11- 1\n0-0 1\n",
 		(ptruint) T / (ptruint) sizeof(DdNode),
 		(ptruint) E / (ptruint) sizeof(DdNode),
 		(ptruint) f / (ptruint) sizeof(DdNode));
 	} else {
-	    retval = fprintf(fp," %" PRIxPTR " %" PRIxPTR " %" PRIxPTR "\n11- 1\n0-1 1\n",
+	    Rprintf(" %" PRIxPTR " %" PRIxPTR " %" PRIxPTR "\n11- 1\n0-1 1\n",
 		(ptruint) T / (ptruint) sizeof(DdNode),
 		(ptruint) E / (ptruint) sizeof(DdNode),
 		(ptruint) f / (ptruint) sizeof(DdNode));
 	}
     }
-    if (retval == EOF) {
-	return(0);
-    } else {
-	return(1);
-    }
+    return(1);
 
 } /* end of ddDoDumpBlif */
 
@@ -1144,12 +1070,8 @@ ddDoDumpDaVinci(
 
     /* If already visited, insert a reference. */
     if (st_is_member(visited, f) == 1) {
-	retval = fprintf(fp,"r(\"%#" PRIxPTR "\")", id);
-	if (retval == EOF) {
-	    return(0);
-	} else {
-	    return(1);
-	}
+	Rprintf("r(\"%#" PRIxPTR "\")", id);
+	return(1);
     }
 
     /* Check for abnormal condition that should never happen. */
@@ -1162,52 +1084,40 @@ ddDoDumpDaVinci(
 
     /* Check for special case: If constant node, generate constant 1. */
     if (Cudd_IsConstantInt(f)) {
-	retval = fprintf(fp,
-			 "l(\"%#" PRIxPTR
+	Rprintf("l(\"%#" PRIxPTR
                          "\",n(\"constant\",[a(\"OBJECT\",\"%g\")],[]))",
 			 id, cuddV(f));
-	if (retval == EOF) {
-	    return(0);
-	} else {
-	    return(1);
-	}
+	return(1);
     }
 
     /* Recursive calls. */
     if (names != NULL) {
-	retval = fprintf(fp, "l(\"%#" PRIxPTR
+	Rprintf("l(\"%#" PRIxPTR
                          "\",n(\"internal\",[a(\"OBJECT\",\"%s\"),",
 			 id, names[f->index]);
     } else {
 #if SIZEOF_VOID_P == 8
-	retval = fprintf(fp, "l(\"%#" PRIxPTR
+	Rprintf("l(\"%#" PRIxPTR
                          "\",n(\"internal\",[a(\"OBJECT\",\"%u\"),",
 			 id, f->index);
 #else
-	retval = fprintf(fp, "l(\"%#"PRIxPTR
+	Rprintf("l(\"%#"PRIxPTR
                          "\",n(\"internal\",[a(\"OBJECT\",\"%hu\"),",
 			 id, f->index);
 #endif
     }
-    if (retval == EOF) return(0);
-    retval = fprintf(fp, "a(\"_GO\",\"ellipse\")],[e(\"then\",[a(\"EDGECOLOR\",\"blue\"),a(\"_DIR\",\"none\")],");
-    if (retval == EOF) return(0);
+    Rprintf("a(\"_GO\",\"ellipse\")],[e(\"then\",[a(\"EDGECOLOR\",\"blue\"),a(\"_DIR\",\"none\")],");
     T = cuddT(f);
     retval = ddDoDumpDaVinci(dd,T,fp,visited,names,mask);
     if (retval != 1) return(retval);
-    retval = fprintf(fp, "),e(\"else\",[a(\"EDGECOLOR\",\"%s\"),a(\"_DIR\",\"none\")],",
+    Rprintf("),e(\"else\",[a(\"EDGECOLOR\",\"%s\"),a(\"_DIR\",\"none\")],",
 		     Cudd_IsComplement(cuddE(f)) ? "red" : "green");
-    if (retval == EOF) return(0);
     E = Cudd_Regular(cuddE(f));
     retval = ddDoDumpDaVinci(dd,E,fp,visited,names,mask);
     if (retval != 1) return(retval);
 
-    retval = fprintf(fp,")]))");
-    if (retval == EOF) {
-	return(0);
-    } else {
-	return(1);
-    }
+    Rprintf(")]))");
+    return(1);
 
 } /* end of ddDoDumpDaVinci */
 
@@ -1259,12 +1169,8 @@ ddDoDumpDDcal(
     if (Cudd_IsConstantInt(f)) {
 	if (f != DD_ONE(dd) && f != DD_ZERO(dd))
 	    return(0);
-	retval = fprintf(fp, "n%#" PRIxPTR" = %g\n", id, cuddV(f));
-	if (retval == EOF) {
-	    return(0);
-	} else {
-	    return(1);
-	}
+	Rprintf("n%#" PRIxPTR" = %g\n", id, cuddV(f));
+	return(1);
     }
 
     /* Recursive calls. */
@@ -1277,28 +1183,24 @@ ddDoDumpDDcal(
     idT = ((ptruint) T & mask) / sizeof(DdNode);
     idE = ((ptruint) E & mask) / sizeof(DdNode);
     if (names != NULL) {
-	retval = fprintf(fp, "n%#" PRIxPTR " = %s * n%#" PRIxPTR
+	Rprintf("n%#" PRIxPTR " = %s * n%#" PRIxPTR
                          " + %s' * n%#" PRIxPTR "%s\n",
 			 id, names[f->index], idT, names[f->index],
 			 idE, Cudd_IsComplement(cuddE(f)) ? "'" : "");
     } else {
 #if SIZEOF_VOID_P == 8
-	retval = fprintf(fp, "n%#" PRIxPTR " = v%u * n%#" PRIxPTR
+	Rprintf("n%#" PRIxPTR " = v%u * n%#" PRIxPTR
                          " + v%u' * n%#" PRIxPTR "%s\n",
 			 id, f->index, idT, f->index,
 			 idE, Cudd_IsComplement(cuddE(f)) ? "'" : "");
 #else
-	retval = fprintf(fp, "n%#"PRIxPTR" = v%hu * n%#"PRIxPTR
+	Rprintf("n%#"PRIxPTR" = v%hu * n%#"PRIxPTR
                          " + v%hu' * n%#"PRIxPTR"%s\n",
 			 id, f->index, idT, f->index,
 			 idE, Cudd_IsComplement(cuddE(f)) ? "'" : "");
 #endif
     }
-    if (retval == EOF) {
-	return(0);
-    } else {
-	return(1);
-    }
+    return(1);
 
 } /* end of ddDoDumpDDcal */
 
@@ -1342,50 +1244,43 @@ ddDoDumpFactoredForm(
     if (T != DD_ZERO(dd)) {
 	if (E != DD_ONE(dd)) {
 	    if (names != NULL) {
-		retval = fprintf(fp, "%s", names[f->index]);
+		Rprintf("%s", names[f->index]);
 	    } else {
 #if SIZEOF_VOID_P == 8 && SIZEOF_INT == 4
-		retval = fprintf(fp, "x%u", f->index);
+		Rprintf("x%u", f->index);
 #else
-		retval = fprintf(fp, "x%hu", f->index);
+		Rprintf("x%hu", f->index);
 #endif
 	    }
-	    if (retval == EOF) return(0);
 	}
 	if (T != DD_ONE(dd)) {
-            //	    retval = fprintf(fp, "%s(", E != DD_ONE(dd) ? " * " : "");
-            retval = fprintf(fp, "%s%s", E != DD_ONE(dd) ? " * " : "", Cudd_bddIsVar(dd, T) ? "" : "(");
-	    if (retval == EOF) return(0);
+            //	    Rprintf("%s(", E != DD_ONE(dd) ? " * " : "");
+            Rprintf("%s%s", E != DD_ONE(dd) ? " * " : "", Cudd_bddIsVar(dd, T) ? "" : "(");
 	    retval = ddDoDumpFactoredForm(dd,T,fp,names);
 	    if (retval != 1) return(retval);
-	    retval = fprintf(fp, "%s", Cudd_bddIsVar(dd, T) ? "" : ")");
-	    if (retval == EOF) return(0);
+	    Rprintf("%s", Cudd_bddIsVar(dd, T) ? "" : ")");
 	}
 	if (E == Cudd_Not(DD_ONE(dd)) || E == DD_ZERO(dd)) return(1);
-	retval = fprintf(fp, " + ");
-	if (retval == EOF) return(0);
+	Rprintf(" + ");
     }
     E = Cudd_Regular(E);
     if (T != DD_ONE(dd)) {
 	if (names != NULL) {
-	    retval = fprintf(fp, "!%s", names[f->index]);
+	    Rprintf("!%s", names[f->index]);
 	} else {
 #if SIZEOF_VOID_P == 8 && SIZEOF_INT == 4
-	    retval = fprintf(fp, "!x%u", f->index);
+	    Rprintf("!x%u", f->index);
 #else
-	    retval = fprintf(fp, "!x%hu", f->index);
+	    Rprintf("!x%hu", f->index);
 #endif
 	}
-	if (retval == EOF) return(0);
     }
     if (E != DD_ONE(dd)) {
-	retval = fprintf(fp, "%s%s%s", T != DD_ONE(dd) ? " * " : "",
+	Rprintf("%s%s%s", T != DD_ONE(dd) ? " * " : "",
 			 E != cuddE(f) ? "!" : "", Cudd_bddIsVar(dd, E) ? "" : "(");
-	if (retval == EOF) return(0);
 	retval = ddDoDumpFactoredForm(dd,E,fp,names);
 	if (retval != 1) return(retval);
-	retval = fprintf(fp, "%s", Cudd_bddIsVar(dd, E) ? "" : "(");
-	if (retval == EOF) return(0);
+	Rprintf("%s", Cudd_bddIsVar(dd, E) ? "" : "(");
     }
     return(1);
 

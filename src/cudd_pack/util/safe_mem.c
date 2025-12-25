@@ -68,6 +68,7 @@
 */
 
 #include "util.h"
+#include <R_ext/Error.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,11 +90,7 @@ void (*MMoutOfMemory)(size_t) = MMout_of_memory;
 void 
 MMout_of_memory(size_t size)
 {
-    (void) fflush(stdout);
-    (void) fprintf(stderr,
-                   "\nCUDD: out of memory allocating %" PRIszt " bytes\n",
-		   (size_t) size);
-    exit(1);
+    Rf_error("CUDD: out of memory allocating %" PRIszt " bytes", (size_t) size);
 }
 
 /**

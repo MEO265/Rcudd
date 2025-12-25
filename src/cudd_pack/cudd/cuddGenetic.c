@@ -62,6 +62,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -281,12 +282,12 @@ cuddGa(
 #if 0
 #ifdef DD_STATS
     /* Print the initial population. */
-    (void) fprintf(table->out,"Initial population after sifting\n");
+    Rprintf("Initial population after sifting\n");
     for (m = 0; m < info.popsize; m++) {
 	for (i = 0; i < info.numvars; i++) {
-	    (void) fprintf(table->out," %2d",STOREDD(&info,m,i));
+	    Rprintf(" %2d",STOREDD(&info,m,i));
 	}
-	(void) fprintf(table->out," : %3d (%d)\n",
+	Rprintf(" : %3d (%d)\n",
 		       STOREDD(&info,m,numvars),info.repeat[m]);
     }
 #endif
@@ -295,7 +296,7 @@ cuddGa(
 #ifdef DD_STATS
     small = find_best(&info);
     average_fitness = find_average_fitness(&info);
-    (void) fprintf(table->out,"\nInitial population: best fitness = %d, average fitness %8.3f",STOREDD(&info,small,info.numvars),average_fitness);
+    Rprintf("\nInitial population: best fitness = %d, average fitness %8.3f",STOREDD(&info,small,info.numvars),average_fitness);
 #endif
 
     /* Decide how many crossovers should be tried. */
@@ -392,7 +393,7 @@ cuddGa(
     /* Print stats on the final population. */
 #ifdef DD_STATS
     average_fitness = find_average_fitness(&info);
-    (void) fprintf(table->out,"\nFinal population: best fitness = %d, average fitness %8.3f",STOREDD(&info,small,info.numvars),average_fitness);
+    Rprintf("\nFinal population: best fitness = %d, average fitness %8.3f",STOREDD(&info,small,info.numvars),average_fitness);
 #endif
 
     /* Clean up, build the result DD, and return. */
@@ -436,12 +437,12 @@ make_random(
     }
 #if 0
 #ifdef DD_STATS
-    (void) fprintf(table->out,"Initial population before sifting\n");
+    Rprintf("Initial population before sifting\n");
     for (i = 0; i < 2; i++) {
 	for (j = 0; j < numvars; j++) {
-	    (void) fprintf(table->out," %2d",STOREDD(i,j));
+	    Rprintf(" %2d",STOREDD(i,j));
 	}
-	(void) fprintf(table->out,"\n");
+	Rprintf("\n");
     }
 #endif
 #endif
@@ -463,9 +464,9 @@ make_random(
 #ifdef DD_STATS
 	/* Print the order just generated. */
 	for (j = 0; j < numvars; j++) {
-	    (void) fprintf(table->out," %2d",STOREDD(i,j));
+	    Rprintf(" %2d",STOREDD(i,j));
 	}
-	(void) fprintf(table->out,"\n");
+	Rprintf("\n");
 #endif
 #endif
     }
@@ -541,7 +542,7 @@ build_dd(
         st_lookup_int(info->computed,&STOREDD(info,num,0),&index)) {
 	STOREDD(info,num,info->numvars) = STOREDD(info,index,info->numvars);
 #ifdef DD_STATS
-	(void) fprintf(table->out,"\nCache hit for index %d", index);
+	Rprintf("\nCache hit for index %d", index);
 #endif
 	return(1);
     }
@@ -565,7 +566,7 @@ build_dd(
 
     /* Sift the DD just built. */
 #ifdef DD_STATS
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
 #endif
     info->result = cuddSifting(table,lower,upper);
     if (!info->result) return(0);
@@ -777,19 +778,18 @@ PMX(
 
 #if 0
     /* Print out the parents. */
-    (void) fprintf(dd->out,
-		   "Crossover of %d (mom) and %d (dad) between %d and %d\n",
+    Rprintf("Crossover of %d (mom) and %d (dad) between %d and %d\n",
 		   mom,dad,cut1,cut2);
     for (i = 0; i < info->numvars; i++) {
-	if (i == cut1 || i == cut2) (void) fprintf(dd->out,"|");
-	(void) fprintf(dd->out,"%2d ",STOREDD(info,mom,i));
+	if (i == cut1 || i == cut2) Rprintf("|");
+	Rprintf("%2d ",STOREDD(info,mom,i));
     }
-    (void) fprintf(dd->out,"\n");
+    Rprintf("\n");
     for (i = 0; i < info->numvars; i++) {
-	if (i == cut1 || i == cut2) (void) fprintf(dd->out,"|");
-	(void) fprintf(dd->out,"%2d ",STOREDD(info,dad,i));
+	if (i == cut1 || i == cut2) Rprintf("|");
+	Rprintf("%2d ",STOREDD(info,dad,i));
     }
-    (void) fprintf(dd->out,"\n");
+    Rprintf("\n");
 #endif
 
     /* Initialize the inverse permutations: -1 means yet undetermined. */
@@ -827,15 +827,15 @@ PMX(
 #if 0
     /* Print the results of crossover. */
     for (i = 0; i < info->numvars; i++) {
-	if (i == cut1 || i == cut2) (void) fprintf(table->out,"|");
-	(void) fprintf(table->out,"%2d ",STOREDD(info,info->popsize,i));
+	if (i == cut1 || i == cut2) Rprintf("|");
+	Rprintf("%2d ",STOREDD(info,info->popsize,i));
     }
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
     for (i = 0; i < info->numvars; i++) {
-	if (i == cut1 || i == cut2) (void) fprintf(table->out,"|");
-	(void) fprintf(table->out,"%2d ",STOREDD(info,info->popsize+1,i));
+	if (i == cut1 || i == cut2) Rprintf("|");
+	Rprintf("%2d ",STOREDD(info,info->popsize+1,i));
     }
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
 #endif
 
     FREE(inv1);

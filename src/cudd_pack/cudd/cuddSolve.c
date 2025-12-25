@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -115,8 +116,7 @@ Cudd_SolveEqn(
     *yIndex = temp = ALLOC(int, n);
     if (temp == NULL) {
 	bdd->errorCode = CUDD_MEMORY_OUT;
-	(void) fprintf(bdd->out,
-		       "Cudd_SolveEqn: Out of memory for yIndex\n");
+	Rprintf("Cudd_SolveEqn: Out of memory for yIndex\n");
 	return(NULL);
     }
 
@@ -343,4 +343,3 @@ cuddVerifySol(
 /*---------------------------------------------------------------------------*/
 /* Definition of static functions                                            */
 /*---------------------------------------------------------------------------*/
-

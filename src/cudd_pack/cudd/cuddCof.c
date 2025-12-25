@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -109,7 +110,7 @@ Cudd_Cofactor(
 
     zero = Cudd_Not(DD_ONE(dd));
     if (g == zero || g == DD_ZERO(dd)) {
-	(void) fprintf(dd->err,"Cudd_Cofactor: Invalid restriction 1\n");
+	REprintf("Cudd_Cofactor: Invalid restriction 1\n");
 	dd->errorCode = CUDD_INVALID_ARG;
 	return(NULL);
     }
@@ -308,8 +309,7 @@ cuddCofactorRecur(
 	} else if (g1 == zero || g1 == DD_ZERO(dd)) {
 	    r = cuddCofactorRecur(dd, f0, g0);
 	} else {
-	    (void) fprintf(dd->err,
-			   "Cudd_Cofactor: Invalid restriction 2\n");
+	    REprintf("Cudd_Cofactor: Invalid restriction 2\n");
 	    dd->errorCode = CUDD_INVALID_ARG;
 	    return(NULL);
 	}

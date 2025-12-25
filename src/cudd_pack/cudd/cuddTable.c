@@ -46,6 +46,8 @@
 #include "util.h"
 #include "mtrInt.h"
 #include "cuddInt.h"
+#include <R_ext/Error.h>
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -285,9 +287,8 @@ cuddAllocNode(
 			(*MMoutOfMemory)(sizeof(DdNode)*(DD_MEM_CHUNK + 1));
 			unique->errorCode = CUDD_MEMORY_OUT;
 #ifdef DD_VERBOSE
-			(void) fprintf(unique->err,
-				       "cuddAllocNode: out of memory");
-			(void) fprintf(unique->err, "Memory in use = %lu\n",
+			REprintf("cuddAllocNode: out of memory");
+			REprintf("Memory in use = %lu\n",
 				       unique->memused);
 #endif
 			return(NULL);
@@ -615,8 +616,8 @@ cuddInitTable(
     unique->postGCHook = NULL;
     unique->preReorderingHook = NULL;
     unique->postReorderingHook = NULL;
-    unique->out = stdout;
-    unique->err = stderr;
+    unique->out = NULL;
+    unique->err = NULL;
     unique->errorCode = CUDD_NO_ERROR;
     unique->startTime = util_cpu_time();
     unique->timeLimit = ~0UL;
@@ -790,8 +791,8 @@ cuddGarbageCollect(
 	unique->slots <= unique->looseUpTo && unique->stash != NULL) {
 	unique->minDead = (unsigned) (DD_GC_FRAC_HI * (double) unique->slots);
 #ifdef DD_VERBOSE
-	(void) fprintf(unique->err,"GC fraction = %.2f\t", DD_GC_FRAC_HI);
-	(void) fprintf(unique->err,"minDead = %d\n", unique->minDead);
+	REprintf("GC fraction = %.2f\t", DD_GC_FRAC_HI);
+	REprintf("minDead = %d\n", unique->minDead);
 #endif
 	unique->gcFrac = DD_GC_FRAC_HI;
 	return(0);
@@ -801,11 +802,9 @@ cuddGarbageCollect(
 
     unique->garbageCollections++;
 #ifdef DD_VERBOSE
-    (void) fprintf(unique->err,
-		   "garbage collecting (%d dead BDD nodes out of %d, min %d)...",
+    REprintf("garbage collecting (%d dead BDD nodes out of %d, min %d)...",
 		   unique->dead, unique->keys, unique->minDead);
-    (void) fprintf(unique->err,
-		   "                   (%d dead ZDD nodes out of %d)...",
+    REprintf("                   (%d dead ZDD nodes out of %d)...",
 		   unique->deadZ, unique->keysZ);
 #endif
 
@@ -1004,7 +1003,7 @@ cuddGarbageCollect(
     }
 
 #ifdef DD_VERBOSE
-    (void) fprintf(unique->err," done\n");
+    REprintf(" done\n");
 #endif
 
     return(totalDeleted+totalDeletedZ);
@@ -1610,8 +1609,8 @@ cuddRehash(
 	unique->gcFrac = DD_GC_FRAC_LO;
 	unique->minDead = (unsigned) (DD_GC_FRAC_LO * (double) unique->slots);
 #ifdef DD_VERBOSE
-	(void) fprintf(unique->err,"GC fraction = %.2f\t", DD_GC_FRAC_LO);
-	(void) fprintf(unique->err,"minDead = %d\n", unique->minDead);
+	REprintf("GC fraction = %.2f\t", DD_GC_FRAC_LO);
+	REprintf("minDead = %d\n", unique->minDead);
 #endif
     }
 
@@ -1619,8 +1618,8 @@ cuddRehash(
 	unique->gcFrac = DD_GC_FRAC_MIN;
 	unique->minDead = (unsigned) (DD_GC_FRAC_MIN * (double) unique->slots);
 #ifdef DD_VERBOSE
-	(void) fprintf(unique->err,"GC fraction = %.2f\t", DD_GC_FRAC_MIN);
-	(void) fprintf(unique->err,"minDead = %d\n", unique->minDead);
+	REprintf("GC fraction = %.2f\t", DD_GC_FRAC_MIN);
+	REprintf("minDead = %d\n", unique->minDead);
 #endif
 	cuddShrinkDeathRow(unique);
 	if (cuddGarbageCollect(unique,1) > 0) return;
@@ -1640,8 +1639,7 @@ cuddRehash(
 	nodelist = ALLOC(DdNodePtr, slots);
 	MMoutOfMemory = saveHandler;
 	if (nodelist == NULL) {
-	    (void) fprintf(unique->err,
-			   "Unable to resize subtable %d for lack of memory\n",
+	    REprintf("Unable to resize subtable %d for lack of memory\n",
 			   i);
 	    /* Prevent frequent resizing attempts. */
 	    (void) cuddGarbageCollect(unique,1);
@@ -1685,8 +1683,7 @@ cuddRehash(
 	FREE(oldnodelist);
 
 #ifdef DD_VERBOSE
-	(void) fprintf(unique->err,
-		       "rehashing layer %d: keys %d dead %d new size %d\n",
+	REprintf("rehashing layer %d: keys %d dead %d new size %d\n",
 		       i, unique->subtables[i].keys,
 		       unique->subtables[i].dead, slots);
 #endif
@@ -1707,8 +1704,7 @@ cuddRehash(
 	nodelist = ALLOC(DdNodePtr, slots);
 	MMoutOfMemory = saveHandler;
 	if (nodelist == NULL) {
-	    (void) fprintf(unique->err,
-			   "Unable to resize constant subtable for lack of memory\n");
+	    REprintf("Unable to resize constant subtable for lack of memory\n");
 	    (void) cuddGarbageCollect(unique,1);
 	    for (j = 0; j < unique->size; j++) {
 		unique->subtables[j].maxKeys <<= 1;
@@ -1737,8 +1733,7 @@ cuddRehash(
 	FREE(oldnodelist);
 
 #ifdef DD_VERBOSE
-	(void) fprintf(unique->err,
-		       "rehashing constants: keys %d dead %d new size %d\n",
+	REprintf("rehashing constants: keys %d dead %d new size %d\n",
 		       unique->constants.keys,unique->constants.dead,slots);
 #endif
     }
@@ -1789,8 +1784,7 @@ cuddShrinkSubtable(
     unique->subtables[i].shift++;
     unique->subtables[i].maxKeys = slots * DD_MAX_SUBTABLE_DENSITY;
 #ifdef DD_VERBOSE
-    (void) fprintf(unique->err,
-		   "shrunk layer %d (%d keys) from %d to %d slots\n",
+    REprintf("shrunk layer %d (%d keys) from %d to %d slots\n",
 		   i, unique->subtables[i].keys, oldslots, slots);
 #endif
 
@@ -1935,8 +1929,7 @@ cuddInsertSubtables(
 	*/
 	newsize = oldsize + n + DD_DEFAULT_RESIZE;
 #ifdef DD_VERBOSE
-	(void) fprintf(unique->err,
-		       "Increasing the table size from %d to %d\n",
+	REprintf("Increasing the table size from %d to %d\n",
 	    unique->maxSize, newsize);
 #endif
 	/* Allocate memory for new arrays (except nodelists). */
@@ -2347,8 +2340,7 @@ cuddResizeTableZdd(
 	*/
 	newsize = index + DD_DEFAULT_RESIZE;
 #ifdef DD_VERBOSE
-	(void) fprintf(unique->err,
-		       "Increasing the ZDD table size from %d to %d\n",
+	REprintf("Increasing the ZDD table size from %d to %d\n",
 	    unique->maxSizeZ, newsize);
 #endif
 	newsubtables = ALLOC(DdSubtable,newsize);
@@ -2462,9 +2454,9 @@ cuddSlowTableGrowth(
     unique->minDead = (unsigned) (DD_GC_FRAC_MIN * (double) unique->slots);
     cuddShrinkDeathRow(unique);
 #ifdef DD_VERBOSE
-    (void) fprintf(unique->err,"CUDD: slowing down table growth: ");
-    (void) fprintf(unique->err,"GC fraction = %.2f\t", unique->gcFrac);
-    (void) fprintf(unique->err,"minDead = %u\n", unique->minDead);
+    REprintf("CUDD: slowing down table growth: ");
+    REprintf("GC fraction = %.2f\t", unique->gcFrac);
+    REprintf("minDead = %u\n", unique->minDead);
 #endif
 
 } /* end of cuddSlowTableGrowth */
@@ -2500,9 +2492,9 @@ ddRehashZdd(
 	unique->minDead = (unsigned) (DD_GC_FRAC_LO * (double) unique->slots);
 #ifdef DD_VERBOSE
 	if (unique->gcFrac == DD_GC_FRAC_HI) {
-	    (void) fprintf(unique->err,"GC fraction = %.2f\t",
+	    REprintf("GC fraction = %.2f\t",
 			   DD_GC_FRAC_LO);
-	    (void) fprintf(unique->err,"minDead = %d\n", unique->minDead);
+	    REprintf("minDead = %d\n", unique->minDead);
 	}
 #endif
 	unique->gcFrac = DD_GC_FRAC_LO;
@@ -2528,8 +2520,7 @@ ddRehashZdd(
     nodelist = ALLOC(DdNodePtr, slots);
     MMoutOfMemory = saveHandler;
     if (nodelist == NULL) {
-	(void) fprintf(unique->err,
-		       "Unable to resize ZDD subtable %d for lack of memory.\n",
+	REprintf("Unable to resize ZDD subtable %d for lack of memory.\n",
 		       i);
 	(void) cuddGarbageCollect(unique,1);
 	for (j = 0; j < unique->sizeZ; j++) {
@@ -2557,8 +2548,7 @@ ddRehashZdd(
     FREE(oldnodelist);
 
 #ifdef DD_VERBOSE
-    (void) fprintf(unique->err,
-		   "rehashing layer %d: keys %d dead %d new size %d\n",
+    REprintf("rehashing layer %d: keys %d dead %d new size %d\n",
 		   i, unique->subtableZ[i].keys,
 		   unique->subtableZ[i].dead, slots);
 #endif
@@ -2646,8 +2636,7 @@ ddResizeTable(
 	*/
 	newsize = (index < 0) ? amount + oldsize : index + amount;
 #ifdef DD_VERBOSE
-	(void) fprintf(unique->err,
-		       "Increasing the table size from %d to %d\n",
+	REprintf("Increasing the table size from %d to %d\n",
 		       unique->maxSize, newsize);
 #endif
 	newsubtables = ALLOC(DdSubtable,newsize);
@@ -3169,8 +3158,7 @@ cuddCheckCollisionOrdering(
     while (next != sentinel) {
 	if (cuddT(node) < cuddT(next) ||
 	    (cuddT(node) == cuddT(next) && cuddE(node) < cuddE(next))) {
-	    (void) fprintf(unique->err,
-			   "Unordered list: index %u, position %d\n", i, j);
+	    REprintf("Unordered list: index %u, position %d\n", i, j);
 	    return(0);
 	}
 	node = next;
@@ -3199,16 +3187,23 @@ ddReportRefMess(
   const char *caller /**< procedure that detected the problem */)
 {
     if (i == CUDD_CONST_INDEX) {
-	(void) fprintf(unique->err,
-			   "%s: problem in constants\n", caller);
+	Rf_error("%s: problem in constants. Dead count != deleted. "
+                 "This problem is often due to a missing call to Cudd_Ref "
+                 "or to an extra call to Cudd_RecursiveDeref. "
+                 "See the CUDD Programmer's Guide for additional details.",
+                 caller);
     } else if (i != -1) {
-	(void) fprintf(unique->err,
-			   "%s: problem in table %d\n", caller, i);
+	Rf_error("%s: problem in table %d. Dead count != deleted. "
+                 "This problem is often due to a missing call to Cudd_Ref "
+                 "or to an extra call to Cudd_RecursiveDeref. "
+                 "See the CUDD Programmer's Guide for additional details.",
+                 caller, i);
+    } else {
+	Rf_error("%s: problem in reference counts. Dead count != deleted. "
+                 "This problem is often due to a missing call to Cudd_Ref "
+                 "or to an extra call to Cudd_RecursiveDeref. "
+                 "See the CUDD Programmer's Guide for additional details.",
+                 caller);
     }
-    (void) fprintf(unique->err, "  dead count != deleted\n");
-    (void) fprintf(unique->err, "  This problem is often due to a missing \
-call to Cudd_Ref\n  or to an extra call to Cudd_RecursiveDeref.\n  \
-See the CUDD Programmer's Guide for additional details.");
-    abort();
 
 } /* end of ddReportRefMess */

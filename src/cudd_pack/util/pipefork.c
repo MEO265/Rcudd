@@ -66,11 +66,13 @@
 */
 
 #include "config.h"
+#include "util.h"
 #if HAVE_UNISTD_H == 1
 #define _POSIX_SOURCE
 #include <unistd.h>
 #endif
 #include <stdio.h>
+#include <R_ext/Print.h>
 #if HAVE_SYS_WAIT_H == 1
 #include <sys/wait.h>
 #endif
@@ -125,7 +127,7 @@ util_pipefork(
 	(void) close(frompipe[1]);
 
 	(void) execvp(argv[0], argv);
-	(void) sprintf(buffer, "util_pipefork: can not exec %s", argv[0]);
+    (void) snprintf(buffer, sizeof(buffer), "util_pipefork: can not exec %s", argv[0]);
 	perror(buffer);
 	(void) _exit(1);
     }
@@ -154,8 +156,7 @@ util_pipefork(
     (void) toCommand;   /* to avoid warning */
     (void) fromCommand; /* to avoid warning */
     (void) pid;         /* to avoid warning */
-    (void) fprintf(stderr, 
-	"util_pipefork: not implemented on your operating system\n");
+    REprintf("util_pipefork: not implemented on your operating system\n");
     return 0;
 #endif
 }

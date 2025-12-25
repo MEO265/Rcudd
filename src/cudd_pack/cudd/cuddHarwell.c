@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -187,14 +188,14 @@ Cudd_addHarwell(
 
     /* Print out some stuff if requested to be verbose */
     if (pr>0) {
-	(void) fprintf(dd->out,"%s: type %s, %d rows, %d columns, %d entries\n", key,
+	Rprintf("%s: type %s, %d rows, %d columns, %d entries\n", key,
 	mxtype, nrow, ncol, nnzero);
-	if (pr>1) (void) fprintf(dd->out,"%s\n", title);
+	if (pr>1) Rprintf("%s\n", title);
     }
 
     /* Check matrix type */
     if (mxtype[0] != 'R' || mxtype[1] != 'U' || mxtype[2] != 'A') {
-	(void) fprintf(dd->err,"%s: Illegal matrix type: %s\n",
+	REprintf("%s: Illegal matrix type: %s\n",
 		       key, mxtype);
 	return(0);
     }
@@ -210,11 +211,11 @@ Cudd_addHarwell(
 	}
 	rhstyp[3] = (char) 0;
 	if (rhstyp[0] != 'F') {
-	    (void) fprintf(dd->err,
+	    REprintf(
 	    "%s: Sparse right-hand side not yet supported\n", key);
 	    return(0);
 	}
-	if (pr>0) (void) fprintf(dd->out,"%d right-hand side(s)\n", nrhs);
+	if (pr>0) Rprintf("%d right-hand side(s)\n", nrhs);
     } else {
 	nrhs = 0;
     }
@@ -385,7 +386,7 @@ Cudd_addHarwell(
 	colptr[i] = u - 1;
     }
     if (colptr[0] != 0) {
-	(void) fprintf(dd->err,"%s: Unexpected colptr[0] (%d)\n",
+	REprintf("%s: Unexpected colptr[0] (%d)\n",
 		       key,colptr[0]);
 	FREE(colptr);
 	FREE(rowind);
@@ -575,4 +576,3 @@ Cudd_addHarwell(
 /*---------------------------------------------------------------------------*/
 /* Definition of static functions                                            */
 /*---------------------------------------------------------------------------*/
-

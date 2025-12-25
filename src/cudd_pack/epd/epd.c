@@ -44,8 +44,11 @@
 */
 
 #include <math.h>
+#include <stddef.h>
 #include "util.h"
 #include "epdInt.h"
+
+#define EPD_STRING_SIZE 24
 
 
 /**
@@ -104,13 +107,13 @@ EpdGetString(EpDouble const *epd, char *str)
   if (!str) return;
 
   if (IsNanDouble(epd->type.value)) {
-    sprintf(str, "NaN");
+    snprintf(str, EPD_STRING_SIZE, "NaN");
     return;
   } else if (IsInfDouble(epd->type.value)) {
     if (epd->type.bits.sign == 1)
-      sprintf(str, "-inf");
+      snprintf(str, EPD_STRING_SIZE, "-inf");
     else
-      sprintf(str, "inf");
+      snprintf(str, EPD_STRING_SIZE, "inf");
     return;
   }
 
@@ -118,19 +121,21 @@ EpdGetString(EpDouble const *epd, char *str)
 	 epd->type.bits.exponent == 0);
 
   EpdGetValueAndDecimalExponent(epd, &value, &exponent);
-  sprintf(str, "%e", value);
+  snprintf(str, EPD_STRING_SIZE, "%e", value);
   pos = strstr(str, "e");
   if (exponent >= 0) {
+    size_t remaining = EPD_STRING_SIZE - (size_t)(pos + 1 - str);
     if (exponent < 10)
-      sprintf(pos + 1, "+0%d", exponent);
+      snprintf(pos + 1, remaining, "+0%d", exponent);
     else
-      sprintf(pos + 1, "+%d", exponent);
+      snprintf(pos + 1, remaining, "+%d", exponent);
   } else {
     exponent *= -1;
+    size_t remaining = EPD_STRING_SIZE - (size_t)(pos + 1 - str);
     if (exponent < 10)
-      sprintf(pos + 1, "-0%d", exponent);
+      snprintf(pos + 1, remaining, "-0%d", exponent);
     else
-      sprintf(pos + 1, "-%d", exponent);
+      snprintf(pos + 1, remaining, "-%d", exponent);
   }
 }
 
@@ -889,7 +894,7 @@ EpdGetExponentDecimal(double value)
   char	*pos, str[24];
   int	exponent;
 
-  sprintf(str, "%E", value);
+  snprintf(str, sizeof(str), "%E", value);
   pos = strstr(str, "E");
   sscanf(pos, "E%d", &exponent);
   return(exponent);

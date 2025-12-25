@@ -49,6 +49,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -500,12 +501,10 @@ Cudd_ApaPrintHex(
   int digits,
   DdConstApaNumber number)
 {
-    int i, result;
+    int i;
 
     for (i = 0; i < digits; i++) {
-        result = fprintf(fp, "%0*x", (int) sizeof(DdApaDigit) * 2, number[i]);
-	if (result == EOF)
-	    return(0);
+        Rprintf("%0*x", (int) sizeof(DdApaDigit) * 2, number[i]);
     }
     return(1);
 
@@ -528,7 +527,7 @@ Cudd_ApaPrintDecimal(
   int digits,
   DdConstApaNumber number)
 {
-    int i, result;
+    int i;
     DdApaDigit remainder;
     DdApaNumber work;
     unsigned char *decimal;
@@ -554,11 +553,7 @@ Cudd_ApaPrintDecimal(
     for (i = 0; i < decimalDigits; i++) {
 	leadingzero = leadingzero && (decimal[i] == 0);
 	if ((!leadingzero) || (i == (decimalDigits - 1))) {
-	    result = fprintf(fp,"%1d",decimal[i]);
-	    if (result == EOF) {
-		FREE(decimal);
-		return(0);
-	    }
+	    Rprintf("%1d",decimal[i]);
 	}
     }
     FREE(decimal);
@@ -646,7 +641,7 @@ Cudd_ApaPrintExponential(
   DdConstApaNumber number,
   int precision)
 {
-    int i, first, last, result;
+    int i, first, last;
     DdApaDigit remainder;
     DdApaNumber work;
     unsigned char *decimal, carry;
@@ -675,11 +670,7 @@ Cudd_ApaPrintExponential(
     /* See if we can print as integer. */
     if (decimalDigits - first <= precision) {
         for (i = first; i < last; i++) {
-            result = fprintf(fp,"%1d", decimal[i]);
-            if (result == EOF) {
-                FREE(decimal);
-                return(0);
-            }
+            Rprintf("%1d", decimal[i]);
         }
         FREE(decimal);
         return(1);
@@ -726,17 +717,10 @@ Cudd_ApaPrintExponential(
 
     /* Print. */
     for (i = first; i < last; i++) {
-	result = fprintf(fp,"%s%1d",i == first+1 ? "." : "", decimal[i]);
-	if (result == EOF) {
-	    FREE(decimal);
-	    return(0);
-	}
+	Rprintf("%s%1d",i == first+1 ? "." : "", decimal[i]);
     }
     FREE(decimal);
-    result = fprintf(fp,"e+%02d",decimalDigits - first - 1);
-    if (result == EOF) {
-	return(0);
-    }
+    Rprintf("e+%02d",decimalDigits - first - 1);
     return(1);
 
 } /* end of Cudd_ApaPrintExponential */
@@ -846,9 +830,7 @@ Cudd_ApaPrintMinterm(
 	return(0);
     result = Cudd_ApaPrintDecimal(fp,digits,count);
     FREE(count);
-    if (fprintf(fp,"\n") == EOF) {
-	return(0);
-    }
+    Rprintf("\n");
     return(result);
 
 } /* end of Cudd_ApaPrintMinterm */
@@ -885,9 +867,7 @@ Cudd_ApaPrintMintermExp(
 	return(0);
     result = Cudd_ApaPrintExponential(fp,digits,count,precision);
     FREE(count);
-    if (fprintf(fp,"\n") == EOF) {
-	return(0);
-    }
+    Rprintf("\n");
     return(result);
 
 } /* end of Cudd_ApaPrintMintermExp */
@@ -924,9 +904,7 @@ Cudd_ApaPrintDensity(
     FREE(count);
     FREE(density);
     fractional = (unsigned int)((double)remainder / size * 1000000);
-    if (fprintf(fp,".%u\n", fractional) == EOF) {
-	return(0);
-    }
+    Rprintf(".%u\n", fractional);
     return(result);
 
 } /* end of Cudd_ApaPrintDensity */

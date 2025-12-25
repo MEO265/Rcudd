@@ -64,6 +64,7 @@
 
 #define _DEFAULT_SOURCE
 #include "util.h"
+#include <R_ext/Print.h>
 
 #if HAVE_SYS_TIME_H == 1
 #include <sys/time.h>
@@ -180,60 +181,60 @@ util_print_cpu_stats(FILE *fp)
 #endif
 
 #if (HAVE_GETRUSAGE == 1 && HAVE_GETRLIMIT == 1) || defined(_WIN32)
-    (void) fprintf(fp, "Runtime Statistics\n");
-    (void) fprintf(fp, "------------------\n");
-    (void) fprintf(fp, "Machine name: %s\n", hostname);
-    (void) fprintf(fp, "User time   %6.1f seconds\n", user);
-    (void) fprintf(fp, "System time %6.1f seconds\n\n", system);
+    Rprintf("Runtime Statistics\n");
+    Rprintf("------------------\n");
+    Rprintf("Machine name: %s\n", hostname);
+    Rprintf("User time   %6.1f seconds\n", user);
+    Rprintf("System time %6.1f seconds\n\n", system);
 
 #if HAVE_GETRUSAGE == 1 && HAVE_GETRLIMIT == 1
-    (void) fprintf(fp, "Average resident text size       = %5ldK\n", text);
-    (void) fprintf(fp, "Average resident data+stack size = %5ldK\n", data);
-    (void) fprintf(fp, "Maximum resident size            = %5ldK\n\n",
-	rusage.ru_maxrss);
+    Rprintf("Average resident text size       = %5ldK\n", text);
+    Rprintf("Average resident data+stack size = %5ldK\n", data);
+    Rprintf("Maximum resident size            = %5ldK\n\n",
+    rusage.ru_maxrss);
 #if defined(BSD)
-    (void) fprintf(fp, "Virtual text size                = %5ldK\n",
-	vm_text);
-    (void) fprintf(fp, "Virtual data size                = %5ldK\n",
-	vm_init_data + vm_uninit_data + vm_sbrk_data);
-    (void) fprintf(fp, "    data size initialized        = %5ldK\n",
-	vm_init_data);
-    (void) fprintf(fp, "    data size uninitialized      = %5ldK\n",
-	vm_uninit_data);
-    (void) fprintf(fp, "    data size sbrk               = %5ldK\n",
-	vm_sbrk_data);
+    Rprintf("Virtual text size                = %5ldK\n",
+    vm_text);
+    Rprintf("Virtual data size                = %5ldK\n",
+    vm_init_data + vm_uninit_data + vm_sbrk_data);
+    Rprintf("    data size initialized        = %5ldK\n",
+    vm_init_data);
+    Rprintf("    data size uninitialized      = %5ldK\n",
+    vm_uninit_data);
+    Rprintf("    data size sbrk               = %5ldK\n",
+    vm_sbrk_data);
 #endif
-    (void) fprintf(fp, "Virtual memory limit             = ");
+    Rprintf("Virtual memory limit             = ");
     if (rlp.rlim_cur == RLIM_INFINITY)
-        (void) fprintf(fp, "unlimited");
+        Rprintf("unlimited");
     else
-        (void) fprintf(fp, "%5ldK", vm_soft_limit);
+        Rprintf("%5ldK", vm_soft_limit);
     if (rlp.rlim_max == RLIM_INFINITY)
-        (void) fprintf(fp, " (unlimited)\n");
+        Rprintf(" (unlimited)\n");
     else
-        (void) fprintf(fp, " (%ldK)\n\n", vm_limit);
+        Rprintf(" (%ldK)\n\n", vm_limit);
 
-    (void) fprintf(fp, "Major page faults = %ld\n", rusage.ru_majflt);
-    (void) fprintf(fp, "Minor page faults = %ld\n", rusage.ru_minflt);
-    (void) fprintf(fp, "Swaps = %ld\n", rusage.ru_nswap);
-    (void) fprintf(fp, "Input blocks = %ld\n", rusage.ru_inblock);
-    (void) fprintf(fp, "Output blocks = %ld\n", rusage.ru_oublock);
-    (void) fprintf(fp, "Context switch (voluntary) = %ld\n", rusage.ru_nvcsw);
-    (void) fprintf(fp, "Context switch (involuntary) = %ld\n", rusage.ru_nivcsw);
+    Rprintf("Major page faults = %ld\n", rusage.ru_majflt);
+    Rprintf("Minor page faults = %ld\n", rusage.ru_minflt);
+    Rprintf("Swaps = %ld\n", rusage.ru_nswap);
+    Rprintf("Input blocks = %ld\n", rusage.ru_inblock);
+    Rprintf("Output blocks = %ld\n", rusage.ru_oublock);
+    Rprintf("Context switch (voluntary) = %ld\n", rusage.ru_nvcsw);
+    Rprintf("Context switch (involuntary) = %ld\n", rusage.ru_nivcsw);
 #else
-    (void) fprintf(fp, "Maximum resident size            = ");
+    Rprintf("Maximum resident size            = ");
     if (peak_working_set == 0)
-	(void) fprintf(fp, "unavailable\n");
+    Rprintf("unavailable\n");
     else
-	(void) fprintf(fp, "%" PRIszt "K\n", peak_working_set);
-    (void) fprintf(fp, "Virtual memory limit             = ");
+    Rprintf("%" PRIszt "K\n", peak_working_set);
+    Rprintf("Virtual memory limit             = ");
     if (vm_limit == 0)
-	(void) fprintf(fp, "unavailable\n");
+    Rprintf("unavailable\n");
     else
-	(void) fprintf(fp, "%5" PRIszt "K\n", vm_limit);
-    (void) fprintf(fp, "Page faults       = %ld\n", page_faults);
+    Rprintf("%5" PRIszt "K\n", vm_limit);
+    Rprintf("Page faults       = %ld\n", page_faults);
 #endif
 #else
-    (void) fprintf(fp, "Usage statistics not available\n");
+    Rprintf("Usage statistics not available\n");
 #endif
 }

@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -115,9 +116,9 @@ Cudd_SymmProfile(
     for (i = lower; i <= upper; i++) {
 	if (table->subtables[i].next != (unsigned) i) {
 	    x = i;
-	    (void) fprintf(table->out,"Group:");
+	    Rprintf("Group:");
 	    do {
-		(void) fprintf(table->out,"  %d",table->invperm[x]);
+		Rprintf("  %d",table->invperm[x]);
 		TotalSymm++;
 		gbot = x;
 		x = table->subtables[x].next;
@@ -127,11 +128,11 @@ Cudd_SymmProfile(
 	    assert(table->subtables[gbot].next == (unsigned) i);
 #endif
 	    i = gbot;
-	    (void) fprintf(table->out,"\n");
+	    Rprintf("\n");
 	}
     }
-    (void) fprintf(table->out,"Total Symmetric = %d\n",TotalSymm);
-    (void) fprintf(table->out,"Total Groups = %d\n",TotalSymmGroups);
+    Rprintf("Total Symmetric = %d\n",TotalSymm);
+    Rprintf("Total Groups = %d\n",TotalSymmGroups);
 
 } /* end of Cudd_SymmProfile */
 
@@ -248,8 +249,7 @@ cuddSymmCheck(
 #if defined(DD_DEBUG) && defined(DD_VERBOSE)
     if (arccount == TotalRefCount) {
 	xindex = table->invperm[x];
-	(void) fprintf(table->out,
-		       "Found symmetry! x =%d\ty = %d\tPos(%d,%d)\n",
+	Rprintf("Found symmetry! x =%d\ty = %d\tPos(%d,%d)\n",
 		       xindex,yindex,x,y);
     }
 #endif
@@ -341,12 +341,12 @@ cuddSymmSifting(
 	    if (!result) goto ddSymmSiftingOutOfMem;
 #ifdef DD_STATS
 	    if (table->keys < (unsigned) previousSize + table->isolated) {
-		(void) fprintf(table->out,"-");
+		Rprintf("-");
 	    } else if (table->keys > (unsigned) previousSize +
 		       table->isolated) {
-		(void) fprintf(table->out,"+"); /* should never happen */
+		Rprintf("+"); /* should never happen */
 	    } else {
-		(void) fprintf(table->out,"=");
+		Rprintf("=");
 	    }
 	    fflush(table->out);
 #endif
@@ -358,9 +358,9 @@ cuddSymmSifting(
     ddSymmSummary(table, lower, upper, &symvars, &symgroups);
 
 #ifdef DD_STATS
-    (void) fprintf(table->out, "\n#:S_SIFTING %8d: symmetric variables\n",
+    Rprintf("\n#:S_SIFTING %8d: symmetric variables\n",
 		   symvars);
-    (void) fprintf(table->out, "#:G_SIFTING %8d: symmetric groups",
+    Rprintf("#:G_SIFTING %8d: symmetric groups",
 		   symgroups);
 #endif
 
@@ -465,12 +465,12 @@ cuddSymmSiftingConv(
 	    if (!result) goto ddSymmSiftingConvOutOfMem;
 #ifdef DD_STATS
 	    if (table->keys < (unsigned) previousSize + table->isolated) {
-		(void) fprintf(table->out,"-");
+		Rprintf("-");
 	    } else if (table->keys > (unsigned) previousSize +
 		       table->isolated) {
-		(void) fprintf(table->out,"+");
+		Rprintf("+");
 	    } else {
-		(void) fprintf(table->out,"=");
+		Rprintf("=");
 	    }
 	    fflush(table->out);
 #endif
@@ -481,7 +481,7 @@ cuddSymmSiftingConv(
     while ((unsigned) initialSize > table->keys - table->isolated) {
       initialSize = (int) (table->keys - table->isolated);
 #ifdef DD_STATS
-	(void) fprintf(table->out,"\n");
+	Rprintf("\n");
 #endif
 	/* Here we consider only one representative for each symmetry class. */
 	for (x = lower, classes = 0; x <= upper; x++, classes++) {
@@ -521,12 +521,12 @@ cuddSymmSiftingConv(
 		if (!result ) goto ddSymmSiftingConvOutOfMem;
 #ifdef DD_STATS
 		if (table->keys < (unsigned) previousSize + table->isolated) {
-		    (void) fprintf(table->out,"-");
+		    Rprintf("-");
 		} else if (table->keys > (unsigned) previousSize +
 			   table->isolated) {
-		    (void) fprintf(table->out,"+");
+		    Rprintf("+");
 		} else {
-		    (void) fprintf(table->out,"=");
+		    Rprintf("=");
 		}
 		fflush(table->out);
 #endif
@@ -537,9 +537,9 @@ cuddSymmSiftingConv(
     ddSymmSummary(table, lower, upper, &symvars, &symgroups);
 
 #ifdef DD_STATS
-    (void) fprintf(table->out, "\n#:S_SIFTING %8d: symmetric variables\n",
+    Rprintf("\n#:S_SIFTING %8d: symmetric variables\n",
 		   symvars);
-    (void) fprintf(table->out, "#:G_SIFTING %8d: symmetric groups",
+    Rprintf("#:G_SIFTING %8d: symmetric groups",
 		   symgroups);
 #endif
 

@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -108,7 +109,7 @@ Cudd_addExistAbstract(
     DdNode *res;
 
     if (addCheckPositiveCube(manager, cube) == 0) {
-        (void) fprintf(manager->err,"Error: Can only abstract cubes");
+        REprintf("Error: Can only abstract cubes");
         return(NULL);
     }
 
@@ -148,7 +149,7 @@ Cudd_addUnivAbstract(
     DdNode		*res;
 
     if (addCheckPositiveCube(manager, cube) == 0) {
-	(void) fprintf(manager->err,"Error:  Can only abstract cubes");
+    REprintf("Error:  Can only abstract cubes");
 	return(NULL);
     }
 
@@ -189,7 +190,7 @@ Cudd_addOrAbstract(
     DdNode *res;
 
     if (addCheckPositiveCube(manager, cube) == 0) {
-        (void) fprintf(manager->err,"Error: Can only abstract cubes");
+        REprintf("Error: Can only abstract cubes");
         return(NULL);
     }
 

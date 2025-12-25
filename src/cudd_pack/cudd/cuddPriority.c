@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 
 /*---------------------------------------------------------------------------*/
@@ -1157,7 +1158,7 @@ Cudd_CProjection(
     DdNode *support;
 
     if (Cudd_CheckCube(dd,Y) == 0) {
-	(void) fprintf(dd->err,
+	REprintf(
 	"Error: The third argument of Cudd_CProjection should be a cube\n");
 	dd->errorCode = CUDD_INVALID_ARG;
 	return(NULL);

@@ -46,6 +46,8 @@
 #include "util.h"
 #include "mtrInt.h"
 #include "cuddInt.h"
+#include <R_ext/Error.h>
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -224,7 +226,7 @@ cuddTreeSifting(
 
 #ifdef DD_DEBUG
     if (table->enableExtraDebug > 0 && !tempTree)
-        (void) fprintf(table->out,"cuddTreeSifting:");
+        Rprintf("cuddTreeSifting:");
     Mtr_PrintGroups(table->tree,table->enableExtraDebug <= 0);
 #endif
 
@@ -235,10 +237,10 @@ cuddTreeSifting(
     table->secdiff = 0;
     table->secdiffmisfire = 0;
 
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
     if (!tempTree)
-	(void) fprintf(table->out,"#:IM_NODES  %8d: group tree nodes\n",
-		       ddCountInternalMtrNodes(table,table->tree));
+	Rprintf("#:IM_NODES  %8d: group tree nodes\n",
+	        ddCountInternalMtrNodes(table,table->tree));
 #endif
 
     /* Initialize the group of each subtable to itself. Initially
@@ -256,14 +258,14 @@ cuddTreeSifting(
     if (!tempTree && method == CUDD_REORDER_GROUP_SIFT &&
 	(table->groupcheck == CUDD_GROUP_CHECK7 ||
 	 table->groupcheck == CUDD_GROUP_CHECK5)) {
-	(void) fprintf(table->out,"\nextsymmcalls = %d\n",table->extsymmcalls);
-	(void) fprintf(table->out,"extsymm = %d",table->extsymm);
+	Rprintf("\nextsymmcalls = %d\n",table->extsymmcalls);
+	Rprintf("extsymm = %d",table->extsymm);
     }
     if (!tempTree && method == CUDD_REORDER_GROUP_SIFT &&
 	table->groupcheck == CUDD_GROUP_CHECK7) {
-	(void) fprintf(table->out,"\nsecdiffcalls = %d\n",table->secdiffcalls);
-	(void) fprintf(table->out,"secdiff = %d\n",table->secdiff);
-	(void) fprintf(table->out,"secdiffmisfire = %d",table->secdiffmisfire);
+	Rprintf("\nsecdiffcalls = %d\n",table->secdiffcalls);
+	Rprintf("secdiff = %d\n",table->secdiff);
+	Rprintf("secdiffmisfire = %d",table->secdiffmisfire);
     }
 #endif
 
@@ -403,7 +405,7 @@ ddReorderChildren(
 	result = 1;
     } else {
 #ifdef DD_STATS
-	(void) fprintf(table->out," ");
+		Rprintf(" ");
 #endif
 	switch (method) {
 	case CUDD_REORDER_RANDOM:
@@ -420,8 +422,8 @@ ddReorderChildren(
 		if (initialSize <= table->keys - table->isolated)
 		    break;
 #ifdef DD_STATS
-		else
-		    (void) fprintf(table->out,"\n");
+			else
+			    Rprintf("\n");
 #endif
 	    } while (result != 0);
 	    break;
@@ -442,10 +444,9 @@ ddReorderChildren(
 		result = ddGroupSifting(table,lower,upper,ddExtSymmCheck,
 					DD_NORMAL_SIFT);
 	    } else {
-		(void) fprintf(table->err,
-			       "Unknown group ckecking method\n");
-		result = 0;
-	    }
+			REprintf("Unknown group ckecking method\n");
+			result = 0;
+		    }
 	    break;
 	case CUDD_REORDER_GROUP_SIFT_CONV:
 	    do {
@@ -460,19 +461,18 @@ ddReorderChildren(
 		    (void) ddGroupSifting(table,lower,upper,ddExtSymmCheck,
                                           DD_NORMAL_SIFT);
 		} else {
-		    (void) fprintf(table->err,
-				   "Unknown group ckecking method\n");
-		}
+			    REprintf("Unknown group ckecking method\n");
+			}
 #ifdef DD_STATS
-		(void) fprintf(table->out,"\n");
+			Rprintf("\n");
 #endif
 		result = cuddWindowReorder(table,lower,upper,
 					   CUDD_REORDER_WINDOW4);
 		if (initialSize <= table->keys - table->isolated)
 		    break;
 #ifdef DD_STATS
-		else
-		    (void) fprintf(table->out,"\n");
+			else
+			    Rprintf("\n");
 #endif
 	    } while (result != 0);
 	    break;
@@ -500,8 +500,8 @@ ddReorderChildren(
 		if (initialSize <= table->keys - table->isolated)
 		    break;
 #ifdef DD_STATS
-		else
-		    (void) fprintf(table->out,"\n");
+			else
+			    Rprintf("\n");
 #endif
 	    } while (result != 0);
 	    break;
@@ -525,7 +525,7 @@ ddReorderChildren(
 
 #ifdef DD_DEBUG
     if (table->enableExtraDebug > 0)
-        (void) fprintf(table->out,"ddReorderChildren:");
+        Rprintf("ddReorderChildren:");
 #endif
 
     return(result);
@@ -771,25 +771,25 @@ ddGroupSifting(
 	    result = ddGroupSiftingAux(table,x,lower,upper,ddNoCheck,lazyFlag);
 	    if (!result) goto ddGroupSiftingOutOfMem;
 #ifdef DD_STATS
-	    if (table->keys < previousSize + table->isolated) {
-		(void) fprintf(table->out,"_");
-	    } else if (table->keys > previousSize + table->isolated) {
-		(void) fprintf(table->out,"^");
-	    } else {
-		(void) fprintf(table->out,"*");
-	    }
-	    fflush(table->out);
-	} else {
-	    if (table->keys < previousSize + table->isolated) {
-		(void) fprintf(table->out,"-");
-	    } else if (table->keys > previousSize + table->isolated) {
-		(void) fprintf(table->out,"+");
-	    } else {
-		(void) fprintf(table->out,"=");
-	    }
-	    fflush(table->out);
+    if (table->keys < previousSize + table->isolated) {
+	Rprintf("_");
+    } else if (table->keys > previousSize + table->isolated) {
+	Rprintf("^");
+    } else {
+	Rprintf("*");
+    }
+    R_FlushConsole();
+} else {
+    if (table->keys < previousSize + table->isolated) {
+	Rprintf("-");
+    } else if (table->keys > previousSize + table->isolated) {
+	Rprintf("+");
+    } else {
+	Rprintf("=");
+    }
+    R_FlushConsole();
 #endif
-	}
+}
 
 	/* Mark variables in the group just sifted. */
 	x = table->perm[xindex];
@@ -813,7 +813,7 @@ ddGroupSifting(
 
 #ifdef DD_DEBUG
 	if (table->enableExtraDebug > 0)
-            (void) fprintf(table->out,"ddGroupSifting:");
+            Rprintf("ddGroupSifting:");
 #endif
 
         if (lazyFlag) ddSetVarHandled(table, xindex);
@@ -900,8 +900,7 @@ ddGroupSiftingAux(
 
 #ifdef DD_DEBUG
     if (table->enableExtraDebug > 0)
-        (void) fprintf(table->out,
-                       "ddGroupSiftingAux from %d to %d\n",xLow,xHigh);
+        Rprintf("ddGroupSiftingAux from %d to %d\n",xLow,xHigh);
     assert((unsigned) x >= table->subtables[x].next); /* x is bottom of group */
 #endif
 
@@ -1140,9 +1139,8 @@ ddGroupSiftingUp(
 	    }
 	}
 	if (table->enableExtraDebug > 0 && L != checkL) {
-	    (void) fprintf(table->out,
-			   "Inaccurate lower bound: L = %d checkL = %d\n",
-			   L, checkL);
+	    Rprintf("Inaccurate lower bound: L = %d checkL = %d\n",
+	            L, checkL);
 	}
 #endif
 	gxtop = table->subtables[x].next;
@@ -1187,8 +1185,7 @@ ddGroupSiftingUp(
 
 #ifdef DD_DEBUG
 	    if (table->enableExtraDebug > 0)
-                (void) fprintf(table->out,
-                               "ddGroupSiftingUp (2 single groups):\n");
+                Rprintf("ddGroupSiftingUp (2 single groups):\n");
 #endif
 	    if ((double) size > (double) limitSize * table->maxGrowth)
 		return(1);
@@ -1350,9 +1347,8 @@ ddGroupSiftingDown(
 	    *moves = move;
 
 #ifdef DD_DEBUG
-	    if (table->enableExtraDebug > 0)
-                (void) fprintf(table->out,
-                               "ddGroupSiftingDown (2 single groups):\n");
+    if (table->enableExtraDebug > 0)
+                Rprintf("ddGroupSiftingDown (2 single groups):\n");
 #endif
 	    if ((double) size > (double) limitSize * table->maxGrowth)
 		return(1);
@@ -1463,7 +1459,7 @@ ddGroupMove(
     }
 #if defined(DD_DEBUG) && defined(DD_VERBOSE)
     if ((bestSize < initialSize) && (bestSize < size))
-	(void) fprintf(table->out,"Missed local minimum: initialSize:%d  bestSize:%d  finalSize:%d\n",initialSize,bestSize,size);
+	Rprintf("Missed local minimum: initialSize:%d  bestSize:%d  finalSize:%d\n",initialSize,bestSize,size);
 #endif
 
     /* fix groups */
@@ -1484,7 +1480,7 @@ ddGroupMove(
 				    /* it to top of its group */
 #ifdef DD_DEBUG
     if (table->enableExtraDebug > 0)
-        (void) fprintf(table->out,"ddGroupMove:\n");
+        Rprintf("ddGroupMove:\n");
 #endif
 
     /* Store group move */
@@ -1574,7 +1570,7 @@ ddGroupMoveBackward(
 				    /* to its top */
 #ifdef DD_DEBUG
     if (table->enableExtraDebug > 0)
-        (void) fprintf(table->out,"ddGroupMoveBackward:\n");
+        Rprintf("ddGroupMoveBackward:\n");
 #endif
 
     return(1);
@@ -1669,7 +1665,7 @@ ddGroupSiftingBackward(
 	    if (!res) return(0);
 #ifdef DD_DEBUG
 	    if (table->enableExtraDebug > 0)
-                (void) fprintf(table->out,"ddGroupSiftingBackward:\n");
+                Rprintf("ddGroupSiftingBackward:\n");
 	    assert(table->subtables[move->x].next == move->x);
 	    assert(table->subtables[move->y].next == move->y);
 #endif
@@ -1830,9 +1826,8 @@ ddSecDiffCheck(
 	yindex = table->invperm[y];
 	if (cuddTestInteract(table,xindex,yindex)) {
 #if defined(DD_DEBUG) && defined(DD_VERBOSE)
-	    (void) fprintf(table->out,
-			   "Second difference for %d = %g Pos(%d)\n",
-			   table->invperm[x],Sx,x);
+	    Rprintf("Second difference for %d = %g Pos(%d)\n",
+	            table->invperm[x],Sx,x);
 #endif
 #ifdef DD_STATS
 	    table->secdiff++;
@@ -1984,9 +1979,8 @@ ddExtSymmCheck(
 
 #if defined(DD_DEBUG) && defined(DD_VERBOSE)
     if (res) {
-	(void) fprintf(table->out,
-		       "Found extended symmetry! x = %d\ty = %d\tPos(%d,%d)\n",
-		       xindex,yindex,x,y);
+	Rprintf("Found extended symmetry! x = %d\ty = %d\tPos(%d,%d)\n",
+	        xindex,yindex,x,y);
     }
 #endif
 

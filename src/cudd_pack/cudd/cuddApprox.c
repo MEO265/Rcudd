@@ -52,6 +52,8 @@
 #endif
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Error.h>
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -503,7 +505,7 @@ cuddUnderApprox(
     int result;
 
     if (f == NULL) {
-	fprintf(dd->err, "Cannot subset, nil object\n");
+	REprintf("Cannot subset, nil object\n");
 	return(NULL);
     }
 
@@ -514,7 +516,7 @@ cuddUnderApprox(
     /* Create table where node data are accessible via a hash table. */
     info = gatherInfo(dd, f, numVars, safe);
     if (info == NULL) {
-	(void) fprintf(dd->err, "Out-of-memory; Cannot subset\n");
+	REprintf("Out-of-memory; Cannot subset\n");
 	dd->errorCode = CUDD_MEMORY_OUT;
 	return(NULL);
     }
@@ -522,7 +524,7 @@ cuddUnderApprox(
     /* Mark nodes that should be replaced by zero. */
     result = UAmarkNodes(dd, f, info, threshold, safe, quality);
     if (result == 0) {
-	(void) fprintf(dd->err, "Out-of-memory; Cannot subset\n");
+	REprintf("Out-of-memory; Cannot subset\n");
 	FREE(info->page);
 	cuddHashTableGenericQuit(info->table);
 	FREE(info);
@@ -534,8 +536,8 @@ cuddUnderApprox(
     subset = UAbuildSubset(dd, f, info);
 #if 1
     if (subset && info->size < Cudd_DagSize(subset))
-	(void) fprintf(dd->err, "Wrong prediction: %d versus actual %d\n",
-		       info->size, Cudd_DagSize(subset));
+	REprintf("Wrong prediction: %d versus actual %d\n",
+	         info->size, Cudd_DagSize(subset));
 #endif
     FREE(info->page);
     cuddHashTableGenericQuit(info->table);
@@ -549,7 +551,7 @@ cuddUnderApprox(
 	(void) Cudd_CheckKeys(dd);
 #endif
 	if (!Cudd_bddLeq(dd, subset, f)) {
-	    (void) fprintf(dd->err, "Wrong subset\n");
+	    REprintf("Wrong subset\n");
 	    dd->errorCode = CUDD_INTERNAL_ERROR;
 	}
 	cuddDeref(subset);
@@ -591,7 +593,7 @@ cuddRemapUnderApprox(
     int result;
 
     if (f == NULL) {
-	fprintf(dd->err, "Cannot subset, nil object\n");
+	REprintf("Cannot subset, nil object\n");
 	dd->errorCode = CUDD_INVALID_ARG;
 	return(NULL);
     }
@@ -603,7 +605,7 @@ cuddRemapUnderApprox(
     /* Create table where node data are accessible via a hash table. */
     info = gatherInfo(dd, f, numVars, CUDD_TRUE);
     if (info == NULL) {
-	(void) fprintf(dd->err, "Out-of-memory; Cannot subset\n");
+	REprintf("Out-of-memory; Cannot subset\n");
 	dd->errorCode = CUDD_MEMORY_OUT;
 	return(NULL);
     }
@@ -611,7 +613,7 @@ cuddRemapUnderApprox(
     /* Mark nodes that should be replaced by zero. */
     result = RAmarkNodes(dd, f, info, threshold, quality);
     if (result == 0) {
-	(void) fprintf(dd->err, "Out-of-memory; Cannot subset\n");
+	REprintf("Out-of-memory; Cannot subset\n");
 	FREE(info->page);
 	cuddHashTableGenericQuit(info->table);
 	FREE(info);
@@ -623,8 +625,8 @@ cuddRemapUnderApprox(
     subset = RAbuildSubset(dd, f, info);
 #if 1
     if (subset && info->size < Cudd_DagSize(subset))
-	(void) fprintf(dd->err, "Wrong prediction: %d versus actual %d\n",
-		       info->size, Cudd_DagSize(subset));
+	REprintf("Wrong prediction: %d versus actual %d\n",
+	         info->size, Cudd_DagSize(subset));
 #endif
     FREE(info->page);
     cuddHashTableGenericQuit(info->table);
@@ -638,7 +640,7 @@ cuddRemapUnderApprox(
 	(void) Cudd_CheckKeys(dd);
 #endif
 	if (!Cudd_bddLeq(dd, subset, f)) {
-	    (void) fprintf(dd->err, "Wrong subset\n");
+	    REprintf("Wrong subset\n");
 	}
 	cuddDeref(subset);
 	dd->errorCode = CUDD_INTERNAL_ERROR;
@@ -683,7 +685,7 @@ cuddBiasedUnderApprox(
     DdHashTable	*cache;
 
     if (f == NULL) {
-	fprintf(dd->err, "Cannot subset, nil object\n");
+	REprintf("Cannot subset, nil object\n");
 	dd->errorCode = CUDD_INVALID_ARG;
 	return(NULL);
     }
@@ -695,7 +697,7 @@ cuddBiasedUnderApprox(
     /* Create table where node data are accessible via a hash table. */
     info = gatherInfo(dd, f, numVars, CUDD_TRUE);
     if (info == NULL) {
-	(void) fprintf(dd->err, "Out-of-memory; Cannot subset\n");
+	REprintf("Out-of-memory; Cannot subset\n");
 	dd->errorCode = CUDD_MEMORY_OUT;
 	return(NULL);
     }
@@ -703,7 +705,7 @@ cuddBiasedUnderApprox(
     cache = cuddHashTableInit(dd,2,2);
     result = BAapplyBias(dd, Cudd_Regular(f), b, info, cache);
     if (result == CARE_ERROR) {
-	(void) fprintf(dd->err, "Out-of-memory; Cannot subset\n");
+	REprintf("Out-of-memory; Cannot subset\n");
 	cuddHashTableQuit(cache);
 	FREE(info->page);
 	cuddHashTableGenericQuit(info->table);
@@ -716,7 +718,7 @@ cuddBiasedUnderApprox(
     /* Mark nodes that should be replaced by zero. */
     result = BAmarkNodes(dd, f, info, threshold, quality1, quality0);
     if (result == 0) {
-	(void) fprintf(dd->err, "Out-of-memory; Cannot subset\n");
+	REprintf("Out-of-memory; Cannot subset\n");
 	FREE(info->page);
 	cuddHashTableGenericQuit(info->table);
 	FREE(info);
@@ -728,8 +730,8 @@ cuddBiasedUnderApprox(
     subset = RAbuildSubset(dd, f, info);
 #if 1
     if (subset && info->size < Cudd_DagSize(subset))
-	(void) fprintf(dd->err, "Wrong prediction: %d versus actual %d\n",
-		       info->size, Cudd_DagSize(subset));
+	REprintf("Wrong prediction: %d versus actual %d\n",
+	         info->size, Cudd_DagSize(subset));
 #endif
     FREE(info->page);
     cuddHashTableGenericQuit(info->table);
@@ -743,7 +745,7 @@ cuddBiasedUnderApprox(
 	(void) Cudd_CheckKeys(dd);
 #endif
 	if (!Cudd_bddLeq(dd, subset, f)) {
-	    (void) fprintf(dd->err, "Wrong subset\n");
+	    REprintf("Wrong subset\n");
 	}
 	cuddDeref(subset);
 	dd->errorCode = CUDD_INTERNAL_ERROR;
@@ -1144,8 +1146,8 @@ UAmarkNodes(
     int savings;
 
 #if 0
-    (void) printf("initial size = %d initial minterms = %g\n",
-		  info->size, info->minterms);
+    Rprintf("initial size = %d initial minterms = %g\n",
+            info->size, info->minterms);
 #endif
     queue = cuddLevelQueueInit(dd->size,sizeof(GlobalQueueItem),info->size,dd);
     if (queue == NULL) {
@@ -1194,8 +1196,8 @@ UAmarkNodes(
 	}
 	cuddLevelQueueDequeue(queue,cuddI(dd,node->index));
 #if 0
-	(void) printf("node %p: impact = %g/%g numOnset = %g savings %d\n",
-		      node, impactP, impactN, numOnset, savings);
+	Rprintf("node %p: impact = %g/%g numOnset = %g savings %d\n",
+	        node, impactP, impactN, numOnset, savings);
 #endif
 	if ((1 - numOnset / info->minterms) >
 	    quality * (1 - (double) savings / info->size)) {
@@ -1203,8 +1205,8 @@ UAmarkNodes(
 	    info->size -= savings;
 	    info->minterms -=numOnset;
 #if 0
-	    (void) printf("replace: new size = %d new minterms = %g\n",
-			  info->size, info->minterms);
+	    Rprintf("replace: new size = %d new minterms = %g\n",
+	            info->size, info->minterms);
 #endif
 	    savings -= updateRefs(dd,node,NULL,info,localQueue);
 	    assert(savings == 0);
@@ -1277,8 +1279,7 @@ UAbuildSubset(
 	    }
 	}
     } else {
-	(void) fprintf(dd->err,
-		       "Something is wrong, ought to be in info table\n");
+	REprintf("Something is wrong, ought to be in info table\n");
 	dd->errorCode = CUDD_INTERNAL_ERROR;
 	return(NULL);
     }
@@ -1362,8 +1363,8 @@ RAmarkNodes(
     int replace;
 
 #if 0
-    (void) fprintf(dd->out,"initial size = %d initial minterms = %g\n",
-		  info->size, info->minterms);
+    Rprintf("initial size = %d initial minterms = %g\n",
+            info->size, info->minterms);
 #endif
     queue = cuddLevelQueueInit(dd->size,sizeof(GlobalQueueItem),info->size,dd);
     if (queue == NULL) {
@@ -1543,11 +1544,11 @@ RAmarkNodes(
 	cuddLevelQueueDequeue(queue,cuddI(dd,node->index));
 #if 0
 	if (replace == REPLACE_T || replace == REPLACE_E)
-	    (void) printf("node %p: impact = %g numOnset = %g savings %d\n",
-			  node, impact, numOnset, savings);
+	    Rprintf("node %p: impact = %g numOnset = %g savings %d\n",
+	            node, impact, numOnset, savings);
 	else
-	    (void) printf("node %p: impact = %g/%g numOnset = %g savings %d\n",
-			  node, impactP, impactN, numOnset, savings);
+	    Rprintf("node %p: impact = %g/%g numOnset = %g savings %d\n",
+	            node, impactP, impactN, numOnset, savings);
 #endif
 	if ((1 - numOnset / info->minterms) >
 	    quality * (1 - (double) savings / info->size)) {
@@ -1555,8 +1556,8 @@ RAmarkNodes(
 	    info->size -= savings;
 	    info->minterms -=numOnset;
 #if 0
-	    (void) printf("remap(%d): new size = %d new minterms = %g\n",
-			  replace, info->size, info->minterms);
+	    Rprintf("remap(%d): new size = %d new minterms = %g\n",
+	            replace, info->size, info->minterms);
 #endif
 	    if (replace == REPLACE_N) {
 		savings -= updateRefs(dd,node,NULL,info,localQueue);
@@ -1663,8 +1664,8 @@ BAmarkNodes(
     int replace;
 
 #if 0
-    (void) fprintf(dd->out,"initial size = %d initial minterms = %g\n",
-		  info->size, info->minterms);
+    Rprintf("initial size = %d initial minterms = %g\n",
+            info->size, info->minterms);
 #endif
     queue = cuddLevelQueueInit(dd->size,sizeof(GlobalQueueItem),info->size,dd);
     if (queue == NULL) {
@@ -1846,11 +1847,11 @@ BAmarkNodes(
 	cuddLevelQueueDequeue(queue,cuddI(dd,node->index));
 #if 0
 	if (replace == REPLACE_T || replace == REPLACE_E)
-	    (void) printf("node %p: impact = %g numOnset = %g savings %d\n",
-			  node, impact, numOnset, savings);
+	    Rprintf("node %p: impact = %g numOnset = %g savings %d\n",
+	            node, impact, numOnset, savings);
 	else
-	    (void) printf("node %p: impact = %g/%g numOnset = %g savings %d\n",
-			  node, impactP, impactN, numOnset, savings);
+	    Rprintf("node %p: impact = %g/%g numOnset = %g savings %d\n",
+	            node, impactP, impactN, numOnset, savings);
 #endif
 	if ((1 - numOnset / info->minterms) >
 	    quality * (1 - (double) savings / info->size)) {
@@ -1858,8 +1859,8 @@ BAmarkNodes(
 	    info->size -= savings;
 	    info->minterms -=numOnset;
 #if 0
-	    (void) printf("remap(%d): new size = %d new minterms = %g\n",
-			  replace, info->size, info->minterms);
+	    Rprintf("remap(%d): new size = %d new minterms = %g\n",
+	            replace, info->size, info->minterms);
 #endif
 	    if (replace == REPLACE_N) {
 		savings -= updateRefs(dd,node,NULL,info,localQueue);
@@ -2040,8 +2041,7 @@ RAbuildSubset(
 	    return(r);
 	}
     } else {
-	(void) fprintf(dd->err,
-		       "Something is wrong, ought to be in info table\n");
+	REprintf("Something is wrong, ought to be in info table\n");
 	dd->errorCode = CUDD_INTERNAL_ERROR;
 	return(NULL);
     }

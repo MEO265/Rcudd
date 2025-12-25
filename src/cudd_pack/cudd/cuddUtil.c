@@ -48,6 +48,7 @@
 #include "util.h"
 #include "epdInt.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -233,19 +234,19 @@ Cudd_bddPrintCover(
 	for (q = 0; q < dd->size; q++) {
 	    switch (array[q]) {
 	    case 0:
-		(void) fprintf(dd->out, "0");
+		Rprintf("0");
 		break;
 	    case 1:
-		(void) fprintf(dd->out, "1");
+		Rprintf("1");
 		break;
 	    case 2:
-		(void) fprintf(dd->out, "-");
+		Rprintf("-");
 		break;
 	    default:
-		(void) fprintf(dd->out, "?");
+		Rprintf("?");
 	    }
 	}
-	(void) fprintf(dd->out, " 1\n");
+	Rprintf(" 1\n");
 #ifdef DD_DEBUG
 	tmp = Cudd_bddOr(dd,prime,cover);
 	if (tmp == NULL) {
@@ -261,7 +262,7 @@ Cudd_bddPrintCover(
 #endif
 	Cudd_RecursiveDeref(dd,prime);
     }
-    (void) fprintf(dd->out, "\n");
+    Rprintf("\n");
     Cudd_RecursiveDeref(dd,lb);
     FREE(array);
 #ifdef DD_DEBUG
@@ -319,7 +320,7 @@ Cudd_PrintDebug(
 	return(0);
     }
     if (f == NULL) {
-	(void) fprintf(dd->out,": is the NULL DD\n");
+	Rprintf(": is the NULL DD\n");
 	(void) fflush(dd->out);
         dd->errorCode = CUDD_INVALID_ARG;
 	return(0);
@@ -327,7 +328,7 @@ Cudd_PrintDebug(
     azero = DD_ZERO(dd);
     bzero = Cudd_Not(DD_ONE(dd));
     if ((f == azero || f == bzero) && pr > 0){
-       (void) fprintf(dd->out,": is the zero DD\n");
+       Rprintf(": is the zero DD\n");
        (void) fflush(dd->out);
        return(1);
     }
@@ -339,10 +340,10 @@ Cudd_PrintDebug(
 	minterms = Cudd_CountMinterm(dd, f, n);
 	if (minterms == (double)CUDD_OUT_OF_MEM) {
             retval = 0;
-            (void) fprintf(dd->out,": %d nodes %d leaves unknown minterms\n",
+            Rprintf(": %d nodes %d leaves unknown minterms\n",
                            nodes, leaves);
         } else {
-            (void) fprintf(dd->out,": %d nodes %d leaves %g minterms\n",
+            Rprintf(": %d nodes %d leaves %g minterms\n",
                            nodes, leaves, minterms);
         }
 	if (pr > 2) {
@@ -350,7 +351,7 @@ Cudd_PrintDebug(
 	}
 	if (pr == 2 || pr > 3) {
 	    if (!Cudd_PrintMinterm(dd,f)) retval = 0;
-	    (void) fprintf(dd->out,"\n");
+	    Rprintf("\n");
 	}
 	(void) fflush(dd->out);
     }
@@ -387,7 +388,7 @@ Cudd_PrintSummary(
         return(0);
     }
     if (f == NULL) {
-	(void) fprintf(dd->out,": is the NULL DD\n");
+	Rprintf(": is the NULL DD\n");
 	(void) fflush(dd->out);
         dd->errorCode = CUDD_INVALID_ARG;
 	return(0);
@@ -395,7 +396,7 @@ Cudd_PrintSummary(
     azero = DD_ZERO(dd);
     bzero = Cudd_Not(DD_ONE(dd));
     if (f == azero || f == bzero){
-        (void) fprintf(dd->out,": is the zero DD\n");
+        Rprintf(": is the zero DD\n");
         (void) fflush(dd->out);
         return(1);
     }
@@ -403,7 +404,7 @@ Cudd_PrintSummary(
     if (nodes == CUDD_OUT_OF_MEM) retval = 0;
     leaves = Cudd_CountLeaves(f);
     if (leaves == CUDD_OUT_OF_MEM) retval = 0;
-    (void) fprintf(dd->out,": %d nodes %d leaves ", nodes, leaves);
+    Rprintf(": %d nodes %d leaves ", nodes, leaves);
     count = Cudd_ApaCountMinterm(dd, f, n, &digits);
     if (count == NULL) {
 	retval = 0;
@@ -415,7 +416,7 @@ Cudd_PrintSummary(
             retval = 0;
     }
     FREE(count);
-    (void) fprintf(dd->out, " minterms\n");
+    Rprintf(" minterms\n");
     (void) fflush(dd->out);
     return(retval);
 
@@ -778,7 +779,7 @@ Cudd_EpdPrintMinterm(
     ret = Cudd_EpdCountMinterm(dd, node, nvars, &epd);
     if (ret !=0) return(0);
     EpdGetString(&epd, pstring);
-    fprintf(dd->out, "%s", pstring);
+    Rprintf("%s", pstring);
     return(1);
 
 } /* end of Cudd_EpdPrintMinterm */
@@ -2655,7 +2656,7 @@ void
 Cudd_PrintVersion(
   FILE * fp)
 {
-    (void) fprintf(fp, "%s\n", CUDD_VERSION);
+    Rprintf("%s\n", CUDD_VERSION);
 
 } /* end of Cudd_PrintVersion */
 
@@ -2894,8 +2895,8 @@ void
 Cudd_OutOfMem(
   size_t size /**< size of the allocation that failed */)
 {
-    (void) fflush(stdout);
-    (void) fprintf(stderr, "\nCUDD: unable to allocate %" PRIszt " bytes\n",
+    (void) fflush(NULL);
+    REprintf("\nCUDD: unable to allocate %" PRIszt " bytes\n",
                    size);
 
 } /* end of Cudd_OutOfMem */
@@ -3102,7 +3103,7 @@ dp2(
     }
     g = Cudd_Regular(f);
     if (cuddIsConstant(g)) {
-	(void) fprintf(dd->out,"ID = %c0x%" PRIxPTR "\tvalue = %-9g\n", bang(f),
+	Rprintf("ID = %c0x%" PRIxPTR "\tvalue = %-9g\n", bang(f),
 		(ptruint) g / (ptruint) sizeof(DdNode),cuddV(g));
 	return(1);
     }
@@ -3112,18 +3113,18 @@ dp2(
     if (st_add_direct(t,g,NULL) == ST_OUT_OF_MEM)
 	return(0);
 #ifdef DD_STATS
-    (void) fprintf(dd->out,"ID = %c0x%"PRIxPTR"\tindex = %d\tr = %d\t", bang(f),
+    Rprintf("ID = %c0x%"PRIxPTR"\tindex = %d\tr = %d\t", bang(f),
 		(ptruint) g / (ptruint) sizeof(DdNode), g->index, g->ref);
 #else
-    (void) fprintf(dd->out,"ID = %c0x%" PRIxPTR "\tindex = %u\t", bang(f),
+    Rprintf("ID = %c0x%" PRIxPTR "\tindex = %u\t", bang(f),
 		(ptruint) g / (ptruint) sizeof(DdNode),g->index);
 #endif
     n = cuddT(g);
     if (cuddIsConstant(n)) {
-	(void) fprintf(dd->out,"T = %-9g\t",cuddV(n));
+	Rprintf("T = %-9g\t",cuddV(n));
 	T = 1;
     } else {
-	(void) fprintf(dd->out,"T = 0x%" PRIxPTR "\t",
+	Rprintf("T = 0x%" PRIxPTR "\t",
                        (ptruint) n / (ptruint) sizeof(DdNode));
 	T = 0;
     }
@@ -3131,10 +3132,10 @@ dp2(
     n = cuddE(g);
     N = Cudd_Regular(n);
     if (cuddIsConstant(N)) {
-	(void) fprintf(dd->out,"E = %c%-9g\n",bang(n),cuddV(N));
+	Rprintf("E = %c%-9g\n",bang(n),cuddV(N));
 	E = 1;
     } else {
-	(void) fprintf(dd->out,"E = %c0x%" PRIxPTR "\n",
+	Rprintf("E = %c0x%" PRIxPTR "\n",
                        bang(n), (ptruint) N/(ptruint) sizeof(DdNode));
 	E = 0;
     }
@@ -3177,11 +3178,11 @@ ddPrintMintermAux(
 	if (node != dd->background && node != Cudd_Not(dd->one)) {
 	    for (i = 0; i < dd->size; i++) {
 		v = list[i];
-		if (v == 0) (void) fprintf(dd->out,"0");
-		else if (v == 1) (void) fprintf(dd->out,"1");
-		else (void) fprintf(dd->out,"-");
+		if (v == 0) Rprintf("0");
+		else if (v == 1) Rprintf("1");
+		else Rprintf("-");
 	    }
-	    (void) fprintf(dd->out," % g\n", cuddV(node));
+	    Rprintf(" % g\n", cuddV(node));
 	}
     } else {
 	Nv  = cuddT(N);

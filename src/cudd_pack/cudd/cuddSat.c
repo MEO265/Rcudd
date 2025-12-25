@@ -45,6 +45,8 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Error.h>
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -781,13 +783,11 @@ Cudd_EqualSupNorm(
 	    return(1);
 	} else {
 	    if (pr>0) {
-		(void) fprintf(dd->out,"Offending nodes:\n");
-		(void) fprintf(dd->out,
-			       "f: address = %p\t value = %40.30f\n",
-			       (void *) f, cuddV(f));
-		(void) fprintf(dd->out,
-			       "g: address = %p\t value = %40.30f\n",
-			       (void *) g, cuddV(g));
+		Rprintf("Offending nodes:\n");
+		Rprintf("f: address = %p\t value = %40.30f\n",
+		        (void *) f, cuddV(f));
+		Rprintf("g: address = %p\t value = %40.30f\n",
+		        (void *) g, cuddV(g));
 	    }
 	    return(0);
 	}
@@ -1210,7 +1210,7 @@ getPath(
 	    cost = Ecost;
 	    continue;
 	}
-	(void) fprintf(manager->err,"We shouldn't be here!!\n");
+	REprintf("We shouldn't be here!!\n");
 	manager->errorCode = CUDD_INTERNAL_ERROR;
 	return(NULL);
     }
@@ -1386,7 +1386,7 @@ getCube(
 	    cost = Ecost;
 	    continue;
 	}
-	(void) fprintf(manager->err,"We shouldn't be here!\n");
+	REprintf("We shouldn't be here!\n");
 	manager->errorCode = CUDD_INTERNAL_ERROR;
 	return(NULL);
     }

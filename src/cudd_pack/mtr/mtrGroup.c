@@ -47,6 +47,8 @@
 
 #include "util.h"
 #include "mtrInt.h"
+#include <R_ext/Error.h>
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -572,12 +574,12 @@ Mtr_PrintGroups(
     assert(root->younger == NULL || root->younger->elder == root);
     assert(root->elder == NULL || root->elder->younger == root);
 #if SIZEOF_VOID_P == 8
-    if (!silent) (void) printf("(%u",root->low);
+    if (!silent) Rprintf("(%u",root->low);
 #else
-    if (!silent) (void) printf("(%hu",root->low);
+    if (!silent) Rprintf("(%hu",root->low);
 #endif
     if (MTR_TEST(root,MTR_TERMINAL) || root->child == NULL) {
-	if (!silent) (void) printf(",");
+	if (!silent) Rprintf(",");
     } else {
 	node = root->child;
 	while (node != NULL) {
@@ -589,18 +591,18 @@ Mtr_PrintGroups(
     }
     if (!silent) {
 #if SIZEOF_VOID_P == 8
-	(void) printf("%u", (MtrHalfWord) (root->low + root->size - 1));
+	Rprintf("%u", (MtrHalfWord) (root->low + root->size - 1));
 #else
-	(void) printf("%hu", (MtrHalfWord) (root->low + root->size - 1));
+	Rprintf("%hu", (MtrHalfWord) (root->low + root->size - 1));
 #endif
 	if (root->flags != MTR_DEFAULT) {
-	    (void) printf("|");
-	    if (MTR_TEST(root,MTR_FIXED)) (void) printf("F");
-	    if (MTR_TEST(root,MTR_NEWNODE)) (void) printf("N");
-	    if (MTR_TEST(root,MTR_SOFT)) (void) printf("S");
+	    Rprintf("|");
+	    if (MTR_TEST(root,MTR_FIXED)) Rprintf("F");
+	    if (MTR_TEST(root,MTR_NEWNODE)) Rprintf("N");
+	    if (MTR_TEST(root,MTR_SOFT)) Rprintf("S");
 	}
-	(void) printf(")");
-	if (root->parent == NULL) (void) printf("\n");
+	Rprintf(")");
+	if (root->parent == NULL) Rprintf("\n");
     }
     assert((root->flags &~(MTR_TERMINAL | MTR_SOFT | MTR_FIXED | MTR_NEWNODE)) == 0);
     return;
@@ -635,58 +637,46 @@ Mtr_PrintGroupedOrder(
 {
     MtrNode *child;
     MtrHalfWord level;
-    int retval;
 
     assert(root != NULL);
     assert(root->younger == NULL || root->younger->elder == root);
     assert(root->elder == NULL || root->elder->younger == root);
-    retval = fprintf(fp,"(");
-    if (retval == EOF) return(0);
+    Rprintf("(");
     level = root->low;
     child = root->child;
     while (child != NULL) {
         assert(child->low >= root->low && (child->low + child->size) <= (root->low + root->size));
         assert(child->parent == root);
         while (level < child->low) {
-            retval = fprintf(fp,"%d%s", invperm[level], (level < root->low + root->size - 1) ? "," : "");
-            if (retval == EOF) return(0);
+            Rprintf("%d%s", invperm[level], (level < root->low + root->size - 1) ? "," : "");
             level++;
         }
-        retval = Mtr_PrintGroupedOrder(child,invperm,fp);
-        if (retval == 0) return(0);
+        if (Mtr_PrintGroupedOrder(child,invperm,fp) == 0) return(0);
         level += child->size;
         if (level < root->low + root->size - 1) {
-            retval = fprintf(fp,",");
-            if (retval == EOF) return(0);
+            Rprintf(",");
         }
         child = child->younger;
     }
     while (level < root->low + root->size) {
-        retval = fprintf(fp,"%d%s", invperm[level], (level < root->low + root->size - 1) ? "," : "");
-        if (retval == EOF) return(0);
+        Rprintf("%d%s", invperm[level], (level < root->low + root->size - 1) ? "," : "");
         level++;
     }
     if (root->flags != MTR_DEFAULT) {
-      retval = fprintf(fp,"|");
-      if (retval == EOF) return(0);
+      Rprintf("|");
       if (MTR_TEST(root,MTR_FIXED)) {
-          retval = fprintf(fp,"F");
-          if (retval == EOF) return(0);
+          Rprintf("F");
       }
       if (MTR_TEST(root,MTR_NEWNODE)) {
-          retval = fprintf(fp,"N");
-          if (retval == EOF) return(0);
+          Rprintf("N");
       }
       if (MTR_TEST(root,MTR_SOFT)) {
-          retval = fprintf(fp,"S");
-          if (retval == EOF) return(0);
+          Rprintf("S");
       }
     }
-    retval = fprintf(fp,")");
-    if (retval == EOF) return(0);
+    Rprintf(")");
     if (root->parent == NULL) {
-        retval = fprintf(fp,"\n");
-        if (retval == EOF) return(0);
+        Rprintf("\n");
     }
     assert((root->flags &~(MTR_SOFT | MTR_FIXED | MTR_NEWNODE)) == 0);
     return(1);

@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -704,7 +705,7 @@ cuddCacheProfile(
     DdCache *cache = table->cache;
     int slots = table->cacheSlots;
     int nzeroes = 0;
-    int i, retval;
+    int i;
     double exUsed;
 
 #ifdef DD_CACHE_PROFILE
@@ -769,41 +770,29 @@ cuddCacheProfile(
     stddev = sqrt(meansq - mean*mean);
     exStddev = sqrt((1 - 1/(double) slots) * totalcount / (double) slots);
 
-    retval = fprintf(fp,"Cache average accesses = %g\n",  mean);
-    if (retval == EOF) return(0);
-    retval = fprintf(fp,"Cache access standard deviation = %g ", stddev);
-    if (retval == EOF) return(0);
-    retval = fprintf(fp,"(expected = %g)\n", exStddev);
-    if (retval == EOF) return(0);
-    retval = fprintf(fp,"Cache max accesses = %ld for slot %d\n", max, imax);
-    if (retval == EOF) return(0);
-    retval = fprintf(fp,"Cache min accesses = %ld for slot %d\n", min, imin);
-    if (retval == EOF) return(0);
+    Rprintf("Cache average accesses = %g\n",  mean);
+    Rprintf("Cache access standard deviation = %g ", stddev);
+    Rprintf("(expected = %g)\n", exStddev);
+    Rprintf("Cache max accesses = %ld for slot %d\n", max, imax);
+    Rprintf("Cache min accesses = %ld for slot %d\n", min, imin);
     exUsed = 100.0 * (1.0 - exp(-totalcount / (double) slots));
-    retval = fprintf(fp,"Cache used slots = %.2f%% (expected %.2f%%)\n",
+    Rprintf("Cache used slots = %.2f%% (expected %.2f%%)\n",
 		     100.0 - (double) nzeroes * 100.0 / (double) slots,
 		     exUsed);
-    if (retval == EOF) return(0);
 
     if (totalcount > 0) {
 	expected /= totalcount;
-	retval = fprintf(fp,"Cache access hystogram for %d bins", nbins);
-	if (retval == EOF) return(0);
-	retval = fprintf(fp," (expected bin value = %g)\nBy quotient:",
+	Rprintf("Cache access hystogram for %d bins", nbins);
+	Rprintf(" (expected bin value = %g)\nBy quotient:",
 			 expected);
-	if (retval == EOF) return(0);
 	for (i = nbins - 1; i>=0; i--) {
-	    retval = fprintf(fp," %.0f", hystogramQ[i]);
-	    if (retval == EOF) return(0);
+	    Rprintf(" %.0f", hystogramQ[i]);
 	}
-	retval = fprintf(fp,"\nBy residue: ");
-	if (retval == EOF) return(0);
+	Rprintf("\nBy residue: ");
 	for (i = nbins - 1; i>=0; i--) {
-	    retval = fprintf(fp," %.0f", hystogramR[i]);
-	    if (retval == EOF) return(0);
+	    Rprintf(" %.0f", hystogramR[i]);
 	}
-	retval = fprintf(fp,"\n");
-	if (retval == EOF) return(0);
+	Rprintf("\n");
     }
 
     FREE(hystogramQ);
@@ -815,10 +804,9 @@ cuddCacheProfile(
     exUsed = 100.0 *
 	(1.0 - exp(-(table->cacheinserts - table->cacheLastInserts) /
 		   (double) slots));
-    retval = fprintf(fp,"Cache used slots = %.2f%% (expected %.2f%%)\n",
+    Rprintf("Cache used slots = %.2f%% (expected %.2f%%)\n",
 		     100.0 - (double) nzeroes * 100.0 / (double) slots,
 		     exUsed);
-    if (retval == EOF) return(0);
 #endif
     return(1);
 
@@ -854,10 +842,9 @@ cuddCacheResize(
     slots = table->cacheSlots = oldslots << 1;
 
 #ifdef DD_VERBOSE
-    (void) fprintf(table->err,"Resizing the cache from %d to %d entries\n",
+    REprintf("Resizing the cache from %d to %d entries\n",
 		   oldslots, slots);
-    (void) fprintf(table->err,
-		   "\thits = %g\tmisses = %g\thit ratio = %5.3f\n",
+    REprintf("\thits = %g\tmisses = %g\thit ratio = %5.3f\n",
 		   table->cacheHits, table->cacheMisses,
 		   table->cacheHits / (table->cacheHits + table->cacheMisses));
 #endif
@@ -869,7 +856,7 @@ cuddCacheResize(
     /* If we fail to allocate the new table we just give up. */
     if (cache == NULL) {
 #ifdef DD_VERBOSE
-	(void) fprintf(table->err,"Resizing failed. Giving up.\n");
+	REprintf("Resizing failed. Giving up.\n");
 #endif
 	table->cacheSlots = oldslots;
 	table->acache = oldacache;

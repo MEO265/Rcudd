@@ -115,7 +115,7 @@ util_file_search(
 	    buffer = util_strsav(file);
 	} else {
 	    buffer = ALLOC(char, strlen(path) + strlen(file) + 4);
-	    (void) sprintf(buffer, "%s/%s", path, file);
+	    (void) snprintf(buffer, sizeof(buffer), "%s/%s", path, file);
 	}
 	filename = util_tilde_expand(buffer);
 	FREE(buffer);

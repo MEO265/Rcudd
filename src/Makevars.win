@@ -3,9 +3,8 @@ $(SHLIB): cudd_pack/cudd/.libs/libcudd.a
 
 cudd_pack/cudd/.libs/libcudd.a:
 	cd cudd_pack && \
-	  CC="$(CC)" CXX="$(CXX)" \
-	  ./configure --enable-obj && \
-	  $(MAKE) CC="$(CC)" CXX="$(CXX)"
+	CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS) -DNDEBUG -I\"$(R_INCLUDE_DIR)\"" ./configure --enable-obj && \
+	$(MAKE) CC="$(CC)" CXX="$(CXX)" CPPFLAGS="$(CPPFLAGS) -DNDEBUG -I\"$(R_INCLUDE_DIR)\""
 
 clean: clean-cudd_pack clean-src
 
@@ -16,7 +15,7 @@ clean-cudd_pack:
 clean-src:
 	rm -f *.o *.dll *.rds
 
-PKG_CPPFLAGS = -Icudd_pack/cudd -Icudd_pack/cplusplus
+PKG_CPPFLAGS = -DNDEBUG -Icudd_pack/cudd -Icudd_pack/cplusplus
 PKG_LIBS = -Lcudd_pack/cudd/.libs -lcudd -lm -lpthread -lws2_32 -lpsapi
 
 .PHONY: all cudd_pack clean clean-cudd_pack clean-src

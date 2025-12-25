@@ -45,6 +45,8 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Error.h>
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -244,8 +246,7 @@ cuddZddIsop(
     }
 
     if (U == zero || L == one) {
-	printf("*** ERROR : illegal condition for ISOP (U < L).\n");
-	exit(1);
+	Rf_error("Illegal condition for ISOP (U < L).");
     }
 
     /* Check the cache. We store two results for each recursive call.
@@ -322,7 +323,7 @@ cuddZddIsop(
     if ((!cuddIsConstant(Cudd_Regular(Isub0))) &&
 	(Cudd_Regular(Isub0)->index != zdd_Isub0->index / 2 ||
 	dd->permZ[index * 2] > dd->permZ[zdd_Isub0->index])) {
-	printf("*** ERROR : illegal permutation in ZDD. ***\n");
+	Rprintf("*** ERROR : illegal permutation in ZDD. ***\n");
     }
     */
     Cudd_Ref(Isub0);
@@ -339,7 +340,7 @@ cuddZddIsop(
     if ((!cuddIsConstant(Cudd_Regular(Isub1))) &&
 	(Cudd_Regular(Isub1)->index != zdd_Isub1->index / 2 ||
 	dd->permZ[index * 2] > dd->permZ[zdd_Isub1->index])) {
-	printf("*** ERROR : illegal permutation in ZDD. ***\n");
+	Rprintf("*** ERROR : illegal permutation in ZDD. ***\n");
     }
     */
     Cudd_Ref(Isub1);
@@ -409,10 +410,10 @@ cuddZddIsop(
 	return(NULL);
     }
     /*
-    if ((!cuddIsConstant(Cudd_Regular(Id))) &&
+	if ((!cuddIsConstant(Cudd_Regular(Id))) &&
 	(Cudd_Regular(Id)->index != zdd_Id->index / 2 ||
 	dd->permZ[index * 2] > dd->permZ[zdd_Id->index])) {
-	printf("*** ERROR : illegal permutation in ZDD. ***\n");
+	Rprintf("*** ERROR : illegal permutation in ZDD. ***\n");
     }
     */
     Cudd_Ref(Id);
@@ -532,7 +533,7 @@ cuddZddIsop(
     *zdd_I = y;
     /*
     if (Cudd_Regular(r)->index != y->index / 2) {
-	printf("*** ERROR : mismatch in indices between BDD and ZDD. ***\n");
+	Rprintf("*** ERROR : mismatch in indices between BDD and ZDD. ***\n");
     }
     */
     return(r);

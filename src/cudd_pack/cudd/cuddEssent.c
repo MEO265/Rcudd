@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -377,27 +378,27 @@ Cudd_PrintTwoLiteralClauses(
     for (i = 0; !sentinelp(vars[i], vars[i+1]); i += 2) {
 	if (names != NULL) {
 	    if (vars[i+1] == CUDD_MAXINDEX) {
-		(void) fprintf(ifp, "%s%s\n",
-			       bitVectorRead(phases, i) ? "~" : " ",
-			       names[vars[i]]);
-	    } else {
-		(void) fprintf(ifp, "%s%s | %s%s\n",
-			       bitVectorRead(phases, i) ? "~" : " ",
-			       names[vars[i]],
-			       bitVectorRead(phases, i+1) ? "~" : " ",
-			       names[vars[i+1]]);
-	    }
-	} else {
-	    if (vars[i+1] == CUDD_MAXINDEX) {
-		(void) fprintf(ifp, "%s%d\n",
-			       bitVectorRead(phases, i) ? "~" : " ",
-			       (int) vars[i]);
-	    } else {
-		(void) fprintf(ifp, "%s%d | %s%d\n",
-			       bitVectorRead(phases, i) ? "~" : " ",
-			       (int) vars[i],
-			       bitVectorRead(phases, i+1) ? "~" : " ",
-			       (int) vars[i+1]);
+			Rprintf("%s%s\n",
+				       bitVectorRead(phases, i) ? "~" : " ",
+				       names[vars[i]]);
+		    } else {
+			Rprintf("%s%s | %s%s\n",
+				       bitVectorRead(phases, i) ? "~" : " ",
+				       names[vars[i]],
+				       bitVectorRead(phases, i+1) ? "~" : " ",
+				       names[vars[i+1]]);
+		    }
+		} else {
+		    if (vars[i+1] == CUDD_MAXINDEX) {
+			Rprintf("%s%d\n",
+				       bitVectorRead(phases, i) ? "~" : " ",
+				       (int) vars[i]);
+		    } else {
+			Rprintf("%s%d | %s%d\n",
+				       bitVectorRead(phases, i) ? "~" : " ",
+				       (int) vars[i],
+				       bitVectorRead(phases, i+1) ? "~" : " ",
+				       (int) vars[i+1]);
 	    }
 	}
     }

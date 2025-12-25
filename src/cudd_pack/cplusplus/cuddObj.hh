@@ -125,14 +125,14 @@ public:
     void print(int nvars, int verbosity = 1) const;
     void summary(int nvars, int mode = 0) const;
     DdApaNumber ApaCountMinterm(int nvars, int * digits) const;
-    void ApaPrintMinterm(int nvars, FILE * fp = stdout) const;
-    void ApaPrintMintermExp(int nvars, int precision = 6, FILE * fp = stdout) const;
-    void EpdPrintMinterm(int nvars, FILE * fp = stdout) const;
+    void ApaPrintMinterm(int nvars, FILE * fp = NULL) const;
+    void ApaPrintMintermExp(int nvars, int precision = 6, FILE * fp = NULL) const;
+    void EpdPrintMinterm(int nvars, FILE * fp = NULL) const;
     long double LdblCountMinterm(int nvars) const;
     bool IsOne() const;
     bool IsCube() const;
     BDD FindEssential() const;
-    void PrintTwoLiteralClauses(char ** names = 0, FILE * fp = stdout) const;
+    void PrintTwoLiteralClauses(char ** names = 0, FILE * fp = NULL) const;
     BDD ShortestPath(int * weight, int * support, int * length) const;
     BDD LargestCube(int * length = 0) const;
     int ShortestLength(int * weight = 0) const;
@@ -284,7 +284,7 @@ public:
     BDD zddIsop(const BDD& U, ZDD* zdd_I) const;
     BDD Isop(const BDD& U) const;
     ZDD PortToZdd() const;
-    void PrintFactoredForm(char const * const * inames = 0, FILE * fp = stdout) const;
+    void PrintFactoredForm(char const * const * inames = 0, FILE * fp = NULL) const;
     std::string FactoredFormString(char const * const * inames = 0) const;
 
 }; // BDD
@@ -638,11 +638,11 @@ public:
     void ApaSetToLiteral(int digits, DdApaNumber number, DdApaDigit literal)
       const;
     void ApaPowerOfTwo(int digits, DdApaNumber number, int power) const;
-    void ApaPrintHex(int digits, DdApaNumber number, FILE * fp = stdout) const;
-    void ApaPrintDecimal(int digits, DdApaNumber number, FILE * fp = stdout) const;
+    void ApaPrintHex(int digits, DdApaNumber number, FILE * fp = NULL) const;
+    void ApaPrintDecimal(int digits, DdApaNumber number, FILE * fp = NULL) const;
     std::string ApaStringDecimal(int digits, DdApaNumber number) const;
     void ApaPrintExponential(int digits, DdApaNumber number,
-                             int precision = 6, FILE * fp = stdout) const;
+                             int precision = 6, FILE * fp = NULL) const;
     void DebugCheck(void) const;
     void CheckKeys(void) const;
     ADD Harwell(FILE * fp, std::vector<ADD>& x, std::vector<ADD>& y,
@@ -695,29 +695,29 @@ public:
       const std::vector<BDD>& nodes, 
       char const * const * inames = 0, 
       char const * const * onames = 0, 
-      FILE * fp = stdout) const;
+      FILE * fp = NULL) const;
     void DumpDaVinci(
       const std::vector<BDD>& nodes, 
       char const * const * inames = 0,
       char const * const * onames = 0,
-      FILE * fp = stdout) const;
+      FILE * fp = NULL) const;
     void DumpBlif(
       const std::vector<BDD>& nodes, 
       char const * const * inames = 0,
       char const * const * onames = 0,
       char * mname = 0,
-      FILE * fp = stdout,
+      FILE * fp = NULL,
       int mv = 0) const;
     void DumpDDcal(
       const std::vector<BDD>& nodes, 
       char const * const * inames = 0, 
       char const * const * onames = 0, 
-      FILE * fp = stdout) const;
+      FILE * fp = NULL) const;
     void DumpFactoredForm(
       const std::vector<BDD>& nodes, 
       char const * const * inames = 0,
       char const * const * onames = 0,
-      FILE * fp = stdout) const;
+      FILE * fp = NULL) const;
     BDD VectorSupport(const std::vector<BDD>& roots) const;
     std::vector<unsigned int> 
     SupportIndices(const std::vector<BDD>& roots) const;
@@ -729,19 +729,19 @@ public:
       const std::vector<ADD>& nodes,
       char const * const * inames = 0, 
       char const * const * onames = 0, 
-      FILE * fp = stdout) const;
+      FILE * fp = NULL) const;
     void DumpDaVinci(
       const std::vector<ADD>& nodes,
       char const * const * inames = 0,
       char const * const * onames = 0,
-      FILE * fp = stdout) const;
+      FILE * fp = NULL) const;
     BDD VectorSupport(const std::vector<ADD>& roots) const;
     int VectorSupportSize(const std::vector<ADD>& roots) const;
     void DumpDot(
       const std::vector<ZDD>& nodes,
       char const * const * inames = 0,
       char const * const * onames = 0,
-      FILE * fp = stdout) const;
+      FILE * fp = NULL) const;
     std::string OrderString(void) const;
 
 }; // Cudd

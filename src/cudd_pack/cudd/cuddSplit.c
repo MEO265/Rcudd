@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -163,8 +164,7 @@ Cudd_SplitSet(
 	} else {
 	    mtable = st_init_table(st_ptrcmp,st_ptrhash);
 	    if (mtable == NULL) {
-		(void) fprintf(manager->out,
-			       "Cudd_SplitSet: out-of-memory.\n");
+		Rprintf("Cudd_SplitSet: out-of-memory.\n");
 		FREE(varSeen);
 		manager->errorCode = CUDD_MEMORY_OUT;
 		return(NULL);

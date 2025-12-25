@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -852,7 +853,7 @@ CountMinterms(
     if (dummy == NULL) return(-1.0);
     *dummy = min;
     if (st_insert(mintermTable, node, dummy) == ST_OUT_OF_MEM) {
-	(void) fprintf(fp, "st table insert failed\n");
+	Rprintf("st table insert failed\n");
     }
     return(min);
 
@@ -1677,7 +1678,7 @@ BuildConjuncts(
     /* check distance and local reference count of this node */
     N = Cudd_Regular(node);
     if (!st_lookup(distanceTable, N, (void **) &nodeStat)) {
-	(void) fprintf(dd->err, "Not in table, Something wrong\n");
+	REprintf("Not in table, Something wrong\n");
 	dd->errorCode = CUDD_INTERNAL_ERROR;
 	return(NULL);
     }
@@ -1747,7 +1748,7 @@ BuildConjuncts(
      */
     if (!Cudd_IsConstantInt(Nv)) {
 	if (!st_lookup(mintermTable, Nv, (void **) &doubleDummy)) {
-	    (void) fprintf(dd->err, "Not in table: Something wrong\n");
+	    REprintf("Not in table: Something wrong\n");
 	    dd->errorCode = CUDD_INTERNAL_ERROR;
 	    return(NULL);
 	}
@@ -1756,7 +1757,7 @@ BuildConjuncts(
 
     if (!Cudd_IsConstantInt(Nnv)) {
 	if (!st_lookup(mintermTable, Nnv, (void **) &doubleDummy)) {
-	    (void) fprintf(dd->err, "Not in table: Something wrong\n");
+	    REprintf("Not in table: Something wrong\n");
 	    dd->errorCode = CUDD_INTERNAL_ERROR;
 	    return(NULL);
 	}

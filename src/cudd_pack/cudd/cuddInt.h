@@ -57,6 +57,7 @@
 #include "mtr.h"
 #include "epd.h"
 #include "cudd.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -1013,7 +1014,7 @@ struct DdLevelQueue {
     do {                                                                \
         (dd)->recursiveCalls++;                                         \
         if ((dd)->recursiveCalls == (dd)->nextSample) {                 \
-            (void) fprintf((dd)->err,                                   \
+            REprintf(                                                    \
                            "@%.0f: %u nodes %u live %.0f dropped"       \
                            " %.0f reclaimed\n",                         \
                            (dd)->recursiveCalls, (dd)->keys,            \

@@ -46,6 +46,8 @@
 #include <math.h>
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Error.h>
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -162,31 +164,30 @@ Cudd_zddPrintSubtable(
     base = table->one;
     for (i = table->sizeZ - 1; i >= 0; i--) {
 	ZSubTable = &(table->subtableZ[i]);
-	printf("subtable[%d]:\n", i);
+	Rprintf("subtable[%d]:\n", i);
 	for (j = ZSubTable->slots - 1; j >= 0; j--) {
 	    z1 = ZSubTable->nodelist[j];
 	    while (z1 != NIL(DdNode)) {
-		(void) fprintf(table->out,
-		    "ID = 0x%" PRIxPTR "\tindex = %u\tr = %u\t",
-		    (ptruint) z1 / (ptruint) sizeof(DdNode),
-		    z1->index, z1->ref);
+		Rprintf("ID = 0x%" PRIxPTR "\tindex = %u\tr = %u\t",
+		        (ptruint) z1 / (ptruint) sizeof(DdNode),
+		        z1->index, z1->ref);
 		z1_next = cuddT(z1);
 		if (Cudd_IsConstantInt(z1_next)) {
-		    (void) fprintf(table->out, "T = %d\t\t",
-			(z1_next == base));
+		    Rprintf("T = %d\t\t",
+		            (z1_next == base));
 		}
 		else {
-		    (void) fprintf(table->out, "T = 0x%" PRIxPTR "\t",
-			(ptruint) z1_next / (ptruint) sizeof(DdNode));
+		    Rprintf("T = 0x%" PRIxPTR "\t",
+		            (ptruint) z1_next / (ptruint) sizeof(DdNode));
 		}
 		z1_next = cuddE(z1);
 		if (Cudd_IsConstantInt(z1_next)) {
-		    (void) fprintf(table->out, "E = %d\n",
-			(z1_next == base));
+		    Rprintf("E = %d\n",
+		            (z1_next == base));
 		}
 		else {
-		    (void) fprintf(table->out, "E = 0x%" PRIxPTR "\n",
-			(ptruint) z1_next / (ptruint) sizeof(DdNode));
+		    Rprintf("E = 0x%" PRIxPTR "\n",
+		            (ptruint) z1_next / (ptruint) sizeof(DdNode));
 		}
 
 		z1_next = z1->next;
@@ -194,7 +195,7 @@ Cudd_zddPrintSubtable(
 	    }
 	}
     }
-    putchar('\n');
+    Rprintf("%c", '\n');
 
 } /* Cudd_zddPrintSubtable */
 

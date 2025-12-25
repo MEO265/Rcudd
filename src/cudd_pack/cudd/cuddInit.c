@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -132,7 +133,7 @@ Cudd_Init(
     unique->stash = ALLOC(char,(maxMemory / DD_STASH_FRACTION) + 4);
     MMoutOfMemory = saveHandler;
     if (unique->stash == NULL) {
-	(void) fprintf(unique->err,"Unable to set aside memory\n");
+    REprintf("Unable to set aside memory\n");
     }
 
     /* Initialize constants. */
@@ -145,8 +146,8 @@ Cudd_Init(
 #ifdef HAVE_IEEE_754
     if (DD_PLUS_INF_VAL != DD_PLUS_INF_VAL * 3 ||
 	DD_PLUS_INF_VAL != DD_PLUS_INF_VAL / 3) {
-	(void) fprintf(unique->err,"Warning: Crippled infinite values\n");
-	(void) fprintf(unique->err,"Recompile without -DHAVE_IEEE_754\n");
+    REprintf("Warning: Crippled infinite values\n");
+    REprintf("Recompile without -DHAVE_IEEE_754\n");
     }
 #endif
     unique->plusinfinity = cuddUniqueConst(unique,DD_PLUS_INF_VAL);
@@ -278,4 +279,3 @@ cuddZddFreeUniv(
 /*---------------------------------------------------------------------------*/
 /* Definition of static functions                                            */
 /*---------------------------------------------------------------------------*/
-

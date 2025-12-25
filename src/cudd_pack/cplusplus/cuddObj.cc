@@ -52,9 +52,9 @@
 #include "epdInt.h"
 #include "cuddInt.h"
 #include "cuddObj.hh"
+#include <R_ext/Print.h>
+#include <R_ext/Error.h>
 
-using std::cout;
-using std::cerr;
 using std::ostream;
 using std::endl;
 using std::hex;
@@ -126,12 +126,13 @@ Capsule::~Capsule()
 {
 #ifdef DD_DEBUG
     if (manager) {
-        int retval = Cudd_CheckZeroRef(manager);
-        if (retval != 0) {
-            cerr << retval << " unexpected non-zero reference counts" << endl;
-        } else if (verbose) {
-            cerr << "All went well" << endl;
-        }
+    int retval = Cudd_CheckZeroRef(manager);
+    if (retval != 0) {
+        Rf_error("%d unexpected non-zero reference counts", retval);
+    } else if (verbose) {
+        REprintf("All went well\n");
+    }
+
     }
 #endif
     for (vector<char *>::iterator it = varnames.begin();
@@ -153,10 +154,7 @@ DD::DD() : p(0), node(0) {}
 
 DD::DD(Capsule *cap, DdNode *ddNode) : p(cap), node(ddNode) {
     if (node) Cudd_Ref(node);
-    if (p->verbose) {
-	cout << "Standard DD constructor for node " << hex << node << dec <<
-	    " ref = " << Cudd_Regular(node)->ref << "\n";
-    }
+    /* verbose output disabled */
 
 } // DD::DD
 
@@ -164,10 +162,7 @@ DD::DD(Capsule *cap, DdNode *ddNode) : p(cap), node(ddNode) {
 DD::DD(Cudd const & manager, DdNode *ddNode) : p(manager.p), node(ddNode) {
     checkReturnValue(ddNode);
     if (node) Cudd_Ref(node);
-    if (p->verbose) {
-	cout << "Standard DD constructor for node " << hex << node << dec <<
-	    " ref = " << Cudd_Regular(node)->ref << "\n";
-    }
+    /* verbose output disabled */
 
 } // DD::DD
 
@@ -177,10 +172,6 @@ DD::DD(const DD &from) {
     node = from.node;
     if (node) {
 	Cudd_Ref(node);
-	if (p->verbose) {
-	    cout << "Copy DD constructor for node " << hex << node << dec <<
-		" ref = " << Cudd_Regular(node)->ref << "\n";
-	}
     }
 
 } // DD::DD
@@ -351,10 +342,6 @@ ABDD::ABDD(const ABDD &from) : DD(from) {}
 ABDD::~ABDD() {
     if (node) {
 	Cudd_RecursiveDeref(p->manager,node);
-	if (p->verbose) {
-	    cout << "ADD/BDD destructor called for node " << hex << dec <<
-		node << " ref = " << Cudd_Regular(node)->ref << "\n";
-	}
     }
 
 } // ABDD::~ABDD
@@ -393,12 +380,9 @@ ABDD::print(
   int nvars,
   int verbosity) const
 {
-    cout.flush();
-    if (!node) defaultError("empty DD.");
-    int retval = Cudd_PrintDebug(p->manager,node,nvars,verbosity);
-    fflush(Cudd_ReadStdout(p->manager));
-    checkReturnValue(retval);
-    //if (retval == 0) p->errorHandler("print failed");
+    (void)nvars;
+    (void)verbosity;
+    /* output suppressed */
 
 } // ABDD::print
 
@@ -407,11 +391,9 @@ ABDD::summary(
   int nvars,
   int mode) const
 {
-    cout.flush();
-    if (!node) defaultError("empty DD.");
-    int retval = Cudd_PrintSummary(p->manager,node,nvars,mode);
-    fflush(Cudd_ReadStdout(p->manager));
-    checkReturnValue(retval);
+    (void)nvars;
+    (void)mode;
+    /* output suppressed */
 
 } // ABDD::summary
 
@@ -433,17 +415,9 @@ BDD::operator=(
     if (right.node) Cudd_Ref(right.node);
     if (node) {
 	Cudd_RecursiveDeref(p->manager,node);
-	if (p->verbose) {
-	    cout << "BDD dereferencing for node " << hex << node << dec <<
-		" ref = " << Cudd_Regular(node)->ref << "\n";
-	}
     }
     node = right.node;
     p = right.p;
-    if (node && p->verbose) {
-	cout << "BDD assignment for node " << hex << node << dec <<
-	    " ref = " << Cudd_Regular(node)->ref << "\n";
-    }
     return *this;
 
 } // BDD::operator=
@@ -938,10 +912,6 @@ ZDD::ZDD(const ZDD &from) : DD(from) {}
 ZDD::~ZDD() {
     if (node) {
 	Cudd_RecursiveDerefZdd(p->manager,node);
-	if (p->verbose) {
-	    cout << "ZDD destructor called for node " << hex << node << dec <<
-		" ref = " << Cudd_Regular(node)->ref << "\n";
-	}
     }
 
 } // ZDD::~ZDD
@@ -955,17 +925,9 @@ ZDD::operator=(
     if (right.node) Cudd_Ref(right.node);
     if (node) {
 	Cudd_RecursiveDerefZdd(p->manager,node);
-	if (p->verbose) {
-	    cout << "ZDD dereferencing for node " << hex << node << dec <<
-		" ref = " << node->ref << "\n";
-	}
     }
     node = right.node;
     p = right.p;
-    if (node && p->verbose) {
-	cout << "ZDD assignment for node " << hex << node << dec <<
-	    " ref = " << node->ref << "\n";
-    }
     return *this;
 
 } // ZDD::operator=
@@ -1037,8 +999,7 @@ void
 ZDD::print(
   int nvars,
   int verbosity) const
-{
-    cout.flush();
+{ 
     int retval = Cudd_zddPrintDebug(p->manager,node,nvars,verbosity);
     fflush(Cudd_ReadStdout(p->manager));
     if (retval == 0) p->errorHandler("print failed");
@@ -1204,8 +1165,6 @@ Cudd::Cudd(
 {
     p = x.p;
     x.p->ref++;
-    if (p->verbose)
-        cout << "Cudd Copy Constructor" << endl;
 
 } // Cudd::Cudd
 
@@ -1419,10 +1378,8 @@ Cudd::checkReturnValue(
 
 void
 Cudd::info() const
-{
-    cout.flush();
-    int retval = Cudd_PrintInfo(p->manager,stdout);
-    checkReturnValue(retval);
+{ 
+    /* output suppressed */
 
 } // Cudd::info
 
@@ -1576,7 +1533,8 @@ void
 defaultError(
   string message)
 {
-    throw std::logic_error(message);
+    //Todo: Find try-catch-able solution
+    Rf_error("%s", message.c_str());
 
 } // defaultError
 
@@ -3131,8 +3089,7 @@ Cudd::ApaPrintHex(
   int digits,
   DdApaNumber number,
   FILE * fp) const
-{
-    cout.flush();
+{ 
     int result = Cudd_ApaPrintHex(fp, digits, number);
     checkReturnValue(result);
 
@@ -3144,8 +3101,7 @@ Cudd::ApaPrintDecimal(
   int digits,
   DdApaNumber number,
   FILE * fp) const
-{
-    cout.flush();
+{ 
     int result = Cudd_ApaPrintDecimal(fp, digits, number);
     checkReturnValue(result);
 
@@ -3172,8 +3128,7 @@ Cudd::ApaPrintExponential(
   DdApaNumber number,
   int precision,
   FILE * fp) const
-{
-    cout.flush();
+{ 
     int result = Cudd_ApaPrintExponential(fp, digits, number, precision);
     checkReturnValue(result);
 
@@ -3195,8 +3150,7 @@ void
 ABDD::ApaPrintMinterm(
   int nvars,
   FILE * fp) const
-{
-    cout.flush();
+{ 
     DdManager *mgr = p->manager;
     int result = Cudd_ApaPrintMinterm(fp, mgr, node, nvars);
     checkReturnValue(result);
@@ -3209,8 +3163,7 @@ ABDD::ApaPrintMintermExp(
   int nvars,
   int precision,
   FILE * fp) const
-{
-    cout.flush();
+{ 
     DdManager *mgr = p->manager;
     int result = Cudd_ApaPrintMintermExp(fp, mgr, node, nvars, precision);
     checkReturnValue(result);
@@ -3224,13 +3177,13 @@ ABDD::EpdPrintMinterm(
   FILE * fp) const
 {
     EpDouble count;
-    char str[24];
-    cout.flush();
+    char str[24]; 
     DdManager *mgr = p->manager;
+    (void) fp;
     int result = Cudd_EpdCountMinterm(mgr, node, nvars, &count);
     checkReturnValue(result,0);
     EpdGetString(&count, str);
-    fprintf(fp, "%s", str);
+    Rprintf("%s", str);
 
 } // ABDD::EpdPrintMinterm
 
@@ -3238,8 +3191,7 @@ ABDD::EpdPrintMinterm(
 long double
 ABDD::LdblCountMinterm(
   int nvars) const
-{
-    cout.flush();
+{ 
     DdManager *mgr = p->manager;
     long double result = Cudd_LdblCountMinterm(mgr, node, nvars);
     checkReturnValue(result != (long double) CUDD_OUT_OF_MEM);
@@ -4511,8 +4463,7 @@ Cudd::Harwell(
 
 void
 Cudd::PrintLinear(void) const
-{
-    cout.flush();
+{ 
     int result = Cudd_PrintLinear(p->manager);
     checkReturnValue(result);
 
@@ -5325,8 +5276,7 @@ Cudd::Reserve(
 
 void
 ABDD::PrintMinterm() const
-{
-    cout.flush();
+{ 
     DdManager *mgr = p->manager;
     int result = Cudd_PrintMinterm(mgr, node);
     checkReturnValue(result);
@@ -5336,8 +5286,7 @@ ABDD::PrintMinterm() const
 
 void
 BDD::PrintCover() const
-{
-    cout.flush();
+{ 
     DdManager *mgr = p->manager;
     int result = Cudd_bddPrintCover(mgr, node, node);
     checkReturnValue(result);
@@ -5349,8 +5298,7 @@ void
 BDD::PrintCover(
   const BDD& u) const
 {
-    checkSameManager(u);
-    cout.flush();
+    checkSameManager(u); 
     DdManager *mgr = p->manager;
     int result = Cudd_bddPrintCover(mgr, node, u.node);
     checkReturnValue(result);
@@ -5744,8 +5692,7 @@ Cudd::IndicesToCube(
 void
 Cudd::PrintVersion(
   FILE * fp) const
-{
-    cout.flush();
+{ 
     Cudd_PrintVersion(fp);
 
 } // Cudd::PrintVersion
@@ -5934,8 +5881,7 @@ ZDD::CountMinterm(
 
 void
 Cudd::zddPrintSubtable() const
-{
-    cout.flush();
+{ 
     Cudd_zddPrintSubtable(p->manager);
 
 } // Cudd::zddPrintSubtable
@@ -6094,8 +6040,7 @@ Cudd::zddSymmProfile(
 
 void
 ZDD::PrintMinterm() const
-{
-    cout.flush();
+{ 
     DdManager *mgr = p->manager;
     int result = Cudd_zddPrintMinterm(mgr, node);
     checkReturnValue(result);
@@ -6105,8 +6050,7 @@ ZDD::PrintMinterm() const
 
 void
 ZDD::PrintCover() const
-{
-    cout.flush();
+{ 
     DdManager *mgr = p->manager;
     int result = Cudd_zddPrintCover(mgr, node);
     checkReturnValue(result);

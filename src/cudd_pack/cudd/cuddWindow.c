@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -137,7 +138,7 @@ cuddWindowReorder(
 	supposedOpt = (int) (table->keys - table->isolated);
 	res = ddWindow3(table,low,high);
 	if (table->keys - table->isolated != (unsigned) supposedOpt) {
-	    (void) fprintf(table->err, "Convergence failed! (%d != %d)\n",
+	    REprintf("Convergence failed! (%d != %d)\n",
 			   table->keys - table->isolated, supposedOpt);
 	}
 #endif
@@ -148,7 +149,7 @@ cuddWindowReorder(
 	supposedOpt = (int) (table->keys - table->isolated);
 	res = ddWindow4(table,low,high);
 	if (table->keys - table->isolated != (unsigned) supposedOpt) {
-	    (void) fprintf(table->err,"Convergence failed! (%d != %d)\n",
+	    REprintf("Convergence failed! (%d != %d)\n",
 			   table->keys - table->isolated, supposedOpt);
 	}
 #endif
@@ -204,9 +205,9 @@ ddWindow2(
 	}
 #ifdef DD_STATS
 	if (res < size) {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	} else {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	}
 	fflush(table->out);
 #endif
@@ -284,9 +285,9 @@ ddWindowConv2(
 		events[x] = 0;
 #ifdef DD_STATS
 		if (res < size) {
-		    (void) fprintf(table->out,"-");
+		    Rprintf("-");
 		} else {
-		    (void) fprintf(table->out,"=");
+		    Rprintf("=");
 		}
 		fflush(table->out);
 #endif
@@ -294,7 +295,7 @@ ddWindowConv2(
 	}
 #ifdef DD_STATS
 	if (newevent) {
-	    (void) fprintf(table->out,"|");
+	    Rprintf("|");
 	    fflush(table->out);
 	}
 #endif
@@ -435,9 +436,9 @@ ddWindow3(
 	if (res == 0) return(0);
 #ifdef DD_STATS
 	if (res == ABC) {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	} else {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	}
 	fflush(table->out);
 #endif
@@ -522,9 +523,9 @@ ddWindowConv3(
 		events[x] = 0;
 #ifdef DD_STATS
 		if (res == ABC) {
-		    (void) fprintf(table->out,"=");
+		    Rprintf("=");
 		} else {
-		    (void) fprintf(table->out,"-");
+		    Rprintf("-");
 		}
 		fflush(table->out);
 #endif
@@ -532,7 +533,7 @@ ddWindowConv3(
 	}
 #ifdef DD_STATS
 	if (newevent) {
-	    (void) fprintf(table->out,"|");
+	    Rprintf("|");
 	    fflush(table->out);
 	}
 #endif
@@ -834,9 +835,9 @@ ddWindow4(
 	if (res == 0) return(0);
 #ifdef DD_STATS
 	if (res == ABCD) {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	} else {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	}
 	fflush(table->out);
 #endif
@@ -963,9 +964,9 @@ ddWindowConv4(
 		events[x] = 0;
 #ifdef DD_STATS
 		if (res == ABCD) {
-		    (void) fprintf(table->out,"=");
+		    Rprintf("=");
 		} else {
-		    (void) fprintf(table->out,"-");
+		    Rprintf("-");
 		}
 		fflush(table->out);
 #endif
@@ -973,7 +974,7 @@ ddWindowConv4(
 	}
 #ifdef DD_STATS
 	if (newevent) {
-	    (void) fprintf(table->out,"|");
+	    Rprintf("|");
 	    fflush(table->out);
 	}
 #endif

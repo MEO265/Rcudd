@@ -46,6 +46,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "util.h"
 #include "cstringstream.h"
 
 /**
@@ -149,35 +150,35 @@ int appendStringStringStream(cstringstream ss, char const * s) {
 int appendIntStringStream(cstringstream ss, int d) {
   char str[256];
   if (!ss) return -1;
-  sprintf(str, "%d", d);
+  snprintf(str, sizeof(str), "%d", d);
   return appendStringStringStream(ss, str);
 }
 
 int appendUnsignedStringStream(cstringstream ss, unsigned u) {
   char str[256];
   if (!ss) return -1;
-  sprintf(str, "%u", u);
+  snprintf(str, sizeof(str), "%u", u);
   return appendStringStringStream(ss, str);
 }
 
 int appendLongStringStream(cstringstream ss, long ld) {
   char str[256];
   if (!ss) return -1;
-  sprintf(str, "%ld", ld);
+  snprintf(str, sizeof(str), "%ld", ld);
   return appendStringStringStream(ss, str);
 }
 
 int appendUnsignedLongStringStream(cstringstream ss, unsigned long lu) {
   char str[256];
   if (!ss) return -1;
-  sprintf(str, "%lu", lu);
+  snprintf(str, sizeof(str), "%lu", lu);
   return appendStringStringStream(ss, str);
 }
 
 int appendDoubleStringStream(cstringstream ss, double g) {
   char str[256];
   if (!ss) return -1;
-  sprintf(str, "%g", g);
+  snprintf(str, sizeof(str), "%g", g);
   return appendStringStringStream(ss, str);
 }
 

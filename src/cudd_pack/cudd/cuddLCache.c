@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -386,7 +387,7 @@ cuddLocalCacheProfile(
     double count, mean, meansq, stddev, expected;
     long max, min;
     int imax, imin;
-    int i, retval, slots;
+    int i, slots;
     long *hystogram;
     int nbins = DD_HYSTO_BINS;
     int bin;
@@ -438,29 +439,20 @@ cuddLocalCacheProfile(
     meansq /= (double) slots;
     stddev = sqrt(meansq - mean*mean);
 
-    retval = fprintf(fp,"Cache stats: slots = %d average = %g ", slots, mean);
-    if (retval == EOF) return(0);
-    retval = fprintf(fp,"standard deviation = %g\n", stddev);
-    if (retval == EOF) return(0);
-    retval = fprintf(fp,"Cache max accesses = %ld for slot %d\n", max, imax);
-    if (retval == EOF) return(0);
-    retval = fprintf(fp,"Cache min accesses = %ld for slot %d\n", min, imin);
-    if (retval == EOF) return(0);
-    retval = fprintf(fp,"Cache unused slots = %d\n", nzeroes);
-    if (retval == EOF) return(0);
+    Rprintf("Cache stats: slots = %d average = %g ", slots, mean);
+    Rprintf("standard deviation = %g\n", stddev);
+    Rprintf("Cache max accesses = %ld for slot %d\n", max, imax);
+    Rprintf("Cache min accesses = %ld for slot %d\n", min, imin);
+    Rprintf("Cache unused slots = %d\n", nzeroes);
 
     if (totalcount) {
 	expected /= totalcount;
-	retval = fprintf(fp,"Cache access hystogram for %d bins", nbins);
-	if (retval == EOF) return(0);
-	retval = fprintf(fp," (expected bin value = %g)\n# ", expected);
-	if (retval == EOF) return(0);
+	Rprintf("Cache access hystogram for %d bins", nbins);
+	Rprintf(" (expected bin value = %g)\n# ", expected);
 	for (i = nbins - 1; i>=0; i--) {
-	    retval = fprintf(fp,"%ld ", hystogram[i]);
-	    if (retval == EOF) return(0);
+	    Rprintf("%ld ", hystogram[i]);
 	}
-	retval = fprintf(fp,"\n");
-	if (retval == EOF) return(0);
+	Rprintf("\n");
     }
 
     FREE(hystogram);
@@ -1167,11 +1159,9 @@ cuddLocalCacheResize(
     slots = cache->slots = oldslots << 1;
 
 #ifdef DD_VERBOSE
-    (void) fprintf(cache->manager->err,
-		   "Resizing local cache from %d to %d entries\n",
+    REprintf("Resizing local cache from %d to %d entries\n",
 		   oldslots, slots);
-    (void) fprintf(cache->manager->err,
-		   "\thits = %.0f\tlookups = %.0f\thit ratio = %5.3f\n",
+    REprintf("\thits = %.0f\tlookups = %.0f\thit ratio = %5.3f\n",
 		   cache->hits, cache->lookUps, cache->hits / cache->lookUps);
 #endif
 
@@ -1183,7 +1173,7 @@ cuddLocalCacheResize(
     /* If we fail to allocate the new table we just give up. */
     if (item == NULL) {
 #ifdef DD_VERBOSE
-	(void) fprintf(cache->manager->err,"Resizing failed. Giving up.\n");
+	REprintf("Resizing failed. Giving up.\n");
 #endif
 	cache->slots = oldslots;
 	cache->item = olditem;

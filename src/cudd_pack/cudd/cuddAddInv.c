@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 
 /*---------------------------------------------------------------------------*/
@@ -107,7 +108,7 @@ Cudd_addScalarInverse(
     DdNode *res;
 
     if (!cuddIsConstant(epsilon)) {
-	(void) fprintf(dd->err,"Invalid epsilon\n");
+	REprintf("Invalid epsilon\n");
 	return(NULL);
     }
     do {
@@ -187,4 +188,3 @@ cuddAddScalarInverseRecur(
 /*---------------------------------------------------------------------------*/
 /* Definition of static functions                                            */
 /*---------------------------------------------------------------------------*/
-

@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -155,7 +156,7 @@ cuddExact(
     if (result == 0) goto cuddExactOutOfMem;
 
 #ifdef DD_STATS
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
     table->totalShuffles = 0;
     ddTotalSubsets = 0;
 #endif
@@ -218,7 +219,7 @@ cuddExact(
     /* Now consider subsets of increasing size. */
     for (k = 1; k <= size; k++) {
 #ifdef DD_STATS
-	(void) fprintf(table->out,"Processing subsets of size %d\n", k);
+	Rprintf("Processing subsets of size %d\n", k);
 	fflush(table->out);
 #endif
 	newSubsets = 0;
@@ -270,11 +271,11 @@ cuddExact(
     if (result == 0) goto cuddExactOutOfMem;
 #ifdef DD_STATS
 #ifdef DD_VERBOSE
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
 #endif
-    (void) fprintf(table->out,"#:S_EXACT   %8d: total subsets\n",
+    Rprintf("#:S_EXACT   %8d: total subsets\n",
 		   ddTotalSubsets);
-    (void) fprintf(table->out,"#:H_EXACT   %8d: total shuffles",
+    Rprintf("#:H_EXACT   %8d: total shuffles",
 		   table->totalShuffles);
 #endif
 
@@ -507,11 +508,11 @@ ddShuffle(
 #if 0
     numvars = table->size;
 
-    (void) fprintf(table->out,"%d:", table->totalShuffles);
+    Rprintf("%d:", table->totalShuffles);
     for (level = 0; level < numvars; level++) {
-	(void) fprintf(table->out," %d", table->invperm[level]);
+	Rprintf(" %d", table->invperm[level]);
     }
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
 #endif
 
     for (level = 0; level <= upper - lower; level++) {
@@ -526,13 +527,13 @@ ddShuffle(
 #ifdef DD_VERBOSE
     finalSize = (int) (table->keys - table->isolated);
     if (finalSize < initialSize) {
-	(void) fprintf(table->out,"-");
+	Rprintf("-");
     } else if (finalSize > initialSize) {
-	(void) fprintf(table->out,"+");
+	Rprintf("+");
     } else {
-	(void) fprintf(table->out,"=");
+	Rprintf("=");
     }
-    if ((table->totalShuffles & 63) == 0) (void) fprintf(table->out,"\n");
+    if ((table->totalShuffles & 63) == 0) Rprintf("\n");
     fflush(table->out);
 #endif
 #endif
@@ -597,7 +598,7 @@ updateUB(
 
     if (newBound < oldBound) {
 #ifdef DD_STATS
-	(void) fprintf(table->out,"New upper bound = %d\n", newBound);
+	Rprintf("New upper bound = %d\n", newBound);
 	fflush(table->out);
 #endif
 	for (i = lower; i <= upper; i++)

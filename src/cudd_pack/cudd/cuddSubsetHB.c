@@ -53,6 +53,7 @@
 #endif
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -293,7 +294,7 @@ cuddSubsetHeavyBranch(
     SubsetInfo_t info;
 
     if (f == NULL) {
-	fprintf(dd->err, "Cannot subset, nil object\n");
+	REprintf("Cannot subset, nil object\n");
 	dd->errorCode = CUDD_INVALID_ARG;
 	return(NULL);
     }
@@ -336,20 +337,19 @@ cuddSubsetHeavyBranch(
        stored in a st_table */
     visitedTable = SubsetCountMinterm(f, numVars, &info);
     if ((visitedTable == NULL) || info.memOut) {
-	(void) fprintf(dd->err, "Out-of-memory; Cannot subset\n");
+	REprintf("Out-of-memory; Cannot subset\n");
 	dd->errorCode = CUDD_MEMORY_OUT;
 	return(0);
     }
     numNodes = SubsetCountNodes(f, visitedTable, numVars, &info);
     if (info.memOut) {
-	(void) fprintf(dd->err, "Out-of-memory; Cannot subset\n");
+	REprintf("Out-of-memory; Cannot subset\n");
 	dd->errorCode = CUDD_MEMORY_OUT;
 	return(0);
     }
 
     if (st_lookup(visitedTable, f, (void **) &currNodeQual) == 0) {
-	fprintf(dd->err,
-		"Something is wrong, ought to be node quality table\n");
+	REprintf("Something is wrong, ought to be node quality table\n");
 	dd->errorCode = CUDD_INTERNAL_ERROR;
     }
 
@@ -366,7 +366,7 @@ cuddSubsetHeavyBranch(
     cuddRef(info.one);
     if (st_insert(storeTable, Cudd_ReadOne(dd), NULL) ==
 	ST_OUT_OF_MEM) {
-	fprintf(dd->out, "Something wrong, st_table insert failed\n");
+	Rprintf("Something wrong, st_table insert failed\n");
     }
     /* table to store approximations of nodes */
     approxTable = st_init_table(st_ptrcmp, st_ptrhash);
@@ -429,7 +429,7 @@ cuddSubsetHeavyBranch(
     if (subset != NULL) {
 #ifdef DD_DEBUG
       if (!Cudd_bddLeq(dd, subset, f)) {
-	    fprintf(dd->err, "Wrong subset\n");
+	    REprintf("Wrong subset\n");
 	    dd->errorCode = CUDD_INTERNAL_ERROR;
 	    return(NULL);
       }
@@ -1100,7 +1100,7 @@ StoreNodes(
     }
     cuddRef(N);
     if (st_insert(storeTable, N, NULL) == ST_OUT_OF_MEM) {
-	fprintf(dd->err,"Something wrong, st_table insert failed\n");
+	REprintf("Something wrong, st_table insert failed\n");
     }
 
     Nt = Cudd_T(N);
@@ -1163,8 +1163,7 @@ BuildSubsetBdd(
 
     /* Look up minterm count for this node. */
     if (!st_lookup(visitedTable, node, (void **) &currNodeQual)) {
-	fprintf(dd->err,
-		"Something is wrong, ought to be in node quality table\n");
+	REprintf("Something is wrong, ought to be in node quality table\n");
     }
 
     /* Get children. */
@@ -1179,7 +1178,7 @@ BuildSubsetBdd(
     if (!Cudd_IsConstantInt(Nv)) {
 	/* find out minterms and nodes contributed by then child */
 	if (!st_lookup(visitedTable, Nv, (void **) &currNodeQualT)) {
-		fprintf(dd->out,"Something wrong, couldnt find nodes in node quality table\n");
+		Rprintf("Something wrong, couldnt find nodes in node quality table\n");
 		dd->errorCode = CUDD_INTERNAL_ERROR;
 		return(NULL);
 	    }
@@ -1196,7 +1195,7 @@ BuildSubsetBdd(
     if (!Cudd_IsConstantInt(Nnv)) {
 	/* find out minterms and nodes contributed by else child */
 	if (!st_lookup(visitedTable, Nnv, (void **) &currNodeQualE)) {
-	    fprintf(dd->out,"Something wrong, couldnt find nodes in node quality table\n");
+	    Rprintf("Something wrong, couldnt find nodes in node quality table\n");
 	    dd->errorCode = CUDD_INTERNAL_ERROR;
 	    return(NULL);
 	} else {
@@ -1296,7 +1295,7 @@ BuildSubsetBdd(
 	/* store the approximation for this node */
 	if (N !=  Cudd_Regular(neW)) {
 	    if (st_lookup(approxTable, node, &dummy)) {
-		fprintf(dd->err, "This node should not be in the approximated table\n");
+		REprintf("This node should not be in the approximated table\n");
 	    } else {
 		cuddRef(neW);
 		if (st_insert(approxTable, node, neW) ==

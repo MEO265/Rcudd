@@ -46,6 +46,7 @@
 #include "util.h"
 #include "mtrInt.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -174,34 +175,34 @@ Cudd_zddReduceHeap(
     switch(heuristic) {
     case CUDD_REORDER_RANDOM:
     case CUDD_REORDER_RANDOM_PIVOT:
-	(void) fprintf(table->out,"#:I_RANDOM  ");
+	Rprintf("#:I_RANDOM  ");
 	break;
     case CUDD_REORDER_SIFT:
     case CUDD_REORDER_SIFT_CONVERGE:
     case CUDD_REORDER_SYMM_SIFT:
     case CUDD_REORDER_SYMM_SIFT_CONV:
-	(void) fprintf(table->out,"#:I_SIFTING ");
+	Rprintf("#:I_SIFTING ");
 	break;
     case CUDD_REORDER_LINEAR:
     case CUDD_REORDER_LINEAR_CONVERGE:
-	(void) fprintf(table->out,"#:I_LINSIFT ");
+	Rprintf("#:I_LINSIFT ");
 	break;
     default:
-	(void) fprintf(table->err,"Unsupported ZDD reordering method\n");
+	REprintf("Unsupported ZDD reordering method\n");
 	return(0);
     }
-    (void) fprintf(table->out,"%8d: initial size",initialSize); 
+    Rprintf("%8d: initial size",initialSize); 
 #endif
 
     result = cuddZddTreeSifting(table,heuristic);
 
 #ifdef DD_STATS
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
     finalSize = table->keysZ;
-    (void) fprintf(table->out,"#:F_REORDER %8d: final size\n",finalSize); 
-    (void) fprintf(table->out,"#:T_REORDER %8g: total time (sec)\n",
+    Rprintf("#:F_REORDER %8d: final size\n",finalSize); 
+    Rprintf("#:T_REORDER %8g: total time (sec)\n",
 		   ((double)(util_cpu_time() - localTime)/1000.0)); 
-    (void) fprintf(table->out,"#:N_REORDER %8d: total swaps\n",
+    Rprintf("#:N_REORDER %8d: total swaps\n",
 		   table->zddTotalNumberSwapping);
 #endif
 
@@ -658,7 +659,7 @@ cuddZddSwapInPlace(
     return (table->keysZ);
 
 zddSwapOutOfMem:
-    (void) fprintf(table->err, "Error: cuddZddSwapInPlace out of memory\n");
+    REprintf("Error: cuddZddSwapInPlace out of memory\n");
 
     return (0);
 
@@ -760,11 +761,11 @@ cuddZddSwapping(
 	}
 #ifdef DD_STATS
 	if (table->keysZ < (unsigned) previousSize) {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	} else if (table->keysZ > (unsigned) previousSize) {
-	    (void) fprintf(table->out,"+");	/* should never happen */
+	    Rprintf("+");	/* should never happen */
 	} else {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	}
 	fflush(table->out);
 #endif
@@ -856,12 +857,12 @@ cuddZddSifting(
 	    goto cuddZddSiftingOutOfMem;
 #ifdef DD_STATS
 	if (table->keysZ < (unsigned) previousSize) {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	} else if (table->keysZ > (unsigned) previousSize) {
-	    (void) fprintf(table->out,"+");	/* should never happen */
-	    (void) fprintf(table->out,"\nSize increased from %d to %d while sifting variable %d\n", previousSize, table->keysZ , var[i].index);
+	    Rprintf("+");	/* should never happen */
+	    Rprintf("\nSize increased from %d to %d while sifting variable %d\n", previousSize, table->keysZ , var[i].index);
 	} else {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	}
 	fflush(table->out);
 #endif
@@ -1402,7 +1403,7 @@ zddReorderPostprocess(
 	table->subtableZ[i].shift++;
 	table->subtableZ[i].maxKeys = slots * DD_MAX_SUBTABLE_DENSITY;
 #ifdef DD_VERBOSE
-	(void) fprintf(table->err,
+	REprintf(
 		       "shrunk layer %d (%d keys) from %d to %d slots\n",
 		       i, table->subtableZ[i].keys, oldslots, slots);
 #endif
@@ -1473,7 +1474,7 @@ zddShuffle(
 #ifdef DD_STATS
     localTime = util_cpu_time();
     initialSize = table->keysZ;
-    (void) fprintf(table->out,"#:I_SHUFFLE %8d: initial size\n",
+    Rprintf("#:I_SHUFFLE %8d: initial size\n",
 		   initialSize); 
 #endif
 
@@ -1489,23 +1490,23 @@ zddShuffle(
 	if (!result) return(0);
 #ifdef DD_STATS
 	if (table->keysZ < (unsigned) previousSize) {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	} else if (table->keysZ > (unsigned) previousSize) {
-	    (void) fprintf(table->out,"+");	/* should never happen */
+	    Rprintf("+");	/* should never happen */
 	} else {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	}
 	fflush(table->out);
 #endif
     }
 
 #ifdef DD_STATS
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
     finalSize = table->keysZ;
-    (void) fprintf(table->out,"#:F_SHUFFLE %8d: final size\n",finalSize); 
-    (void) fprintf(table->out,"#:T_SHUFFLE %8g: total time (sec)\n",
+    Rprintf("#:F_SHUFFLE %8d: final size\n",finalSize); 
+    Rprintf("#:T_SHUFFLE %8g: total time (sec)\n",
 	((double)(util_cpu_time() - localTime)/1000.0)); 
-    (void) fprintf(table->out,"#:N_SHUFFLE %8d: total swaps\n",
+    Rprintf("#:N_SHUFFLE %8d: total swaps\n",
 		   table->zddTotalNumberSwapping);
 #endif
 
@@ -1577,4 +1578,3 @@ zddFixTree(
     return;
 
 } /* end of zddFixTree */
-

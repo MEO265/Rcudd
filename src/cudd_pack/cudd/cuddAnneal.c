@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -137,7 +138,7 @@ cuddAnnealing(
 
     result = cuddSifting(table,lower,upper);
 #ifdef DD_STATS
-    (void) fprintf(table->out,"\n");
+    Rprintf("\n");
 #endif
     if (result == 0) return(0);
 
@@ -163,7 +164,7 @@ cuddAnnealing(
  
     while (!stopping_criterion(c1, c2, c3, c4, temp)) {
 #ifdef DD_STATS
-	(void) fprintf(table->out,"temp=%f\tsize=%d\tgen=%d\t",
+    Rprintf("temp=%f\tsize=%d\tgen=%d\t",
 		       temp,size,maxGen);
 	table->tosses = table->acceptances = 0;
 #endif
@@ -187,24 +188,21 @@ cuddAnnealing(
 		result = ddExchange(table,x,y,temp);       /* exchange */
 		ecount++;
 #if 0
-		(void) fprintf(table->out,
-			       "Exchange of %d and %d: size = %d\n",
+        Rprintf("Exchange of %d and %d: size = %d\n",
 			       x,y,table->keys - table->isolated);
 #endif
 	    } else if (rand1 < EXC_PROB + JUMP_UP_PROB) {
 		result = ddJumpingAux(table,y,x,y,temp); /* jumping_up */
 		ucount++;
 #if 0
-		(void) fprintf(table->out,
-			       "Jump up of %d to %d: size = %d\n",
+        Rprintf("Jump up of %d to %d: size = %d\n",
 			       y,x,table->keys - table->isolated);
 #endif
 	    } else {
 		result = ddJumpingAux(table,x,x,y,temp); /* jumping_down */
 		dcount++;
 #if 0
-		(void) fprintf(table->out,
-			       "Jump down of %d to %d: size = %d\n",
+        Rprintf("Jump down of %d to %d: size = %d\n",
 			       x,y,table->keys - table->isolated);
 #endif
 	    }
@@ -230,9 +228,8 @@ cuddAnnealing(
 	}
 	temp = NewTemp;	                /* control variable */
 #ifdef DD_STATS
-	(void) fprintf(table->out,"uphill = %d\taccepted = %d\n",
+    Rprintf("uphill = %d\taccepted = %d\n",
 		       table->tosses,table->acceptances);
-	fflush(table->out);
 #endif
     }
 
@@ -240,9 +237,9 @@ cuddAnnealing(
     FREE(BestOrder);
     if (!result) return(0);
 #ifdef DD_STATS
-    fprintf(table->out,"#:N_EXCHANGE %8d : total exchanges\n",ecount);
-    fprintf(table->out,"#:N_JUMPUP   %8d : total jumps up\n",ucount);
-    fprintf(table->out,"#:N_JUMPDOWN %8d : total jumps down",dcount);
+    Rprintf("#:N_EXCHANGE %8d : total exchanges\n",ecount);
+    Rprintf("#:N_JUMPUP   %8d : total jumps up\n",ucount);
+    Rprintf("#:N_JUMPDOWN %8d : total jumps down",dcount);
 #endif
     return(1);
 
@@ -492,7 +489,7 @@ ddJumpingAux(
 	result = siftBackwardProb(table,moves,initial_size,temp);
 	if (!result) goto ddJumpingAuxOutOfMem;
     } else {
-	(void) fprintf(table->err,"Unexpected condition in ddJumping\n");
+    REprintf("Unexpected condition in ddJumping\n");
 	goto ddJumpingAuxOutOfMem;
     }
     while (moves != NULL) {
@@ -754,4 +751,3 @@ restoreOrder(
     return(1);
 
 } /* end of restoreOrder */
-

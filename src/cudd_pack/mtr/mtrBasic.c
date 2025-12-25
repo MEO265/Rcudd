@@ -47,6 +47,7 @@
 
 #include "util.h"
 #include "mtrInt.h"
+#include <R_ext/Print.h>
 
 
 /*---------------------------------------------------------------------------*/
@@ -377,12 +378,11 @@ Mtr_PrintTree(
   MtrNode const * node)
 {
     if (node == NULL) return;
-    (void) fprintf(stdout,
-        "N=0x%-8" PRIxPTR " C=0x%-8" PRIxPTR " Y=0x%-8" PRIxPTR
-        " E=0x%-8" PRIxPTR " P=0x%-8" PRIxPTR " F=%x L=%u S=%u\n",
-        (uintptr_t) node, (uintptr_t) node->child,
-        (uintptr_t) node->younger, (uintptr_t) node->elder,
-        (uintptr_t) node->parent, node->flags, node->low, node->size);
+    Rprintf("N=0x%-8" PRIxPTR " C=0x%-8" PRIxPTR " Y=0x%-8" PRIxPTR
+            " E=0x%-8" PRIxPTR " P=0x%-8" PRIxPTR " F=%x L=%u S=%u\n",
+            (uintptr_t) node, (uintptr_t) node->child,
+            (uintptr_t) node->younger, (uintptr_t) node->elder,
+            (uintptr_t) node->parent, node->flags, node->low, node->size);
     if (!MTR_TEST(node,MTR_TERMINAL)) Mtr_PrintTree(node->child);
     Mtr_PrintTree(node->younger);
     return;

@@ -45,6 +45,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -116,8 +117,7 @@ Cudd_CofMinterm(
 
     table = st_init_table(st_ptrcmp, st_ptrhash);
     if (table == NULL) {
-	(void) fprintf(dd->err,
-		       "out-of-memory, couldn't measure DD cofactors.\n");
+	REprintf("out-of-memory, couldn't measure DD cofactors.\n");
 	dd->errorCode = CUDD_MEMORY_OUT;
 	return(NULL);
     }
@@ -147,13 +147,12 @@ Cudd_CofMinterm(
     st_foreach(table, cuddStCountfree, NULL);
     st_free_table(table);
 #ifdef DD_STATS
-    (void) fprintf(dd->out,"Number of calls: %d\n", dd->num_calls);
-    (void) fprintf(dd->out,"Time to compute measures: %s\n",
+    Rprintf("Number of calls: %d\n", dd->num_calls);
+    Rprintf("Time to compute measures: %s\n",
 		  util_print_time(util_cpu_time() - startTime));
 #endif
     if (result == NULL) {
-	(void) fprintf(dd->out,
-		       "out-of-memory, couldn't measure DD cofactors.\n");
+	Rprintf("out-of-memory, couldn't measure DD cofactors.\n");
 	dd->errorCode = CUDD_MEMORY_OUT;
     }
     return(result);

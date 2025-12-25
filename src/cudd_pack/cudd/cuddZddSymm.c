@@ -47,6 +47,8 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Error.h>
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -113,9 +115,9 @@ Cudd_zddSymmProfile(
     for (i = lower; i < upper; i++) {
 	if (table->subtableZ[i].next != (unsigned) i) {
 	    x = i;
-	    (void) fprintf(table->out,"Group:");
+	    Rprintf("Group:");
 	    do {
-		(void) fprintf(table->out,"  %d", table->invpermZ[x]);
+		Rprintf("  %d", table->invpermZ[x]);
 		TotalSymm++;
 		gbot = x;
 		x = table->subtableZ[x].next;
@@ -125,11 +127,11 @@ Cudd_zddSymmProfile(
 	    assert(table->subtableZ[gbot].next == (unsigned) i);
 #endif
 	    i = gbot;
-	    (void) fprintf(table->out,"\n");
+	    Rprintf("\n");
 	}
     }
-    (void) fprintf(table->out,"Total Symmetric = %d\n", TotalSymm);
-    (void) fprintf(table->out,"Total Groups = %d\n", TotalSymmGroups);
+    Rprintf("Total Symmetric = %d\n", TotalSymm);
+    Rprintf("Total Groups = %d\n", TotalSymmGroups);
 
 } /* end of Cudd_zddSymmProfile */
 
@@ -220,9 +222,8 @@ cuddZddSymmCheck(
 #if defined(DD_DEBUG) && defined(DD_VERBOSE)
     if (symm_found) {
 	int xindex = table->invpermZ[x];
-	(void) fprintf(table->out,
-		       "Found symmetry! x =%d\ty = %d\tPos(%d,%d)\n",
-		       xindex,yindex,x,y);
+	Rprintf("Found symmetry! x =%d\ty = %d\tPos(%d,%d)\n",
+	        xindex,yindex,x,y);
     }
 #endif
 
@@ -305,6 +306,7 @@ cuddZddSymmSifting(
             break;
         }
 	x = table->permZ[var[i].index];
+
 #ifdef DD_STATS
 	previousSize = table->keysZ;
 #endif
@@ -314,19 +316,21 @@ cuddZddSymmSifting(
 	    if (!result)
 		goto cuddZddSymmSiftingOutOfMem;
 #ifdef DD_STATS
-	    if (table->keysZ < (unsigned) previousSize) {
-		(void) fprintf(table->out,"-");
-	    } else if (table->keysZ > (unsigned) previousSize) {
-		(void) fprintf(table->out,"+");
+	if (table->keysZ < (unsigned) previousSize) {
+	    Rprintf("-");
+	} else if (table->keysZ > (unsigned) previousSize) {
+	    Rprintf("+");
 #ifdef DD_VERBOSE
-		(void) fprintf(table->out,"\nSize increased from %d to %d while sifting variable %d\n", previousSize, table->keysZ, var[i].index);
+	    Rprintf("\nSize increased from %d to %d while sifting variable %d\n", previousSize, table->keysZ, var[i].index);
 #endif
-	    } else {
-		(void) fprintf(table->out,"=");
-	    }
-	    fflush(table->out);
-#endif
+	} else {
+	    Rprintf("=");
 	}
+#ifdef DD_VERBOSE
+	fflush(NULL);
+#endif
+#endif
+    }
     }
 
     FREE(var);
@@ -334,8 +338,8 @@ cuddZddSymmSifting(
     cuddZddSymmSummary(table, lower, upper, &symvars, &symgroups);
 
 #ifdef DD_STATS
-    (void) fprintf(table->out,"\n#:S_SIFTING %8d: symmetric variables\n",symvars);
-    (void) fprintf(table->out,"#:G_SIFTING %8d: symmetric groups\n",symgroups);
+    Rprintf("\n#:S_SIFTING %8d: symmetric variables\n",symvars);
+    Rprintf("#:G_SIFTING %8d: symmetric groups\n",symgroups);
 #endif
 
     return(1+symvars);
@@ -435,32 +439,34 @@ cuddZddSymmSiftingConv(
 	/* Only sift if not in symmetry group already. */
 	if (table->subtableZ[x].next == (unsigned) x) {
 #ifdef DD_STATS
-	    previousSize = table->keysZ;
+	previousSize = table->keysZ;
 #endif
 	    result = cuddZddSymmSiftingAux(table, x, lower, upper);
 	    if (!result)
 		goto cuddZddSymmSiftingConvOutOfMem;
 #ifdef DD_STATS
-	    if (table->keysZ < (unsigned) previousSize) {
-		(void) fprintf(table->out,"-");
-	    } else if (table->keysZ > (unsigned) previousSize) {
-		(void) fprintf(table->out,"+");
+	if (table->keysZ < (unsigned) previousSize) {
+	    Rprintf("-");
+	} else if (table->keysZ > (unsigned) previousSize) {
+	    Rprintf("+");
 #ifdef DD_VERBOSE
-		(void) fprintf(table->out,"\nSize increased from %d to %d while sifting variable %d\n", previousSize, table->keysZ, var[i].index);
+	    Rprintf("\nSize increased from %d to %d while sifting variable %d\n", previousSize, table->keysZ, var[i].index);
 #endif
-	    } else {
-		(void) fprintf(table->out,"=");
-	    }
-	    fflush(table->out);
-#endif
+	} else {
+	    Rprintf("=");
 	}
+#ifdef DD_VERBOSE
+	fflush(NULL);
+#endif
+#endif
+    }
     }
 
     /* Sifting now until convergence. */
     while ((unsigned) initialSize > table->keysZ) {
 	initialSize = table->keysZ;
 #ifdef DD_STATS
-	(void) fprintf(table->out,"\n");
+	Rprintf("\n");
 #endif
 	/* Here we consider only one representative for each symmetry class. */
 	for (x = lower, classes = 0; x <= upper; x++, classes++) {
@@ -501,16 +507,18 @@ cuddZddSymmSiftingConv(
 		    goto cuddZddSymmSiftingConvOutOfMem;
 #ifdef DD_STATS
 		if (table->keysZ < (unsigned) previousSize) {
-		    (void) fprintf(table->out,"-");
+		    Rprintf("-");
 		} else if (table->keysZ > (unsigned) previousSize) {
-		    (void) fprintf(table->out,"+");
+		    Rprintf("+");
 #ifdef DD_VERBOSE
-		(void) fprintf(table->out,"\nSize increased from %d to %d while sifting variable %d\n", previousSize, table->keysZ, var[i].index);
+		Rprintf("\nSize increased from %d to %d while sifting variable %d\n", previousSize, table->keysZ, var[i].index);
 #endif
 		} else {
-		    (void) fprintf(table->out,"=");
+		    Rprintf("=");
 		}
-		fflush(table->out);
+#ifdef DD_VERBOSE
+		fflush(NULL);
+#endif
 #endif
 	    }
 	} /* for */
@@ -519,10 +527,10 @@ cuddZddSymmSiftingConv(
     cuddZddSymmSummary(table, lower, upper, &symvars, &symgroups);
 
 #ifdef DD_STATS
-    (void) fprintf(table->out,"\n#:S_SIFTING %8d: symmetric variables\n",
-		   symvars);
-    (void) fprintf(table->out,"#:G_SIFTING %8d: symmetric groups\n",
-		   symgroups);
+    Rprintf("\n#:S_SIFTING %8d: symmetric variables\n",
+	       symvars);
+    Rprintf("#:G_SIFTING %8d: symmetric groups\n",
+	       symgroups);
 #endif
 
     FREE(var);
@@ -1636,4 +1644,3 @@ cuddZddSymmSummary(
     return;
 
 } /* end of cuddZddSymmSummary */
-

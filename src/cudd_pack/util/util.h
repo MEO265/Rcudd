@@ -78,6 +78,9 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#if defined(__STRICT_ANSI__)
+int snprintf(char *str, size_t size, const char *format, ...);
+#endif
 
 #if HAVE_STDLIB_H
 #include <stdlib.h>
@@ -175,10 +178,7 @@
  * @brief Prints message and terminates execution.
  */
 #define fail(why) {\
-    (void) fprintf(stderr, "Fatal error: file %s, line %d\n%s\n",\
-	__FILE__, __LINE__, why);\
-    (void) fflush(stdout);\
-    abort();\
+    Rf_error("Fatal error: file %s, line %d\n%s", __FILE__, __LINE__, why);\
 }
 
 /* These arguably do NOT belong in util.h */

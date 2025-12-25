@@ -46,6 +46,7 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <R_ext/Print.h>
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -113,7 +114,6 @@ Cudd_PrintLinear(
   DdManager * table)
 {
     int i,j,k;
-    int retval;
     int nvars = table->linearSize;
     int wordsPerRow = ((nvars - 1) >> LOGBPL) + 1;
     ptruint word;
@@ -122,13 +122,11 @@ Cudd_PrintLinear(
 	for (j = 0; j < wordsPerRow; j++) {
 	    word = table->linear[i*wordsPerRow + j];
 	    for (k = 0; k < BPL; k++) {
-              retval = fprintf(table->out,"%" PRIuPTR,word & (ptruint) 1);
-		if (retval == 0) return(0);
+              Rprintf("%" PRIuPTR,word & (ptruint) 1);
 		word >>= 1;
 	    }
 	}
-	retval = fprintf(table->out,"\n");
-	if (retval == 0) return(0);
+	Rprintf("\n");
     }
     return(1);
 
@@ -215,7 +213,7 @@ cuddLinearAndSifting(
 	result = cuddInitLinear(table);
 	if (result == 0) goto cuddLinearAndSiftingOutOfMem;
 #if 0
-	(void) fprintf(table->out,"\n");
+	Rprintf("\n");
 	result = Cudd_PrintLinear(table);
 	if (result == 0) goto cuddLinearAndSiftingOutOfMem;
 #endif
@@ -223,7 +221,7 @@ cuddLinearAndSifting(
 	result = cuddResizeLinear(table);
 	if (result == 0) goto cuddLinearAndSiftingOutOfMem;
 #if 0
-	(void) fprintf(table->out,"\n");
+	Rprintf("\n");
 	result = Cudd_PrintLinear(table);
 	if (result == 0) goto cuddLinearAndSiftingOutOfMem;
 #endif
@@ -255,12 +253,12 @@ cuddLinearAndSifting(
 	if (!result) goto cuddLinearAndSiftingOutOfMem;
 #ifdef DD_STATS
 	if (table->keys < (unsigned) previousSize + table->isolated) {
-	    (void) fprintf(table->out,"-");
+	    Rprintf("-");
 	} else if (table->keys > (unsigned) previousSize + table->isolated) {
-	    (void) fprintf(table->out,"+");	/* should never happen */
-	    (void) fprintf(table->out,"\nSize increased from %d to %u while sifting variable %d\n", previousSize, table->keys - table->isolated, var[i].index);
+	    Rprintf("+");	/* should never happen */
+	    Rprintf("\nSize increased from %d to %u while sifting variable %d\n", previousSize, table->keys - table->isolated, var[i].index);
 	} else {
-	    (void) fprintf(table->out,"=");
+	    Rprintf("=");
 	}
 	fflush(table->out);
 #endif
@@ -272,7 +270,7 @@ cuddLinearAndSifting(
     FREE(var);
 
 #ifdef DD_STATS
-    (void) fprintf(table->out,"\n#:L_LINSIFT %8d: linear trans.",
+    Rprintf("\n#:L_LINSIFT %8d: linear trans.",
 		   table->totalNumberLinearTr);
 #endif
 
@@ -583,7 +581,7 @@ cuddLinearInPlace(
 
 #ifdef DD_DEBUG
 #if 0
-	(void) fprintf(table->out,"Linearly combining %d and %d\n",x,y);
+	Rprintf("Linearly combining %d and %d\n",x,y);
 #endif
 	count = 0;
 	idcheck = 0;
@@ -597,10 +595,10 @@ cuddLinearInPlace(
 	    }
 	}
 	if (count != newykeys) {
-	    fprintf(table->err,"Error in finding newykeys\toldykeys = %d\tnewykeys = %d\tactual = %d\n",oldykeys,newykeys,count);
+	    REprintf("Error in finding newykeys\toldykeys = %d\tnewykeys = %d\tactual = %d\n",oldykeys,newykeys,count);
 	}
 	if (idcheck != 0)
-	    fprintf(table->err,"Error in id's of ylist\twrong id's = %d\n",idcheck);
+	    REprintf("Error in id's of ylist\twrong id's = %d\n",idcheck);
 	count = 0;
 	idcheck = 0;
 	for (i = 0; i < xslots; i++) {
@@ -613,10 +611,10 @@ cuddLinearInPlace(
 	    }
 	}
 	if (count != newxkeys || newxkeys != oldxkeys) {
-	    fprintf(table->err,"Error in finding newxkeys\toldxkeys = %d \tnewxkeys = %d \tactual = %d\n",oldxkeys,newxkeys,count);
+	    REprintf("Error in finding newxkeys\toldxkeys = %d \tnewxkeys = %d \tactual = %d\n",oldxkeys,newxkeys,count);
 	}
 	if (idcheck != 0)
-	    fprintf(table->err,"Error in id's of xlist\twrong id's = %d\n",idcheck);
+	    REprintf("Error in id's of xlist\twrong id's = %d\n",idcheck);
 #endif
 
 	isolated += (table->vars[xindex]->ref == 1) +
@@ -645,7 +643,7 @@ cuddLinearInPlace(
     return((int) (table->keys - table->isolated));
 
 cuddLinearOutOfMem:
-    (void) fprintf(table->err,"Error: cuddLinearInPlace out of memory\n");
+    REprintf("Error: cuddLinearInPlace out of memory\n");
 
     return (0);
 
@@ -995,7 +993,7 @@ ddLinearAndSiftingUp(
 	isolated = table->vars[yindex]->ref == 1;
 	checkL -= table->subtables[y].keys - isolated;
 	if (L != checkL) {
-	    (void) fprintf(table->out, "checkL(%d) != L(%d)\n",checkL,L);
+	    Rprintf("checkL(%d) != L(%d)\n",checkL,L);
 	}
 #endif
 	size = cuddSwapInPlace(table,x,y);
@@ -1018,7 +1016,7 @@ ddLinearAndSiftingUp(
 	    if (newsize == 0) goto ddLinearAndSiftingUpOutOfMem;
 #ifdef DD_DEBUG
 	    if (newsize != size) {
-		(void) fprintf(table->out,"Change in size after identity transformation! From %d to %d\n",size,newsize);
+		Rprintf("Change in size after identity transformation! From %d to %d\n",size,newsize);
 	    }
 #endif
 	} else if (cuddTestInteract(table,xindex,yindex)) {
@@ -1107,7 +1105,7 @@ ddLinearAndSiftingDown(
 	    }
 	}
 	if (R != checkR) {
-	    (void) fprintf(table->out, "checkR(%d) != R(%d)\n",checkR,R);
+	    Rprintf("checkR(%d) != R(%d)\n",checkR,R);
 	}
 #endif
 	/* Update upper bound on node decrease. */
@@ -1135,7 +1133,7 @@ ddLinearAndSiftingDown(
 	    newsize = cuddLinearInPlace(table,x,y);
 	    if (newsize == 0) goto ddLinearAndSiftingDownOutOfMem;
 	    if (newsize != size) {
-		(void) fprintf(table->out,"Change in size after identity transformation! From %d to %d\n",size,newsize);
+		Rprintf("Change in size after identity transformation! From %d to %d\n",size,newsize);
 	    }
 	} else if (cuddTestInteract(table,xindex,yindex)) {
 	    size = newsize;
@@ -1245,7 +1243,7 @@ ddUndoMoves(
 	    if (!size) goto ddUndoMovesOutOfMem;
 	} else { /* must be CUDD_INVERSE_TRANSFORM_MOVE */
 #ifdef DD_DEBUG
-	    (void) fprintf(table->err,"Unforseen event in ddUndoMoves!\n");
+	    REprintf("Unforseen event in ddUndoMoves!\n");
 #endif
 	    invmove->flags = CUDD_LINEAR_TRANSFORM_MOVE;
 	    size = cuddSwapInPlace(table,(int)move->x,(int)move->y);

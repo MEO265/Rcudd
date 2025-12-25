@@ -45,6 +45,9 @@
 
 #include "util.h"
 #include "cuddInt.h"
+#include <stdarg.h>
+#include <R_ext/Print.h>
+
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -187,7 +190,7 @@ Cudd_zddPrintDebug(
     int		retval = 1;
 
     if (f == empty && pr > 0) {
-	(void) fprintf(zdd->out,": is the empty ZDD\n");
+	Rprintf(": is the empty ZDD\n");
 	(void) fflush(zdd->out);
 	return(1);
     }
@@ -197,13 +200,13 @@ Cudd_zddPrintDebug(
 	if (nodes == CUDD_OUT_OF_MEM) retval = 0;
 	minterms = Cudd_zddCountMinterm(zdd, f, n);
 	if (minterms == (double)CUDD_OUT_OF_MEM) retval = 0;
-	(void) fprintf(zdd->out,": %d nodes %g minterms\n",
+	Rprintf(": %d nodes %g minterms\n",
 		       nodes, minterms);
 	if (pr > 2)
 	    if (!cuddZddP(zdd, f)) retval = 0;
 	if (pr == 2 || pr > 3) {
 	    if (!Cudd_zddPrintMinterm(zdd, f)) retval = 0;
-	    (void) fprintf(zdd->out,"\n");
+	    Rprintf("\n");
 	}
 	(void) fflush(zdd->out);
     }
@@ -660,115 +663,115 @@ Cudd_zddDumpDot(
     }
 
     /* Write the header and the global attributes. */
-    retval = fprintf(fp,"digraph \"ZDD\" {\n");
-    if (retval == EOF) return(0);
-    retval = fprintf(fp,
+    Rprintf("digraph \"ZDD\" {\n");
+
+    Rprintf(
 	"size = \"7.5,10\"\ncenter = true;\nedge [dir = none];\n");
-    if (retval == EOF) return(0);
+
 
     /* Write the input name subgraph by scanning the support array. */
-    retval = fprintf(fp,"{ node [shape = plaintext];\n");
-    if (retval == EOF) goto failure;
-    retval = fprintf(fp,"  edge [style = invis];\n");
-    if (retval == EOF) goto failure;
+    Rprintf("{ node [shape = plaintext];\n");
+
+    Rprintf("  edge [style = invis];\n");
+
     /* We use a name ("CONST NODES") with an embedded blank, because
     ** it is unlikely to appear as an input name.
     */
-    retval = fprintf(fp,"  \"CONST NODES\" [style = invis];\n");
-    if (retval == EOF) goto failure;
+    Rprintf("  \"CONST NODES\" [style = invis];\n");
+
     for (i = 0; i < nvars; i++) {
 	if (sorted[dd->invpermZ[i]]) {
 	    if (inames == NULL) {
-		retval = fprintf(fp,"\" %d \" -> ", dd->invpermZ[i]);
+		Rprintf("\" %d \" -> ", dd->invpermZ[i]);
 	    } else {
-		retval = fprintf(fp,"\" %s \" -> ", inames[dd->invpermZ[i]]);
+		Rprintf("\" %s \" -> ", inames[dd->invpermZ[i]]);
 	    }
-	    if (retval == EOF) goto failure;
+
 	}
     }
-    retval = fprintf(fp,"\"CONST NODES\"; \n}\n");
-    if (retval == EOF) goto failure;
+    Rprintf("\"CONST NODES\"; \n}\n");
+
 
     /* Write the output node subgraph. */
-    retval = fprintf(fp,"{ rank = same; node [shape = box]; edge [style = invis];\n");
-    if (retval == EOF) goto failure;
+    Rprintf("{ rank = same; node [shape = box]; edge [style = invis];\n");
+
     for (i = 0; i < n; i++) {
 	if (onames == NULL) {
-	    retval = fprintf(fp,"\"F%d\"", i);
+	    Rprintf("\"F%d\"", i);
 	} else {
-	    retval = fprintf(fp,"\"  %s  \"", onames[i]);
+	    Rprintf("\"  %s  \"", onames[i]);
 	}
-	if (retval == EOF) goto failure;
+
 	if (i == n - 1) {
-	    retval = fprintf(fp,"; }\n");
+	    Rprintf("; }\n");
 	} else {
-	    retval = fprintf(fp," -> ");
+	    Rprintf(" -> ");
 	}
-	if (retval == EOF) goto failure;
+
     }
 
     /* Write rank info: All nodes with the same index have the same rank. */
     for (i = 0; i < nvars; i++) {
 	if (sorted[dd->invpermZ[i]]) {
-	    retval = fprintf(fp,"{ rank = same; ");
-	    if (retval == EOF) goto failure;
+	    Rprintf("{ rank = same; ");
+
 	    if (inames == NULL) {
-		retval = fprintf(fp,"\" %d \";\n", dd->invpermZ[i]);
+		Rprintf("\" %d \";\n", dd->invpermZ[i]);
 	    } else {
-		retval = fprintf(fp,"\" %s \";\n", inames[dd->invpermZ[i]]);
+		Rprintf("\" %s \";\n", inames[dd->invpermZ[i]]);
 	    }
-	    if (retval == EOF) goto failure;
+
 	    nodelist = dd->subtableZ[i].nodelist;
 	    slots = dd->subtableZ[i].slots;
 	    for (j = 0; j < slots; j++) {
 		scan = nodelist[j];
 		while (scan != NULL) {
 		    if (st_is_member(visited,scan)) {
-			retval = fprintf(fp,"\"%#" PRIxPTR "\";\n",
+			Rprintf("\"%#" PRIxPTR "\";\n",
 					 ((mask & (ptruint) scan) /
 					  sizeof(DdNode)));
-			if (retval == EOF) goto failure;
+
 		    }
 		    scan = scan->next;
 		}
 	    }
-	    retval = fprintf(fp,"}\n");
-	    if (retval == EOF) goto failure;
+	    Rprintf("}\n");
+
 	}
     }
 
     /* All constants have the same rank. */
-    retval = fprintf(fp,
+    Rprintf(
 	"{ rank = same; \"CONST NODES\";\n{ node [shape = box]; ");
-    if (retval == EOF) goto failure;
+
     nodelist = dd->constants.nodelist;
     slots = dd->constants.slots;
     for (j = 0; j < slots; j++) {
 	scan = nodelist[j];
 	while (scan != NULL) {
 	    if (st_is_member(visited,scan)) {
-		retval = fprintf(fp,"\"%#" PRIxPTR "\";\n",
+		Rprintf("\"%#" PRIxPTR "\";\n",
 				 ((mask & (ptruint) scan) / sizeof(DdNode)));
-		if (retval == EOF) goto failure;
+
 	    }
 	    scan = scan->next;
 	}
     }
-    retval = fprintf(fp,"}\n}\n");
-    if (retval == EOF) goto failure;
+    Rprintf("}\n}\n");
+
 
     /* Write edge info. */
     /* Edges from the output nodes. */
     for (i = 0; i < n; i++) {
 	if (onames == NULL) {
-	    retval = fprintf(fp,"\"F%d\"", i);
+	    Rprintf("\"F%d\"", i);
 	} else {
-	    retval = fprintf(fp,"\"  %s  \"", onames[i]);
+	    Rprintf("\"  %s  \"", onames[i]);
 	}
-	if (retval == EOF) goto failure;
-	retval = fprintf(fp," -> \"%#" PRIxPTR "\" [style = solid];\n",
+
+	Rprintf(" -> \"%#" PRIxPTR "\" [style = solid];\n",
 			 ((mask & (ptruint) f[i]) / sizeof(DdNode)));
-	if (retval == EOF) goto failure;
+
     }
 
     /* Edges from internal nodes. */
@@ -780,19 +783,19 @@ Cudd_zddDumpDot(
 		scan = nodelist[j];
 		while (scan != NULL) {
 		    if (st_is_member(visited,scan)) {
-			retval = fprintf(fp,
+			Rprintf(
 			    "\"%#" PRIxPTR "\" -> \"%#" PRIxPTR "\";\n",
 			    ((mask & (ptruint) scan) / sizeof(DdNode)),
 			    ((mask & (ptruint) cuddT(scan)) / sizeof(DdNode)));
-			if (retval == EOF) goto failure;
-			retval = fprintf(fp,
+
+			Rprintf(
 					 "\"%#" PRIxPTR "\" -> \"%#" PRIxPTR
                                          "\" [style = dashed];\n",
 					 ((mask & (ptruint) scan) /
                                           sizeof(DdNode)),
 					 ((mask & (ptruint) cuddE(scan)) /
                                           sizeof(DdNode)));
-			if (retval == EOF) goto failure;
+
 		    }
 		    scan = scan->next;
 		}
@@ -807,18 +810,18 @@ Cudd_zddDumpDot(
 	scan = nodelist[j];
 	while (scan != NULL) {
 	    if (st_is_member(visited,scan)) {
-		retval = fprintf(fp,"\"%#" PRIxPTR "\" [label = \"%g\"];\n",
+		Rprintf("\"%#" PRIxPTR "\" [label = \"%g\"];\n",
 				 ((mask & (ptruint) scan) / sizeof(DdNode)),
 				 cuddV(scan));
-		if (retval == EOF) goto failure;
+
 	    }
 	    scan = scan->next;
 	}
     }
 
     /* Write trailer and return. */
-    retval = fprintf(fp,"}\n");
-    if (retval == EOF) goto failure;
+    Rprintf("}\n");
+
 
     st_free_table(visited);
     FREE(sorted);
@@ -860,7 +863,7 @@ cuddZddP(
 
     retval = zp2(zdd, f, table);
     st_free_table(table);
-    (void) fputc('\n', zdd->out);
+    Rprintf("\n");
     return(retval);
 
 } /* end of cuddZddP */
@@ -893,7 +896,7 @@ zp2(
 	return(0);
 
     if (Cudd_IsConstantInt(f)) {
-	(void)fprintf(zdd->out, "ID = %d\n", (f == base));
+	Rprintf("ID = %d\n", (f == base));
 	return(1);
     }
     if (st_is_member(t, f) == 1)
@@ -902,25 +905,25 @@ zp2(
     if (st_insert(t, f, NULL) == ST_OUT_OF_MEM)
 	return(0);
 
-    (void) fprintf(zdd->out, "ID = 0x%" PRIxPTR "\tindex = %u\tr = %u\t",
+    Rprintf("ID = 0x%" PRIxPTR "\tindex = %u\tr = %u\t",
 	(ptruint)f / (ptruint) sizeof(DdNode), f->index, f->ref);
 
     n = cuddT(f);
     if (Cudd_IsConstantInt(n)) {
-	(void) fprintf(zdd->out, "T = %d\t\t", (n == base));
+	Rprintf("T = %d\t\t", (n == base));
 	T = 1;
     } else {
-	(void) fprintf(zdd->out, "T = 0x%" PRIxPTR "\t", (ptruint) n /
+	Rprintf("T = 0x%" PRIxPTR "\t", (ptruint) n /
 		       (ptruint) sizeof(DdNode));
 	T = 0;
     }
 
     n = cuddE(f);
     if (Cudd_IsConstantInt(n)) {
-	(void) fprintf(zdd->out, "E = %d\n", (n == base));
+	Rprintf("E = %d\n", (n == base));
 	E = 1;
     } else {
-	(void) fprintf(zdd->out, "E = 0x%" PRIxPTR "\n", (ptruint) n /
+	Rprintf("E = 0x%" PRIxPTR "\n", (ptruint) n /
 		      (ptruint) sizeof(DdNode));
 	E = 0;
     }
@@ -965,15 +968,15 @@ zdd_print_minterm_aux(
 	    for (i = 0; i < zdd->sizeZ; i++) {
 		v = list[i];
 		if (v == 0)
-		    (void) fprintf(zdd->out,"0");
+		    Rprintf("0");
 		else if (v == 1)
-		    (void) fprintf(zdd->out,"1");
+		    Rprintf("1");
 		else if (v == 3)
-		    (void) fprintf(zdd->out,"@");	/* should never happen */
+		    Rprintf("@");	/* should never happen */
 		else
-		    (void) fprintf(zdd->out,"-");
+		    Rprintf("-");
 	    }
-	    (void) fprintf(zdd->out," 1\n");
+	    Rprintf(" 1\n");
 	}
     } else {
 	/* Check for missing variable. */
@@ -1032,15 +1035,15 @@ zddPrintCoverAux(
 	    for (i = 0; i < zdd->sizeZ; i += 2) {
 		v = list[i] * 4 + list[i+1];
 		if (v == 0)
-		    (void) putc('-',zdd->out);
+		    Rprintf("-");
 		else if (v == 4)
-		    (void) putc('1',zdd->out);
+		    Rprintf("1");
 		else if (v == 1)
-		    (void) putc('0',zdd->out);
+		    Rprintf("0");
 		else
-		    (void) putc('@',zdd->out); /* should never happen */
+		    Rprintf("@"); /* should never happen */
 	    }
-	    (void) fprintf(zdd->out," 1\n");
+	    Rprintf(" 1\n");
 	}
     } else {
 	/* Check for missing variable. */
@@ -1124,4 +1127,3 @@ zddClearFlag(
     return;
 
 } /* end of zddClearFlag */
-

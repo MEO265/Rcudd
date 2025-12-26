@@ -4,7 +4,7 @@
 
 [![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/Rcudd)](https://cran.r-project.org/package=Rcudd)
 [![R-CMD-check](https://github.com/MEO265/Rcudd/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/MEO265/Rcudd/actions/workflows/R-CMD-check.yaml)
-[![codecov](https://codecov.io/gh/MEO265/Rucdd/graph/badge.svg)](https://codecov.io/gh/MEO265/Rcudd)
+[![codecov](https://codecov.io/gh/MEO265/Rcudd/graph/badge.svg?token=OGa3Vdq2KL)](https://codecov.io/gh/MEO265/Rcudd)
 
 ------------------------------------------------------------------------
 

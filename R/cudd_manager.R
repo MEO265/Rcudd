@@ -36,3 +36,100 @@ CuddManager <- function() {
 methods::setMethod("show", "CuddManager", function(object) {
   cat("<CuddManager>\n")
 })
+
+.cudd_manager_ptr <- function(manager) {
+  if (!methods::is(manager, "CuddManager")) {
+    stop("`manager` must be a CuddManager object.", call. = FALSE)
+  }
+  manager@ptr
+}
+
+#' Read the number of BDD variables in the manager
+#'
+#' @param manager A [`CuddManager`] instance.
+#' @return Integer scalar with the number of BDD variables.
+#' @export
+cudd_read_size <- function(manager) {
+  .Call("c_cudd_read_size", .cudd_manager_ptr(manager))
+}
+
+#' Read the cache slot count
+#'
+#' @param manager A [`CuddManager`] instance.
+#' @return Integer scalar with the cache slot count.
+#' @export
+cudd_read_cache_slots <- function(manager) {
+  .Call("c_cudd_read_cache_slots", .cudd_manager_ptr(manager))
+}
+
+#' Read the cache used slots
+#'
+#' @param manager A [`CuddManager`] instance.
+#' @return Double scalar with the cache used slot count.
+#' @export
+cudd_read_cache_used_slots <- function(manager) {
+  .Call("c_cudd_read_cache_used_slots", .cudd_manager_ptr(manager))
+}
+
+#' Read the cache lookup count
+#'
+#' @param manager A [`CuddManager`] instance.
+#' @return Double scalar with the cache lookup count.
+#' @export
+cudd_read_cache_lookups <- function(manager) {
+  .Call("c_cudd_read_cache_lookups", .cudd_manager_ptr(manager))
+}
+
+#' Read the cache hit count
+#'
+#' @param manager A [`CuddManager`] instance.
+#' @return Double scalar with the cache hit count.
+#' @export
+cudd_read_cache_hits <- function(manager) {
+  .Call("c_cudd_read_cache_hits", .cudd_manager_ptr(manager))
+}
+
+#' Read the minimum cache hit ratio
+#'
+#' @param manager A [`CuddManager`] instance.
+#' @return Integer scalar with the minimum cache hit ratio.
+#' @export
+cudd_read_min_hit <- function(manager) {
+  .Call("c_cudd_read_min_hit", .cudd_manager_ptr(manager))
+}
+
+#' Read the cache loose up-to threshold
+#'
+#' @param manager A [`CuddManager`] instance.
+#' @return Integer scalar with the cache loose up-to threshold.
+#' @export
+cudd_read_loose_up_to <- function(manager) {
+  .Call("c_cudd_read_loose_up_to", .cudd_manager_ptr(manager))
+}
+
+#' Read the live node count
+#'
+#' @param manager A [`CuddManager`] instance.
+#' @return Double scalar with the live node count.
+#' @export
+cudd_read_node_count <- function(manager) {
+  .Call("c_cudd_read_node_count", .cudd_manager_ptr(manager))
+}
+
+#' Read the number of ZDD variables in the manager
+#'
+#' @param manager A [`CuddManager`] instance.
+#' @return Integer scalar with the number of ZDD variables.
+#' @export
+cudd_read_zdd_size <- function(manager) {
+  .Call("c_cudd_read_zdd_size", .cudd_manager_ptr(manager))
+}
+
+#' Read the number of reorderings performed
+#'
+#' @param manager A [`CuddManager`] instance.
+#' @return Integer scalar with the number of reorderings.
+#' @export
+cudd_read_reorderings <- function(manager) {
+  .Call("c_cudd_read_reorderings", .cudd_manager_ptr(manager))
+}

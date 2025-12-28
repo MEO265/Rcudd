@@ -17,7 +17,7 @@ methods::setClass(
     if (is.null(object@ptr)) {
       return("`ptr` must not be NULL.")
     }
-    TRUE
+    return(TRUE)
   }
 )
 
@@ -26,13 +26,14 @@ methods::setClass(
 #' @keywords internal
 methods::setMethod("show", "CuddADD", function(object) {
   cat("<CuddADD>\n")
+  return(invisible(object))
 })
 
 .cudd_add_ptr <- function(add) {
   if (!methods::is(add, "CuddADD")) {
     stop("`add` must be a CuddADD object.", call. = FALSE)
   }
-  add@ptr
+  return(add@ptr)
 }
 
 #' Create an ADD node that represents logical TRUE
@@ -42,7 +43,7 @@ methods::setMethod("show", "CuddADD", function(object) {
 #' @export
 cudd_add_one <- function(manager) {
   ptr <- .rcudd_call("c_cudd_add_one", .cudd_manager_ptr(manager))
-  methods::new("CuddADD", ptr = ptr)
+  return(methods::new("CuddADD", ptr = ptr))
 }
 
 #' Create an ADD node that represents logical FALSE
@@ -52,7 +53,7 @@ cudd_add_one <- function(manager) {
 #' @export
 cudd_add_zero <- function(manager) {
   ptr <- .rcudd_call("c_cudd_add_zero", .cudd_manager_ptr(manager))
-  methods::new("CuddADD", ptr = ptr)
+  return(methods::new("CuddADD", ptr = ptr))
 }
 
 #' Create or access an ADD variable
@@ -66,34 +67,31 @@ cudd_add_zero <- function(manager) {
 #' @export
 cudd_add_var <- function(manager, index = NULL) {
   ptr <- .rcudd_call("c_cudd_add_var", .cudd_manager_ptr(manager), index)
-  methods::new("CuddADD", ptr = ptr)
+  return(methods::new("CuddADD", ptr = ptr))
 }
 
 #' @describeIn CuddADD-class Combine ADDs with multiplication
 #' @param e1 A `CuddADD` instance.
 #' @param e2 A `CuddADD` instance.
 #' @return A `CuddADD` instance.
-#' @export
 setMethod("*", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
   ptr <- .rcudd_call("c_cudd_add_times", .cudd_add_ptr(e1), .cudd_add_ptr(e2))
-  methods::new("CuddADD", ptr = ptr)
+  return(methods::new("CuddADD", ptr = ptr))
 })
 
 #' @describeIn CuddADD-class Combine ADDs with addition
 #' @param e1 A `CuddADD` instance.
 #' @param e2 A `CuddADD` instance.
 #' @return A `CuddADD` instance.
-#' @export
 setMethod("+", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
   ptr <- .rcudd_call("c_cudd_add_plus", .cudd_add_ptr(e1), .cudd_add_ptr(e2))
-  methods::new("CuddADD", ptr = ptr)
+  return(methods::new("CuddADD", ptr = ptr))
 })
 
 #' @describeIn CuddADD-class XOR is not defined for ADDs
 #' @param e1 A `CuddADD` instance.
 #' @param e2 A `CuddADD` instance.
 #' @return An error indicating the operator is unsupported.
-#' @export
 setMethod("^", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
   stop("XOR (^) is not defined for CuddADD.", call. = FALSE)
 })
@@ -101,7 +99,6 @@ setMethod("^", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
 #' @describeIn CuddADD-class Negation is not defined for ADDs
 #' @param x A `CuddADD` instance.
 #' @return An error indicating the operator is unsupported.
-#' @export
 setMethod("!", "CuddADD", function(x) {
   stop("Negation (!) is not defined for CuddADD.", call. = FALSE)
 })

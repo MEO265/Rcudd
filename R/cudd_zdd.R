@@ -17,7 +17,7 @@ methods::setClass(
     if (is.null(object@ptr)) {
       return("`ptr` must not be NULL.")
     }
-    TRUE
+    return(TRUE)
   }
 )
 
@@ -26,13 +26,14 @@ methods::setClass(
 #' @keywords internal
 methods::setMethod("show", "CuddZDD", function(object) {
   cat("<CuddZDD>\n")
+  return(invisible(object))
 })
 
 .cudd_zdd_ptr <- function(zdd) {
   if (!methods::is(zdd, "CuddZDD")) {
     stop("`zdd` must be a CuddZDD object.", call. = FALSE)
   }
-  zdd@ptr
+  return(zdd@ptr)
 }
 
 #' Create a ZDD node that represents the constant one
@@ -43,7 +44,7 @@ methods::setMethod("show", "CuddZDD", function(object) {
 #' @export
 cudd_zdd_one <- function(manager, index = 0L) {
   ptr <- .rcudd_call("c_cudd_zdd_one", .cudd_manager_ptr(manager), index)
-  methods::new("CuddZDD", ptr = ptr)
+  return(methods::new("CuddZDD", ptr = ptr))
 }
 
 #' Create a ZDD node that represents the constant zero
@@ -53,7 +54,7 @@ cudd_zdd_one <- function(manager, index = 0L) {
 #' @export
 cudd_zdd_zero <- function(manager) {
   ptr <- .rcudd_call("c_cudd_zdd_zero", .cudd_manager_ptr(manager))
-  methods::new("CuddZDD", ptr = ptr)
+  return(methods::new("CuddZDD", ptr = ptr))
 }
 
 #' Create or access a ZDD variable
@@ -66,34 +67,31 @@ cudd_zdd_zero <- function(manager) {
 #' @export
 cudd_zdd_var <- function(manager, index = NULL) {
   ptr <- .rcudd_call("c_cudd_zdd_var", .cudd_manager_ptr(manager), index)
-  methods::new("CuddZDD", ptr = ptr)
+  return(methods::new("CuddZDD", ptr = ptr))
 }
 
 #' @describeIn CuddZDD-class Combine ZDDs with intersection
 #' @param e1 A `CuddZDD` instance.
 #' @param e2 A `CuddZDD` instance.
 #' @return A `CuddZDD` instance.
-#' @export
 setMethod("*", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
   ptr <- .rcudd_call("c_cudd_zdd_intersect", .cudd_zdd_ptr(e1), .cudd_zdd_ptr(e2))
-  methods::new("CuddZDD", ptr = ptr)
+  return(methods::new("CuddZDD", ptr = ptr))
 })
 
 #' @describeIn CuddZDD-class Combine ZDDs with union
 #' @param e1 A `CuddZDD` instance.
 #' @param e2 A `CuddZDD` instance.
 #' @return A `CuddZDD` instance.
-#' @export
 setMethod("+", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
   ptr <- .rcudd_call("c_cudd_zdd_union", .cudd_zdd_ptr(e1), .cudd_zdd_ptr(e2))
-  methods::new("CuddZDD", ptr = ptr)
+  return(methods::new("CuddZDD", ptr = ptr))
 })
 
 #' @describeIn CuddZDD-class XOR is not defined for ZDDs
 #' @param e1 A `CuddZDD` instance.
 #' @param e2 A `CuddZDD` instance.
 #' @return An error indicating the operator is unsupported.
-#' @export
 setMethod("^", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
   stop("XOR (^) is not defined for CuddZDD.", call. = FALSE)
 })
@@ -101,7 +99,6 @@ setMethod("^", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
 #' @describeIn CuddZDD-class Negation is not defined for ZDDs
 #' @param x A `CuddZDD` instance.
 #' @return An error indicating the operator is unsupported.
-#' @export
 setMethod("!", "CuddZDD", function(x) {
   stop("Negation (!) is not defined for CuddZDD.", call. = FALSE)
 })

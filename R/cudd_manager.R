@@ -17,7 +17,7 @@ methods::setClass(
     if (is.null(object@ptr)) {
       return("`ptr` must not be NULL.")
     }
-    TRUE
+    return(TRUE)
   }
 )
 
@@ -25,9 +25,9 @@ methods::setClass(
 #'
 #' @return A [`CuddManager`] instance.
 #' @export
-CuddManager <- function() {
+CuddManager <- function() { # nolint: object_name_linter.
   ptr <- .rcudd_call("c_cudd_new")
-  methods::new("CuddManager", ptr = ptr)
+  return(methods::new("CuddManager", ptr = ptr))
 }
 
 #' @describeIn CuddManager-class Show a brief summary of the manager.
@@ -35,13 +35,14 @@ CuddManager <- function() {
 #' @keywords internal
 methods::setMethod("show", "CuddManager", function(object) {
   cat("<CuddManager>\n")
+  return(invisible(object))
 })
 
 .cudd_manager_ptr <- function(manager) {
   if (!methods::is(manager, "CuddManager")) {
     stop("`manager` must be a CuddManager object.", call. = FALSE)
   }
-  manager@ptr
+  return(manager@ptr)
 }
 
 #' Read the number of BDD variables in the manager
@@ -50,7 +51,7 @@ methods::setMethod("show", "CuddManager", function(object) {
 #' @return Integer scalar with the number of BDD variables.
 #' @export
 cudd_read_size <- function(manager) {
-  .rcudd_call("c_cudd_read_size", .cudd_manager_ptr(manager))
+  return(.rcudd_call("c_cudd_read_size", .cudd_manager_ptr(manager)))
 }
 
 #' Read the cache slot count
@@ -59,7 +60,7 @@ cudd_read_size <- function(manager) {
 #' @return Integer scalar with the cache slot count.
 #' @export
 cudd_read_cache_slots <- function(manager) {
-  .rcudd_call("c_cudd_read_cache_slots", .cudd_manager_ptr(manager))
+  return(.rcudd_call("c_cudd_read_cache_slots", .cudd_manager_ptr(manager)))
 }
 
 #' Read the cache used slots
@@ -68,7 +69,7 @@ cudd_read_cache_slots <- function(manager) {
 #' @return Double scalar with the cache used slot count.
 #' @export
 cudd_read_cache_used_slots <- function(manager) {
-  .rcudd_call("c_cudd_read_cache_used_slots", .cudd_manager_ptr(manager))
+  return(.rcudd_call("c_cudd_read_cache_used_slots", .cudd_manager_ptr(manager)))
 }
 
 #' Read the cache lookup count
@@ -77,7 +78,7 @@ cudd_read_cache_used_slots <- function(manager) {
 #' @return Double scalar with the cache lookup count.
 #' @export
 cudd_read_cache_lookups <- function(manager) {
-  .rcudd_call("c_cudd_read_cache_lookups", .cudd_manager_ptr(manager))
+  return(.rcudd_call("c_cudd_read_cache_lookups", .cudd_manager_ptr(manager)))
 }
 
 #' Read the cache hit count
@@ -86,7 +87,7 @@ cudd_read_cache_lookups <- function(manager) {
 #' @return Double scalar with the cache hit count.
 #' @export
 cudd_read_cache_hits <- function(manager) {
-  .rcudd_call("c_cudd_read_cache_hits", .cudd_manager_ptr(manager))
+  return(.rcudd_call("c_cudd_read_cache_hits", .cudd_manager_ptr(manager)))
 }
 
 #' Read the minimum cache hit ratio
@@ -95,7 +96,7 @@ cudd_read_cache_hits <- function(manager) {
 #' @return Integer scalar with the minimum cache hit ratio.
 #' @export
 cudd_read_min_hit <- function(manager) {
-  .rcudd_call("c_cudd_read_min_hit", .cudd_manager_ptr(manager))
+  return(.rcudd_call("c_cudd_read_min_hit", .cudd_manager_ptr(manager)))
 }
 
 #' Read the cache loose up-to threshold
@@ -104,7 +105,7 @@ cudd_read_min_hit <- function(manager) {
 #' @return Integer scalar with the cache loose up-to threshold.
 #' @export
 cudd_read_loose_up_to <- function(manager) {
-  .rcudd_call("c_cudd_read_loose_up_to", .cudd_manager_ptr(manager))
+  return(.rcudd_call("c_cudd_read_loose_up_to", .cudd_manager_ptr(manager)))
 }
 
 #' Read the live node count
@@ -113,7 +114,7 @@ cudd_read_loose_up_to <- function(manager) {
 #' @return Double scalar with the live node count.
 #' @export
 cudd_read_node_count <- function(manager) {
-  .rcudd_call("c_cudd_read_node_count", .cudd_manager_ptr(manager))
+  return(.rcudd_call("c_cudd_read_node_count", .cudd_manager_ptr(manager)))
 }
 
 #' Read the number of ZDD variables in the manager
@@ -122,7 +123,7 @@ cudd_read_node_count <- function(manager) {
 #' @return Integer scalar with the number of ZDD variables.
 #' @export
 cudd_read_zdd_size <- function(manager) {
-  .rcudd_call("c_cudd_read_zdd_size", .cudd_manager_ptr(manager))
+  return(.rcudd_call("c_cudd_read_zdd_size", .cudd_manager_ptr(manager)))
 }
 
 #' Read the number of reorderings performed
@@ -131,5 +132,5 @@ cudd_read_zdd_size <- function(manager) {
 #' @return Integer scalar with the number of reorderings.
 #' @export
 cudd_read_reorderings <- function(manager) {
-  .rcudd_call("c_cudd_read_reorderings", .cudd_manager_ptr(manager))
+  return(.rcudd_call("c_cudd_read_reorderings", .cudd_manager_ptr(manager)))
 }

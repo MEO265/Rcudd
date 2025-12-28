@@ -17,6 +17,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"c_cudd_read_node_count", (DL_FUNC) &c_cudd_read_node_count, 1},
     {"c_cudd_read_zdd_size", (DL_FUNC) &c_cudd_read_zdd_size, 1},
     {"c_cudd_read_reorderings", (DL_FUNC) &c_cudd_read_reorderings, 1},
+    {"c_cudd_bdd_one", (DL_FUNC) &c_cudd_bdd_one, 1},
+    {"c_cudd_bdd_zero", (DL_FUNC) &c_cudd_bdd_zero, 1},
+    {"c_cudd_bdd_var", (DL_FUNC) &c_cudd_bdd_var, 2},
+    {"c_cudd_add_one", (DL_FUNC) &c_cudd_add_one, 1},
+    {"c_cudd_add_zero", (DL_FUNC) &c_cudd_add_zero, 1},
+    {"c_cudd_add_var", (DL_FUNC) &c_cudd_add_var, 2},
     {"c_bdd_remaining_literals", (DL_FUNC) &bdd_remaining_literals, 1},
     {"c_bdd_restrict_chain", (DL_FUNC) &bdd_restrict_chain, 2},
     {NULL, NULL, 0}
@@ -26,5 +32,5 @@ static const R_CallMethodDef CallEntries[] = {
 extern "C" attribute_visible void R_init_Rcudd(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
-    R_forceSymbols(dll, TRUE);
+    R_forceSymbols(dll, FALSE);
 }

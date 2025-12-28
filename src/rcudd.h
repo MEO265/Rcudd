@@ -20,6 +20,12 @@ extern "C" SEXP c_cudd_read_loose_up_to(SEXP mgr_ptr);
 extern "C" SEXP c_cudd_read_node_count(SEXP mgr_ptr);
 extern "C" SEXP c_cudd_read_zdd_size(SEXP mgr_ptr);
 extern "C" SEXP c_cudd_read_reorderings(SEXP mgr_ptr);
+extern "C" SEXP c_cudd_bdd_one(SEXP mgr_ptr);
+extern "C" SEXP c_cudd_bdd_zero(SEXP mgr_ptr);
+extern "C" SEXP c_cudd_bdd_var(SEXP mgr_ptr, SEXP index);
+extern "C" SEXP c_cudd_add_one(SEXP mgr_ptr);
+extern "C" SEXP c_cudd_add_zero(SEXP mgr_ptr);
+extern "C" SEXP c_cudd_add_var(SEXP mgr_ptr, SEXP index);
 
 #ifdef __cplusplus
 #include <string>

@@ -4,12 +4,39 @@
 \name{CuddBDD-class}
 \alias{CuddBDD-class}
 \alias{show,CuddBDD-method}
+\alias{!,CuddBDD-method}
+\alias{+,CuddBDD,CuddBDD-method}
+\alias{*,CuddBDD,CuddBDD-method}
+\alias{^,CuddBDD,CuddBDD-method}
 \title{S4 wrapper for a CUDD BDD}
 \usage{
 \S4method{show}{CuddBDD}(object)
+
+\S4method{!}{CuddBDD}(x)
+
+\S4method{+}{CuddBDD,CuddBDD}(e1, e2)
+
+\S4method{*}{CuddBDD,CuddBDD}(e1, e2)
+
+\S4method{^}{CuddBDD,CuddBDD}(e1, e2)
 }
 \arguments{
 \item{object}{A `CuddBDD` instance.}
+
+\item{x}{A `CuddBDD` instance.}
+
+\item{e1}{A `CuddBDD` instance.}
+
+\item{e2}{A `CuddBDD` instance.}
+}
+\value{
+A `CuddBDD` instance.
+
+A `CuddBDD` instance.
+
+A `CuddBDD` instance.
+
+A `CuddBDD` instance.
 }
 \description{
 The BDD wrapper encapsulates the underlying C++ `BDD` instance and is
@@ -18,6 +45,14 @@ represented in R as an external pointer managed by a finalizer.
 \section{Functions}{
 \itemize{
 \item \code{show(CuddBDD)}: Show a brief summary of the BDD.
+
+\item \code{`!`(CuddBDD)}: Negate a BDD
+
+\item \code{e1 + e2}: Combine BDDs with addition (logical OR)
+
+\item \code{e1 * e2}: Combine BDDs with multiplication (logical AND)
+
+\item \code{e1^e2}: Combine BDDs with XOR
 
 }}
 \section{Slots}{

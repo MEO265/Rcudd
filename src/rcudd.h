@@ -26,6 +26,21 @@ extern "C" SEXP c_cudd_bdd_var(SEXP mgr_ptr, SEXP index);
 extern "C" SEXP c_cudd_add_one(SEXP mgr_ptr);
 extern "C" SEXP c_cudd_add_zero(SEXP mgr_ptr);
 extern "C" SEXP c_cudd_add_var(SEXP mgr_ptr, SEXP index);
+extern "C" SEXP c_cudd_zdd_one(SEXP mgr_ptr, SEXP index);
+extern "C" SEXP c_cudd_zdd_zero(SEXP mgr_ptr);
+extern "C" SEXP c_cudd_zdd_var(SEXP mgr_ptr, SEXP index);
+extern "C" SEXP c_cudd_bdd_not(SEXP bdd_ptr);
+extern "C" SEXP c_cudd_bdd_and(SEXP lhs_ptr, SEXP rhs_ptr);
+extern "C" SEXP c_cudd_bdd_or(SEXP lhs_ptr, SEXP rhs_ptr);
+extern "C" SEXP c_cudd_bdd_xor(SEXP lhs_ptr, SEXP rhs_ptr);
+extern "C" SEXP c_cudd_add_times(SEXP lhs_ptr, SEXP rhs_ptr);
+extern "C" SEXP c_cudd_add_plus(SEXP lhs_ptr, SEXP rhs_ptr);
+extern "C" SEXP c_cudd_zdd_intersect(SEXP lhs_ptr, SEXP rhs_ptr);
+extern "C" SEXP c_cudd_zdd_union(SEXP lhs_ptr, SEXP rhs_ptr);
+extern "C" SEXP c_cudd_bdd_to_add(SEXP bdd_ptr);
+extern "C" SEXP c_cudd_add_to_bdd(SEXP add_ptr);
+extern "C" SEXP c_cudd_bdd_to_zdd(SEXP bdd_ptr);
+extern "C" SEXP c_cudd_zdd_to_bdd(SEXP zdd_ptr);
 
 #ifdef __cplusplus
 #include <string>

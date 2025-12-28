@@ -36,6 +36,17 @@ static void add_finalizer(SEXP ptr) {
     }
 }
 
+static void zdd_finalizer(SEXP ptr) {
+    if (TYPEOF(ptr) != EXTPTRSXP) {
+        return;
+    }
+    void *addr = R_ExternalPtrAddr(ptr);
+    if (addr != nullptr) {
+        delete static_cast<ZDD *>(addr);
+        R_ClearExternalPtr(ptr);
+    }
+}
+
 static Cudd *cudd_manager_from_ptr(SEXP ptr) {
     if (TYPEOF(ptr) != EXTPTRSXP) {
         Rf_error("Expected an external pointer for a CUDD manager.");
@@ -45,6 +56,39 @@ static Cudd *cudd_manager_from_ptr(SEXP ptr) {
         Rf_error("CUDD manager pointer is NULL.");
     }
     return static_cast<Cudd *>(addr);
+}
+
+static BDD *bdd_from_ptr(SEXP ptr) {
+    if (TYPEOF(ptr) != EXTPTRSXP) {
+        Rf_error("Expected an external pointer for a CUDD BDD.");
+    }
+    void *addr = R_ExternalPtrAddr(ptr);
+    if (addr == nullptr) {
+        Rf_error("CUDD BDD pointer is NULL.");
+    }
+    return static_cast<BDD *>(addr);
+}
+
+static ADD *add_from_ptr(SEXP ptr) {
+    if (TYPEOF(ptr) != EXTPTRSXP) {
+        Rf_error("Expected an external pointer for a CUDD ADD.");
+    }
+    void *addr = R_ExternalPtrAddr(ptr);
+    if (addr == nullptr) {
+        Rf_error("CUDD ADD pointer is NULL.");
+    }
+    return static_cast<ADD *>(addr);
+}
+
+static ZDD *zdd_from_ptr(SEXP ptr) {
+    if (TYPEOF(ptr) != EXTPTRSXP) {
+        Rf_error("Expected an external pointer for a CUDD ZDD.");
+    }
+    void *addr = R_ExternalPtrAddr(ptr);
+    if (addr == nullptr) {
+        Rf_error("CUDD ZDD pointer is NULL.");
+    }
+    return static_cast<ZDD *>(addr);
 }
 
 extern "C" SEXP c_cudd_new() {
@@ -189,6 +233,168 @@ extern "C" SEXP c_cudd_add_var(SEXP mgr_ptr, SEXP index) {
 
     SEXP ptr = PROTECT(R_MakeExternalPtr(add, R_NilValue, mgr_ptr));
     R_RegisterCFinalizerEx(ptr, add_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_zdd_one(SEXP mgr_ptr, SEXP index) {
+    Cudd *mgr = cudd_manager_from_ptr(mgr_ptr);
+    if (!Rf_isNumeric(index) || Rf_length(index) != 1) {
+        Rf_error("'index' must be a single numeric value.");
+    }
+    int idx = Rf_asInteger(index);
+    if (idx == NA_INTEGER || idx < 0) {
+        Rf_error("'index' must be a non-negative integer.");
+    }
+    ZDD *zdd = new ZDD(mgr->zddOne(idx));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(zdd, R_NilValue, mgr_ptr));
+    R_RegisterCFinalizerEx(ptr, zdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_zdd_zero(SEXP mgr_ptr) {
+    Cudd *mgr = cudd_manager_from_ptr(mgr_ptr);
+    ZDD *zdd = new ZDD(mgr->zddZero());
+    SEXP ptr = PROTECT(R_MakeExternalPtr(zdd, R_NilValue, mgr_ptr));
+    R_RegisterCFinalizerEx(ptr, zdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_zdd_var(SEXP mgr_ptr, SEXP index) {
+    Cudd *mgr = cudd_manager_from_ptr(mgr_ptr);
+    int idx;
+    if (Rf_isNull(index)) {
+        idx = mgr->ReadZddSize();
+    } else {
+        if (!Rf_isNumeric(index) || Rf_length(index) != 1) {
+            Rf_error("'index' must be a single numeric value.");
+        }
+        idx = Rf_asInteger(index);
+        if (idx == NA_INTEGER || idx < 0) {
+            Rf_error("'index' must be a non-negative integer.");
+        }
+    }
+
+    ZDD *zdd = new ZDD(mgr->zddVar(idx));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(zdd, R_NilValue, mgr_ptr));
+    R_RegisterCFinalizerEx(ptr, zdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_bdd_not(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *result = new BDD(!(*bdd));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, bdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_bdd_and(SEXP lhs_ptr, SEXP rhs_ptr) {
+    BDD *lhs = bdd_from_ptr(lhs_ptr);
+    BDD *rhs = bdd_from_ptr(rhs_ptr);
+    BDD *result = new BDD((*lhs) * (*rhs));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, bdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_bdd_or(SEXP lhs_ptr, SEXP rhs_ptr) {
+    BDD *lhs = bdd_from_ptr(lhs_ptr);
+    BDD *rhs = bdd_from_ptr(rhs_ptr);
+    BDD *result = new BDD((*lhs) + (*rhs));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, bdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_bdd_xor(SEXP lhs_ptr, SEXP rhs_ptr) {
+    BDD *lhs = bdd_from_ptr(lhs_ptr);
+    BDD *rhs = bdd_from_ptr(rhs_ptr);
+    BDD *result = new BDD((*lhs) ^ (*rhs));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, bdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_add_times(SEXP lhs_ptr, SEXP rhs_ptr) {
+    ADD *lhs = add_from_ptr(lhs_ptr);
+    ADD *rhs = add_from_ptr(rhs_ptr);
+    ADD *result = new ADD((*lhs) * (*rhs));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, add_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_add_plus(SEXP lhs_ptr, SEXP rhs_ptr) {
+    ADD *lhs = add_from_ptr(lhs_ptr);
+    ADD *rhs = add_from_ptr(rhs_ptr);
+    ADD *result = new ADD((*lhs) + (*rhs));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, add_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_zdd_intersect(SEXP lhs_ptr, SEXP rhs_ptr) {
+    ZDD *lhs = zdd_from_ptr(lhs_ptr);
+    ZDD *rhs = zdd_from_ptr(rhs_ptr);
+    ZDD *result = new ZDD((*lhs) * (*rhs));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, zdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_zdd_union(SEXP lhs_ptr, SEXP rhs_ptr) {
+    ZDD *lhs = zdd_from_ptr(lhs_ptr);
+    ZDD *rhs = zdd_from_ptr(rhs_ptr);
+    ZDD *result = new ZDD((*lhs) + (*rhs));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, zdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_bdd_to_add(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    ADD *result = new ADD(bdd->Add());
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, add_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_add_to_bdd(SEXP add_ptr) {
+    ADD *add = add_from_ptr(add_ptr);
+    BDD *result = new BDD(add->BddPattern());
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, bdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_bdd_to_zdd(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    ZDD *result = new ZDD(bdd->PortToZdd());
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, zdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_zdd_to_bdd(SEXP zdd_ptr) {
+    ZDD *zdd = zdd_from_ptr(zdd_ptr);
+    BDD *result = new BDD(zdd->PortToBdd());
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, bdd_finalizer, TRUE);
     UNPROTECT(1);
     return ptr;
 }

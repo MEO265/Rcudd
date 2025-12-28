@@ -68,3 +68,42 @@ cudd_bdd_var <- function(manager, index = NULL) {
   ptr <- .rcudd_call("c_cudd_bdd_var", .cudd_manager_ptr(manager), index)
   methods::new("CuddBDD", ptr = ptr)
 }
+
+#' @describeIn CuddBDD-class Negate a BDD
+#' @param x A `CuddBDD` instance.
+#' @return A `CuddBDD` instance.
+#' @export
+setMethod("!", "CuddBDD", function(x) {
+  ptr <- .rcudd_call("c_cudd_bdd_not", .cudd_bdd_ptr(x))
+  methods::new("CuddBDD", ptr = ptr)
+})
+
+#' @describeIn CuddBDD-class Combine BDDs with addition (logical OR)
+#' @param e1 A `CuddBDD` instance.
+#' @param e2 A `CuddBDD` instance.
+#' @return A `CuddBDD` instance.
+#' @export
+setMethod("+", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
+  ptr <- .rcudd_call("c_cudd_bdd_or", .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
+  methods::new("CuddBDD", ptr = ptr)
+})
+
+#' @describeIn CuddBDD-class Combine BDDs with multiplication (logical AND)
+#' @param e1 A `CuddBDD` instance.
+#' @param e2 A `CuddBDD` instance.
+#' @return A `CuddBDD` instance.
+#' @export
+setMethod("*", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
+  ptr <- .rcudd_call("c_cudd_bdd_and", .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
+  methods::new("CuddBDD", ptr = ptr)
+})
+
+#' @describeIn CuddBDD-class Combine BDDs with XOR
+#' @param e1 A `CuddBDD` instance.
+#' @param e2 A `CuddBDD` instance.
+#' @return A `CuddBDD` instance.
+#' @export
+setMethod("^", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
+  ptr <- .rcudd_call("c_cudd_bdd_xor", .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
+  methods::new("CuddBDD", ptr = ptr)
+})

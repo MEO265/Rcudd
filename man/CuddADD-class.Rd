@@ -4,12 +4,39 @@
 \name{CuddADD-class}
 \alias{CuddADD-class}
 \alias{show,CuddADD-method}
+\alias{*,CuddADD,CuddADD-method}
+\alias{+,CuddADD,CuddADD-method}
+\alias{^,CuddADD,CuddADD-method}
+\alias{!,CuddADD-method}
 \title{S4 wrapper for a CUDD ADD}
 \usage{
 \S4method{show}{CuddADD}(object)
+
+\S4method{*}{CuddADD,CuddADD}(e1, e2)
+
+\S4method{+}{CuddADD,CuddADD}(e1, e2)
+
+\S4method{^}{CuddADD,CuddADD}(e1, e2)
+
+\S4method{!}{CuddADD}(x)
 }
 \arguments{
 \item{object}{A `CuddADD` instance.}
+
+\item{e1}{A `CuddADD` instance.}
+
+\item{e2}{A `CuddADD` instance.}
+
+\item{x}{A `CuddADD` instance.}
+}
+\value{
+A `CuddADD` instance.
+
+A `CuddADD` instance.
+
+An error indicating the operator is unsupported.
+
+An error indicating the operator is unsupported.
 }
 \description{
 The ADD wrapper encapsulates the underlying C++ `ADD` instance and is
@@ -18,6 +45,14 @@ represented in R as an external pointer managed by a finalizer.
 \section{Functions}{
 \itemize{
 \item \code{show(CuddADD)}: Show a brief summary of the ADD.
+
+\item \code{e1 * e2}: Combine ADDs with multiplication
+
+\item \code{e1 + e2}: Combine ADDs with addition
+
+\item \code{e1^e2}: XOR is not defined for ADDs
+
+\item \code{`!`(CuddADD)}: Negation is not defined for ADDs
 
 }}
 \section{Slots}{

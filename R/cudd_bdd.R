@@ -149,3 +149,15 @@ cudd_bdd_print_debug <- function(bdd, nvars = NULL, verbosity = NULL) {
   .rcudd_call("c_cudd_bdd_print_debug", .cudd_bdd_ptr(bdd), nvars, verbosity)
   return(invisible(NULL))
 }
+
+#' Dump a BDD as Graphviz DOT
+#'
+#' Produces a DOT representation that can be rendered by Graphviz to visualize
+#' the full decision diagram structure.
+#'
+#' @param bdd A [`CuddBDD`] instance.
+#' @return Character scalar containing DOT text.
+#' @export
+cudd_bdd_dump_dot <- function(bdd) {
+  return(.rcudd_call("c_cudd_bdd_dump_dot", .cudd_bdd_ptr(bdd)))
+}

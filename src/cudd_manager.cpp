@@ -1,6 +1,9 @@
 #include "rcudd.h"
 #include <R.h>
 #include <Rinternals.h>
+#include <cstdio>
+#include <string>
+#include <vector>
 #include "cuddObj.hh"
 
 static void cudd_manager_finalizer(SEXP ptr) {
@@ -471,4 +474,46 @@ extern "C" SEXP c_cudd_bdd_print_debug(SEXP bdd_ptr, SEXP nvars, SEXP verbosity)
 
     Cudd_PrintDebug(bdd->manager(), bdd->getNode(), vars, verb);
     return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_bdd_dump_dot(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    FILE *fp = tmpfile();
+    if (fp == nullptr) {
+        Rf_error("Failed to create temporary file for DOT output.");
+    }
+
+    DdManager *mgr = bdd->manager();
+    DdNode *node = bdd->getNode();
+    DdNode *nodes[1] = { node };
+    int result = Cudd_DumpDot(mgr, 1, nodes, nullptr, nullptr, fp);
+    if (result != 1) {
+        fclose(fp);
+        Rf_error("Failed to dump DOT representation.");
+    }
+
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
+        Rf_error("Failed to seek DOT output.");
+    }
+    long size = ftell(fp);
+    if (size < 0) {
+        fclose(fp);
+        Rf_error("Failed to read DOT output size.");
+    }
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        Rf_error("Failed to rewind DOT output.");
+    }
+
+    std::string buffer(static_cast<size_t>(size), '\0');
+    size_t read_bytes = fread(buffer.data(), 1, buffer.size(), fp);
+    fclose(fp);
+
+    buffer.resize(read_bytes);
+
+    SEXP out = PROTECT(Rf_allocVector(STRSXP, 1));
+    SET_STRING_ELT(out, 0, Rf_mkCharLen(buffer.data(), static_cast<int>(buffer.size())));
+    UNPROTECT(1);
+    return out;
 }

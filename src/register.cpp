@@ -38,6 +38,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"c_cudd_add_to_bdd", (DL_FUNC) &c_cudd_add_to_bdd, 1},
     {"c_cudd_bdd_to_zdd", (DL_FUNC) &c_cudd_bdd_to_zdd, 1},
     {"c_cudd_zdd_to_bdd", (DL_FUNC) &c_cudd_zdd_to_bdd, 1},
+    {"c_cudd_bdd_epd_print_minterm", (DL_FUNC) &c_cudd_bdd_epd_print_minterm, 2},
+    {"c_cudd_add_epd_print_minterm", (DL_FUNC) &c_cudd_add_epd_print_minterm, 2},
     {"c_bdd_remaining_literals", (DL_FUNC) &bdd_remaining_literals, 1},
     {"c_bdd_restrict_chain", (DL_FUNC) &bdd_restrict_chain, 2},
     {NULL, NULL, 0}

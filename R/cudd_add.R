@@ -102,3 +102,17 @@ setMethod("^", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
 setMethod("!", "CuddADD", function(x) {
   stop("Negation (!) is not defined for CuddADD.", call. = FALSE)
 })
+
+#' Print an EPD minterm count for an ADD
+#'
+#' This uses the CUDD `EpdPrintMinterm` implementation, which writes to R's
+#' output stream.
+#'
+#' @param add A [`CuddADD`] instance.
+#' @param nvars Non-negative integer indicating how many variables to consider.
+#' @return `NULL`, invisibly.
+#' @export
+cudd_add_epd_print_minterm <- function(add, nvars) {
+  .rcudd_call("c_cudd_add_epd_print_minterm", .cudd_add_ptr(add), nvars)
+  return(invisible(NULL))
+}

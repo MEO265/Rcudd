@@ -41,6 +41,8 @@ extern "C" SEXP c_cudd_bdd_to_add(SEXP bdd_ptr);
 extern "C" SEXP c_cudd_add_to_bdd(SEXP add_ptr);
 extern "C" SEXP c_cudd_bdd_to_zdd(SEXP bdd_ptr);
 extern "C" SEXP c_cudd_zdd_to_bdd(SEXP zdd_ptr);
+extern "C" SEXP c_cudd_bdd_epd_print_minterm(SEXP bdd_ptr, SEXP nvars);
+extern "C" SEXP c_cudd_add_epd_print_minterm(SEXP add_ptr, SEXP nvars);
 
 #ifdef __cplusplus
 #include <string>

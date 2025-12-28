@@ -398,3 +398,29 @@ extern "C" SEXP c_cudd_zdd_to_bdd(SEXP zdd_ptr) {
     UNPROTECT(1);
     return ptr;
 }
+
+extern "C" SEXP c_cudd_bdd_epd_print_minterm(SEXP bdd_ptr, SEXP nvars) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    if (!Rf_isNumeric(nvars) || Rf_length(nvars) != 1) {
+        Rf_error("'nvars' must be a single numeric value.");
+    }
+    int vars = Rf_asInteger(nvars);
+    if (vars == NA_INTEGER || vars < 0) {
+        Rf_error("'nvars' must be a non-negative integer.");
+    }
+    bdd->EpdPrintMinterm(vars, nullptr);
+    return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_add_epd_print_minterm(SEXP add_ptr, SEXP nvars) {
+    ADD *add = add_from_ptr(add_ptr);
+    if (!Rf_isNumeric(nvars) || Rf_length(nvars) != 1) {
+        Rf_error("'nvars' must be a single numeric value.");
+    }
+    int vars = Rf_asInteger(nvars);
+    if (vars == NA_INTEGER || vars < 0) {
+        Rf_error("'nvars' must be a non-negative integer.");
+    }
+    add->EpdPrintMinterm(vars, nullptr);
+    return R_NilValue;
+}

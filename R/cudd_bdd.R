@@ -104,3 +104,17 @@ setMethod("^", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
   ptr <- .rcudd_call("c_cudd_bdd_xor", .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
   return(methods::new("CuddBDD", ptr = ptr))
 })
+
+#' Print an EPD minterm count for a BDD
+#'
+#' This uses the CUDD `EpdPrintMinterm` implementation, which writes to R's
+#' output stream.
+#'
+#' @param bdd A [`CuddBDD`] instance.
+#' @param nvars Non-negative integer indicating how many variables to consider.
+#' @return `NULL`, invisibly.
+#' @export
+cudd_bdd_epd_print_minterm <- function(bdd, nvars) {
+  .rcudd_call("c_cudd_bdd_epd_print_minterm", .cudd_bdd_ptr(bdd), nvars)
+  return(invisible(NULL))
+}

@@ -133,3 +133,19 @@ setMethod("print", "CuddBDD", function(x, ...) {
   .rcudd_call("c_cudd_bdd_print_minterm", .cudd_bdd_ptr(x))
   return(invisible(x))
 })
+
+#' Print a debug representation for a BDD
+#'
+#' This uses the CUDD `PrintDebug` implementation, which writes to R's output
+#' stream.
+#'
+#' @param bdd A [`CuddBDD`] instance.
+#' @param nvars Optional non-negative integer indicating how many variables to
+#'   include. Defaults to the manager size.
+#' @param verbosity Optional non-negative integer debug verbosity.
+#' @return `NULL`, invisibly.
+#' @export
+cudd_bdd_print_debug <- function(bdd, nvars = NULL, verbosity = NULL) {
+  .rcudd_call("c_cudd_bdd_print_debug", .cudd_bdd_ptr(bdd), nvars, verbosity)
+  return(invisible(NULL))
+}

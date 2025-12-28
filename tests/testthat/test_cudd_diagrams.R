@@ -25,6 +25,9 @@ test_that("BDD operations and conversions return expected classes", {
 
   print_output <- capture.output(print(bdd_one))
   expect_snapshot(print_output)
+
+  debug_output <- capture.output(cudd_bdd_print_debug(bdd_one, nvars = 1L, verbosity = 2L))
+  expect_snapshot(debug_output)
 })
 
 test_that("ADD operations and conversions return expected classes", {

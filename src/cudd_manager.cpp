@@ -442,3 +442,33 @@ extern "C" SEXP c_cudd_zdd_print_minterm(SEXP zdd_ptr) {
     zdd->PrintMinterm();
     return R_NilValue;
 }
+
+extern "C" SEXP c_cudd_bdd_print_debug(SEXP bdd_ptr, SEXP nvars, SEXP verbosity) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars;
+    if (Rf_isNull(nvars)) {
+        vars = Cudd_ReadSize(bdd->manager());
+    } else {
+        if (!Rf_isNumeric(nvars) || Rf_length(nvars) != 1) {
+            Rf_error("'nvars' must be a single numeric value.");
+        }
+        vars = Rf_asInteger(nvars);
+        if (vars == NA_INTEGER || vars < 0) {
+            Rf_error("'nvars' must be a non-negative integer.");
+        }
+    }
+
+    int verb = 2;
+    if (!Rf_isNull(verbosity)) {
+        if (!Rf_isNumeric(verbosity) || Rf_length(verbosity) != 1) {
+            Rf_error("'verbosity' must be a single numeric value.");
+        }
+        verb = Rf_asInteger(verbosity);
+        if (verb == NA_INTEGER || verb < 0) {
+            Rf_error("'verbosity' must be a non-negative integer.");
+        }
+    }
+
+    Cudd_PrintDebug(bdd->manager(), bdd->getNode(), vars, verb);
+    return R_NilValue;
+}

@@ -6,6 +6,7 @@
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
+    {"c_cudd_new", (DL_FUNC) &c_cudd_new, 0},
     {"c_bdd_remaining_literals", (DL_FUNC) &bdd_remaining_literals, 1},
     {"c_bdd_restrict_chain", (DL_FUNC) &bdd_restrict_chain, 2},
     {NULL, NULL, 0}

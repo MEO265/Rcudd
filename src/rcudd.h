@@ -9,6 +9,7 @@
 
 extern "C" SEXP bdd_remaining_literals(SEXP expr_in);
 extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in);
+extern "C" SEXP c_cudd_new();
 
 #ifdef __cplusplus
 #include <string>

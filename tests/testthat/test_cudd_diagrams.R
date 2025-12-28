@@ -21,10 +21,10 @@ test_that("BDD operations and conversions return expected classes", {
   expect_s4_class(zdd_from_bdd, "CuddZDD")
 
   output <- capture.output(cudd_bdd_epd_print_minterm(bdd_one, 0L))
-  expect_gte(length(output), 1L)
+  expect_snapshot(output)
 
   print_output <- capture.output(print(bdd_one))
-  expect_gte(length(print_output), 1L)
+  expect_snapshot(print_output)
 })
 
 test_that("ADD operations and conversions return expected classes", {
@@ -47,10 +47,10 @@ test_that("ADD operations and conversions return expected classes", {
   expect_s4_class(bdd_from_add, "CuddBDD")
 
   output <- capture.output(cudd_add_epd_print_minterm(add_one, 0L))
-  expect_gte(length(output), 1L)
+  expect_snapshot(output)
 
   print_output <- capture.output(print(add_one))
-  expect_gte(length(print_output), 1L)
+  expect_snapshot(print_output)
 })
 
 test_that("ZDD operations and conversions return expected classes", {
@@ -73,5 +73,5 @@ test_that("ZDD operations and conversions return expected classes", {
   expect_s4_class(bdd_from_zdd, "CuddBDD")
 
   print_output <- capture.output(print(zdd_one))
-  expect_gte(length(print_output), 1L)
+  expect_snapshot(print_output)
 })

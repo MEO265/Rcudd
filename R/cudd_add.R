@@ -26,6 +26,7 @@ methods::setClass(
 #' @keywords internal
 methods::setMethod("show", "CuddADD", function(object) {
   cat("<CuddADD>\n")
+  print(object)
   return(invisible(object))
 })
 
@@ -116,3 +117,17 @@ cudd_add_epd_print_minterm <- function(add, nvars) {
   .rcudd_call("c_cudd_add_epd_print_minterm", .cudd_add_ptr(add), nvars)
   return(invisible(NULL))
 }
+
+#' Print the minterm representation for an ADD
+#'
+#' This uses the CUDD `PrintMinterm` implementation, which writes to R's
+#' output stream.
+#'
+#' @param x A [`CuddADD`] instance.
+#' @param ... Unused.
+#' @return The input `x`, invisibly.
+#' @export
+setMethod("print", "CuddADD", function(x, ...) {
+  .rcudd_call("c_cudd_add_print_minterm", .cudd_add_ptr(x))
+  return(invisible(x))
+})

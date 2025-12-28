@@ -26,6 +26,7 @@ methods::setClass(
 #' @keywords internal
 methods::setMethod("show", "CuddZDD", function(object) {
   cat("<CuddZDD>\n")
+  print(object)
   return(invisible(object))
 })
 
@@ -101,4 +102,18 @@ setMethod("^", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
 #' @return An error indicating the operator is unsupported.
 setMethod("!", "CuddZDD", function(x) {
   stop("Negation (!) is not defined for CuddZDD.", call. = FALSE)
+})
+
+#' Print the minterm representation for a ZDD
+#'
+#' This uses the CUDD `PrintMinterm` implementation, which writes to R's
+#' output stream.
+#'
+#' @param x A [`CuddZDD`] instance.
+#' @param ... Unused.
+#' @return The input `x`, invisibly.
+#' @export
+setMethod("print", "CuddZDD", function(x, ...) {
+  .rcudd_call("c_cudd_zdd_print_minterm", .cudd_zdd_ptr(x))
+  return(invisible(x))
 })

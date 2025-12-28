@@ -424,3 +424,21 @@ extern "C" SEXP c_cudd_add_epd_print_minterm(SEXP add_ptr, SEXP nvars) {
     add->EpdPrintMinterm(vars, nullptr);
     return R_NilValue;
 }
+
+extern "C" SEXP c_cudd_bdd_print_minterm(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    bdd->PrintMinterm();
+    return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_add_print_minterm(SEXP add_ptr) {
+    ADD *add = add_from_ptr(add_ptr);
+    add->PrintMinterm();
+    return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_zdd_print_minterm(SEXP zdd_ptr) {
+    ZDD *zdd = zdd_from_ptr(zdd_ptr);
+    zdd->PrintMinterm();
+    return R_NilValue;
+}

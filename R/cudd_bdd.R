@@ -26,6 +26,7 @@ methods::setClass(
 #' @keywords internal
 methods::setMethod("show", "CuddBDD", function(object) {
   cat("<CuddBDD>\n")
+  print(object)
   return(invisible(object))
 })
 
@@ -118,3 +119,17 @@ cudd_bdd_epd_print_minterm <- function(bdd, nvars) {
   .rcudd_call("c_cudd_bdd_epd_print_minterm", .cudd_bdd_ptr(bdd), nvars)
   return(invisible(NULL))
 }
+
+#' Print the minterm representation for a BDD
+#'
+#' This uses the CUDD `PrintMinterm` implementation, which writes to R's
+#' output stream.
+#'
+#' @param x A [`CuddBDD`] instance.
+#' @param ... Unused.
+#' @return The input `x`, invisibly.
+#' @export
+setMethod("print", "CuddBDD", function(x, ...) {
+  .rcudd_call("c_cudd_bdd_print_minterm", .cudd_bdd_ptr(x))
+  return(invisible(x))
+})

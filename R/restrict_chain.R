@@ -23,5 +23,5 @@
 #'
 #' @export
 bdd_restrict_chain <- function(exprs, additional_constraints = character()) {
-  return(.rcudd_call("c_bdd_restrict_chain", exprs, additional_constraints))
+  return(.Call(.cudd_native$c_bdd_restrict_chain, exprs, additional_constraints))
 }

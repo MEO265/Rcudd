@@ -59,7 +59,7 @@ methods::setMethod("show", "CuddZDD", function(object) {
 #' @return A [`CuddZDD`] instance representing the ZDD one node.
 #' @export
 cudd_zdd_one <- function(manager, index = 0L) {
-  ptr <- .rcudd_call("c_cudd_zdd_one", .cudd_manager_ptr(manager), index)
+  ptr <- .Call(.cudd_native$c_cudd_zdd_one, .cudd_manager_ptr(manager), index)
   return(methods::new("CuddZDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
@@ -69,7 +69,7 @@ cudd_zdd_one <- function(manager, index = 0L) {
 #' @return A [`CuddZDD`] instance representing the ZDD zero node.
 #' @export
 cudd_zdd_zero <- function(manager) {
-  ptr <- .rcudd_call("c_cudd_zdd_zero", .cudd_manager_ptr(manager))
+  ptr <- .Call(.cudd_native$c_cudd_zdd_zero, .cudd_manager_ptr(manager))
   return(methods::new("CuddZDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
@@ -82,7 +82,7 @@ cudd_zdd_zero <- function(manager) {
 #' @return A [`CuddZDD`] instance representing the requested variable.
 #' @export
 cudd_zdd_var <- function(manager, index = NULL) {
-  ptr <- .rcudd_call("c_cudd_zdd_var", .cudd_manager_ptr(manager), index)
+  ptr <- .Call(.cudd_native$c_cudd_zdd_var, .cudd_manager_ptr(manager), index)
   return(methods::new("CuddZDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
@@ -94,7 +94,7 @@ setMethod("*", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "*")) {
     stop("Cannot combine ZDDs from different CuddManager instances.", call. = FALSE)
   }
-  ptr <- .rcudd_call("c_cudd_zdd_intersect", .cudd_zdd_ptr(e1), .cudd_zdd_ptr(e2))
+  ptr <- .Call(.cudd_native$c_cudd_zdd_intersect, .cudd_zdd_ptr(e1), .cudd_zdd_ptr(e2))
   return(methods::new("CuddZDD", ptr = ptr, manager_ptr = .cudd_zdd_manager_ptr(e1)))
 })
 
@@ -106,7 +106,7 @@ setMethod("+", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "+")) {
     stop("Cannot combine ZDDs from different CuddManager instances.", call. = FALSE)
   }
-  ptr <- .rcudd_call("c_cudd_zdd_union", .cudd_zdd_ptr(e1), .cudd_zdd_ptr(e2))
+  ptr <- .Call(.cudd_native$c_cudd_zdd_union, .cudd_zdd_ptr(e1), .cudd_zdd_ptr(e2))
   return(methods::new("CuddZDD", ptr = ptr, manager_ptr = .cudd_zdd_manager_ptr(e1)))
 })
 
@@ -135,6 +135,6 @@ setMethod("!", "CuddZDD", function(x) {
 #' @return The input `x`, invisibly.
 #' @export
 setMethod("print", "CuddZDD", function(x, ...) {
-  .rcudd_call("c_cudd_zdd_print_minterm", .cudd_zdd_ptr(x))
+  .Call(.cudd_native$c_cudd_zdd_print_minterm, .cudd_zdd_ptr(x))
   return(invisible(x))
 })

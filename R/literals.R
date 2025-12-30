@@ -25,7 +25,7 @@
 #'
 #' @export
 bdd_literals <- function(expr) {
-  return(.rcudd_call("c_bdd_remaining_literals", expr))
+  return(.Call(.cudd_native$c_bdd_remaining_literals, expr))
 }
 
 #' Check expression for redundant variables

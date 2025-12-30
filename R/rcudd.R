@@ -1,9 +1,7 @@
 #' @useDynLib Rcudd, .registration=TRUE
 NULL
 
-.cudd_native <- new.env(parent = emptyenv())
-
-.onLoad <- function(libname, pkgname) {
+local({
   symbols <- c(
     "c_bdd_remaining_literals",
     "c_bdd_restrict_chain",
@@ -145,10 +143,13 @@ NULL
     "c_cudd_zdd_zero"
   )
   for (name in symbols) {
-    assign(name, getNativeSymbolInfo(name, PACKAGE = pkgname)$address, envir = .cudd_native)
+    delayedAssign(
+      name,
+      getNativeSymbolInfo(name, PACKAGE = "Rcudd"),
+      assign.env = environment()
+    )
   }
-  return(invisible(NULL))
-}
+})
 
 .cudd_check_same_manager <- function(lhs, rhs, op) {
   same_manager <- identical(lhs@manager_ptr, rhs@manager_ptr)

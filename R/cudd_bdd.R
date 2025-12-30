@@ -58,7 +58,7 @@ methods::setMethod("show", "CuddBDD", function(object) {
 #' @return A [`CuddBDD`] instance representing a constant TRUE BDD.
 #' @export
 cudd_bdd_one <- function(manager) {
-  ptr <- .Call(.cudd_native$c_cudd_bdd_one, .cudd_manager_ptr(manager))
+  ptr <- .Call(c_cudd_bdd_one, .cudd_manager_ptr(manager))
   return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
@@ -68,7 +68,7 @@ cudd_bdd_one <- function(manager) {
 #' @return A [`CuddBDD`] instance representing a constant FALSE BDD.
 #' @export
 cudd_bdd_zero <- function(manager) {
-  ptr <- .Call(.cudd_native$c_cudd_bdd_zero, .cudd_manager_ptr(manager))
+  ptr <- .Call(c_cudd_bdd_zero, .cudd_manager_ptr(manager))
   return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
@@ -82,7 +82,7 @@ cudd_bdd_zero <- function(manager) {
 #' @return A [`CuddBDD`] instance representing the requested variable.
 #' @export
 cudd_bdd_var <- function(manager, index = NULL) {
-  ptr <- .Call(.cudd_native$c_cudd_bdd_var, .cudd_manager_ptr(manager), index)
+  ptr <- .Call(c_cudd_bdd_var, .cudd_manager_ptr(manager), index)
   return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
@@ -90,7 +90,7 @@ cudd_bdd_var <- function(manager, index = NULL) {
 #' @param x A `CuddBDD` instance.
 #' @return A `CuddBDD` instance.
 setMethod("!", "CuddBDD", function(x) {
-  ptr <- .Call(.cudd_native$c_cudd_bdd_not, .cudd_bdd_ptr(x))
+  ptr <- .Call(c_cudd_bdd_not, .cudd_bdd_ptr(x))
   return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(x)))
 })
 
@@ -102,7 +102,7 @@ setMethod("+", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "+")) {
     stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
   }
-  ptr <- .Call(.cudd_native$c_cudd_bdd_or, .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
+  ptr <- .Call(c_cudd_bdd_or, .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
   return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(e1)))
 })
 
@@ -114,7 +114,7 @@ setMethod("*", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "*")) {
     stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
   }
-  ptr <- .Call(.cudd_native$c_cudd_bdd_and, .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
+  ptr <- .Call(c_cudd_bdd_and, .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
   return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(e1)))
 })
 
@@ -126,7 +126,7 @@ setMethod("^", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "^")) {
     stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
   }
-  ptr <- .Call(.cudd_native$c_cudd_bdd_xor, .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
+  ptr <- .Call(c_cudd_bdd_xor, .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
   return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(e1)))
 })
 
@@ -140,7 +140,7 @@ setMethod("^", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
 #' @return `NULL`, invisibly.
 #' @export
 cudd_bdd_epd_print_minterm <- function(bdd, nvars) {
-  .Call(.cudd_native$c_cudd_bdd_epd_print_minterm, .cudd_bdd_ptr(bdd), nvars)
+  .Call(c_cudd_bdd_epd_print_minterm, .cudd_bdd_ptr(bdd), nvars)
   return(invisible(NULL))
 }
 
@@ -154,7 +154,7 @@ cudd_bdd_epd_print_minterm <- function(bdd, nvars) {
 #' @return The input `x`, invisibly.
 #' @export
 setMethod("print", "CuddBDD", function(x, ...) {
-  .Call(.cudd_native$c_cudd_bdd_print_minterm, .cudd_bdd_ptr(x))
+  .Call(c_cudd_bdd_print_minterm, .cudd_bdd_ptr(x))
   return(invisible(x))
 })
 
@@ -170,7 +170,7 @@ setMethod("print", "CuddBDD", function(x, ...) {
 #' @return `NULL`, invisibly.
 #' @export
 cudd_bdd_print_debug <- function(bdd, nvars = NULL, verbosity = NULL) {
-  .Call(.cudd_native$c_cudd_bdd_print_debug, .cudd_bdd_ptr(bdd), nvars, verbosity)
+  .Call(c_cudd_bdd_print_debug, .cudd_bdd_ptr(bdd), nvars, verbosity)
   return(invisible(NULL))
 }
 
@@ -183,5 +183,5 @@ cudd_bdd_print_debug <- function(bdd, nvars = NULL, verbosity = NULL) {
 #' @return Character scalar containing DOT text.
 #' @export
 cudd_bdd_dump_dot <- function(bdd) {
-  return(.Call(.cudd_native$c_cudd_bdd_dump_dot, .cudd_bdd_ptr(bdd)))
+  return(.Call(c_cudd_bdd_dump_dot, .cudd_bdd_ptr(bdd)))
 }

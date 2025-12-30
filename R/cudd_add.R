@@ -58,7 +58,7 @@ methods::setMethod("show", "CuddADD", function(object) {
 #' @return A [`CuddADD`] instance representing a constant TRUE ADD.
 #' @export
 cudd_add_one <- function(manager) {
-  ptr <- .Call(.cudd_native$c_cudd_add_one, .cudd_manager_ptr(manager))
+  ptr <- .Call(c_cudd_add_one, .cudd_manager_ptr(manager))
   return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
@@ -68,7 +68,7 @@ cudd_add_one <- function(manager) {
 #' @return A [`CuddADD`] instance representing a constant FALSE ADD.
 #' @export
 cudd_add_zero <- function(manager) {
-  ptr <- .Call(.cudd_native$c_cudd_add_zero, .cudd_manager_ptr(manager))
+  ptr <- .Call(c_cudd_add_zero, .cudd_manager_ptr(manager))
   return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
@@ -82,7 +82,7 @@ cudd_add_zero <- function(manager) {
 #' @return A [`CuddADD`] instance representing the requested variable.
 #' @export
 cudd_add_var <- function(manager, index = NULL) {
-  ptr <- .Call(.cudd_native$c_cudd_add_var, .cudd_manager_ptr(manager), index)
+  ptr <- .Call(c_cudd_add_var, .cudd_manager_ptr(manager), index)
   return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
@@ -94,7 +94,7 @@ setMethod("*", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "*")) {
     stop("Cannot combine ADDs from different CuddManager instances.", call. = FALSE)
   }
-  ptr <- .Call(.cudd_native$c_cudd_add_times, .cudd_add_ptr(e1), .cudd_add_ptr(e2))
+  ptr <- .Call(c_cudd_add_times, .cudd_add_ptr(e1), .cudd_add_ptr(e2))
   return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_add_manager_ptr(e1)))
 })
 
@@ -106,7 +106,7 @@ setMethod("+", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "+")) {
     stop("Cannot combine ADDs from different CuddManager instances.", call. = FALSE)
   }
-  ptr <- .Call(.cudd_native$c_cudd_add_plus, .cudd_add_ptr(e1), .cudd_add_ptr(e2))
+  ptr <- .Call(c_cudd_add_plus, .cudd_add_ptr(e1), .cudd_add_ptr(e2))
   return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_add_manager_ptr(e1)))
 })
 
@@ -135,7 +135,7 @@ setMethod("!", "CuddADD", function(x) {
 #' @return `NULL`, invisibly.
 #' @export
 cudd_add_epd_print_minterm <- function(add, nvars) {
-  .Call(.cudd_native$c_cudd_add_epd_print_minterm, .cudd_add_ptr(add), nvars)
+  .Call(c_cudd_add_epd_print_minterm, .cudd_add_ptr(add), nvars)
   return(invisible(NULL))
 }
 
@@ -149,6 +149,6 @@ cudd_add_epd_print_minterm <- function(add, nvars) {
 #' @return The input `x`, invisibly.
 #' @export
 setMethod("print", "CuddADD", function(x, ...) {
-  .Call(.cudd_native$c_cudd_add_print_minterm, .cudd_add_ptr(x))
+  .Call(c_cudd_add_print_minterm, .cudd_add_ptr(x))
   return(invisible(x))
 })

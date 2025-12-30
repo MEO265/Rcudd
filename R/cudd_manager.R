@@ -425,7 +425,7 @@ cudd_read_garbage_collections <- function(manager) {
 
 #' @rdname cudd_manager_controls
 #' @export
-cudd_read_garbage_collection_time <- function(manager) {
+cudd_read_garbage_collection_time <- function(manager) { # nolint: object_length_linter.
   return(.rcudd_call("c_cudd_read_garbage_collection_time", .cudd_manager_ptr(manager)))
 }
 
@@ -522,7 +522,7 @@ cudd_set_groupcheck <- function(manager, gc) {
 
 #' @rdname cudd_manager_controls
 #' @export
-cudd_garbage_collection_enabled <- function(manager) {
+cudd_garbage_collection_enabled <- function(manager) { # nolint: object_length_linter.
   return(.rcudd_call("c_cudd_garbage_collection_enabled", .cudd_manager_ptr(manager)))
 }
 
@@ -534,7 +534,7 @@ cudd_enable_garbage_collection <- function(manager) {
 
 #' @rdname cudd_manager_controls
 #' @export
-cudd_disable_garbage_collection <- function(manager) {
+cudd_disable_garbage_collection <- function(manager) { # nolint: object_length_linter.
   return(.rcudd_call("c_cudd_disable_garbage_collection", .cudd_manager_ptr(manager)))
 }
 
@@ -654,13 +654,13 @@ cudd_read_node_count_zdd <- function(manager) {
 
 #' @rdname cudd_manager_controls
 #' @export
-cudd_enable_reordering_reporting <- function(manager) {
+cudd_enable_reordering_reporting <- function(manager) { # nolint: object_length_linter.
   return(.rcudd_call("c_cudd_enable_reordering_reporting", .cudd_manager_ptr(manager)))
 }
 
 #' @rdname cudd_manager_controls
 #' @export
-cudd_disable_reordering_reporting <- function(manager) {
+cudd_disable_reordering_reporting <- function(manager) { # nolint: object_length_linter.
   return(.rcudd_call("c_cudd_disable_reordering_reporting", .cudd_manager_ptr(manager)))
 }
 

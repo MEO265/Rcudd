@@ -8,9 +8,9 @@
 ---
 
     Code
-      print_output
+      show_output
     Output
-      [1] "-  1"
+      [1] "<CuddBDD>" "-  1"     
 
 ---
 
@@ -37,14 +37,14 @@
 ---
 
     Code
-      print_output
+      show_output
     Output
-      [1] "-  1"
+      [1] "<CuddADD>" "-  1"     
 
 # ZDD operations and conversions return expected classes
 
     Code
-      print_output
+      show_output
     Output
-      [1] "0 1"
+      [1] "<CuddZDD>" "0 1"      
 

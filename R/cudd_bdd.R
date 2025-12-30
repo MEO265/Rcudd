@@ -32,9 +32,10 @@ methods::setClass(
 #' @describeIn CuddBDD-class Show a brief summary of the BDD.
 #' @param object A `CuddBDD` instance.
 #' @keywords internal
+#' @export
 methods::setMethod("show", "CuddBDD", function(object) {
   cat("<CuddBDD>\n")
-  print(object)
+  cudd_bdd_print_minterm(object)
   return(invisible(object))
 })
 
@@ -89,6 +90,7 @@ cudd_bdd_var <- function(manager, index = NULL) {
 #' @describeIn CuddBDD-class Negate a BDD
 #' @param x A `CuddBDD` instance.
 #' @return A `CuddBDD` instance.
+#' @export
 setMethod("!", "CuddBDD", function(x) {
   ptr <- .Call(c_cudd_bdd_not, .cudd_bdd_ptr(x))
   return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(x)))
@@ -98,6 +100,7 @@ setMethod("!", "CuddBDD", function(x) {
 #' @param e1 A `CuddBDD` instance.
 #' @param e2 A `CuddBDD` instance.
 #' @return A `CuddBDD` instance.
+#' @export
 setMethod("+", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "+")) {
     stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
@@ -110,6 +113,7 @@ setMethod("+", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
 #' @param e1 A `CuddBDD` instance.
 #' @param e2 A `CuddBDD` instance.
 #' @return A `CuddBDD` instance.
+#' @export
 setMethod("*", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "*")) {
     stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
@@ -122,6 +126,7 @@ setMethod("*", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
 #' @param e1 A `CuddBDD` instance.
 #' @param e2 A `CuddBDD` instance.
 #' @return A `CuddBDD` instance.
+#' @export
 setMethod("^", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "^")) {
     stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
@@ -149,14 +154,30 @@ cudd_bdd_epd_print_minterm <- function(bdd, nvars) {
 #' This uses the CUDD `PrintMinterm` implementation, which writes to R's
 #' output stream.
 #'
-#' @param x A [`CuddBDD`] instance.
-#' @param ... Unused.
-#' @return The input `x`, invisibly.
+#' @param bdd A [`CuddBDD`] instance.
+#' @return `NULL`, invisibly.
 #' @export
-setMethod("print", "CuddBDD", function(x, ...) {
-  .Call(c_cudd_bdd_print_minterm, .cudd_bdd_ptr(x))
-  return(invisible(x))
-})
+cudd_bdd_print_minterm <- function(bdd) {
+  .Call(c_cudd_bdd_print_minterm, .cudd_bdd_ptr(bdd))
+  return(invisible(NULL))
+}
+
+#' Generate a truth table for a BDD
+#'
+#' Produces a matrix with one column per variable and a final column named
+#' `value` containing the BDD evaluation for each assignment.
+#'
+#' @param bdd A [`CuddBDD`] instance.
+#' @param nvars Optional non-negative integer indicating how many variables to
+#'   include. Defaults to the manager size.
+#' @return An integer matrix representing the truth table.
+#' @export
+cudd_bdd_truth_table <- function(bdd, nvars = NULL) {
+  truth_table <- .Call(c_cudd_bdd_truth_table, .cudd_bdd_ptr(bdd), nvars)
+  var_count <- ncol(truth_table) - 1L
+  colnames(truth_table) <- c(paste0("x", seq_len(var_count)), "value")
+  return(truth_table)
+}
 
 #' Print a debug representation for a BDD
 #'

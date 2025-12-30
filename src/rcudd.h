@@ -55,6 +55,7 @@ extern "C" SEXP c_cudd_add_epd_print_minterm(SEXP add_ptr, SEXP nvars);
 extern "C" SEXP c_cudd_bdd_print_minterm(SEXP bdd_ptr);
 extern "C" SEXP c_cudd_add_print_minterm(SEXP add_ptr);
 extern "C" SEXP c_cudd_zdd_print_minterm(SEXP zdd_ptr);
+extern "C" SEXP c_cudd_bdd_truth_table(SEXP bdd_ptr, SEXP nvars);
 extern "C" SEXP c_cudd_bdd_print_debug(SEXP bdd_ptr, SEXP nvars, SEXP verbosity);
 extern "C" SEXP c_cudd_bdd_dump_dot(SEXP bdd_ptr);
 extern "C" SEXP c_cudd_read_start_time(SEXP mgr_ptr);

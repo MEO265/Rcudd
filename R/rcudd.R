@@ -1,4 +1,5 @@
 #' @useDynLib Rcudd, .registration=TRUE
+#' @importFrom methods show
 NULL
 
 local({
@@ -27,6 +28,7 @@ local({
     "c_cudd_bdd_or",
     "c_cudd_bdd_print_debug",
     "c_cudd_bdd_print_minterm",
+    "c_cudd_bdd_truth_table",
     "c_cudd_bdd_realign_disable",
     "c_cudd_bdd_realign_enable",
     "c_cudd_bdd_realignment_enabled",

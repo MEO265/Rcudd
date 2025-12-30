@@ -59,6 +59,8 @@ represented in R as an external pointer managed by a finalizer.
 
 \describe{
 \item{\code{ptr}}{External pointer to the underlying BDD object.}
+
+\item{\code{manager_ptr}}{External pointer to the owning CUDD manager.}
 }}
 
 \keyword{internal}

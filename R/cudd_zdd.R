@@ -4,11 +4,13 @@
 #' represented in R as an external pointer managed by a finalizer.
 #'
 #' @slot ptr External pointer to the underlying ZDD object.
+#' @slot manager_ptr External pointer to the owning CUDD manager.
 #' @keywords internal
 methods::setClass(
   "CuddZDD",
   slots = list(
-    ptr = "externalptr"
+    ptr = "externalptr",
+    manager_ptr = "externalptr"
   ),
   validity = function(object) {
     if (!methods::is(object@ptr, "externalptr")) {
@@ -16,6 +18,12 @@ methods::setClass(
     }
     if (is.null(object@ptr)) {
       return("`ptr` must not be NULL.")
+    }
+    if (!methods::is(object@manager_ptr, "externalptr")) {
+      return("`manager_ptr` must be an external pointer.")
+    }
+    if (is.null(object@manager_ptr)) {
+      return("`manager_ptr` must not be NULL.")
     }
     return(TRUE)
   }
@@ -37,6 +45,13 @@ methods::setMethod("show", "CuddZDD", function(object) {
   return(zdd@ptr)
 }
 
+.cudd_zdd_manager_ptr <- function(zdd) {
+  if (!methods::is(zdd, "CuddZDD")) {
+    stop("`zdd` must be a CuddZDD object.", call. = FALSE)
+  }
+  return(zdd@manager_ptr)
+}
+
 #' Create a ZDD node that represents the constant one
 #'
 #' @param manager A [`CuddManager`] instance.
@@ -45,7 +60,7 @@ methods::setMethod("show", "CuddZDD", function(object) {
 #' @export
 cudd_zdd_one <- function(manager, index = 0L) {
   ptr <- .rcudd_call("c_cudd_zdd_one", .cudd_manager_ptr(manager), index)
-  return(methods::new("CuddZDD", ptr = ptr))
+  return(methods::new("CuddZDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' Create a ZDD node that represents the constant zero
@@ -55,7 +70,7 @@ cudd_zdd_one <- function(manager, index = 0L) {
 #' @export
 cudd_zdd_zero <- function(manager) {
   ptr <- .rcudd_call("c_cudd_zdd_zero", .cudd_manager_ptr(manager))
-  return(methods::new("CuddZDD", ptr = ptr))
+  return(methods::new("CuddZDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' Create or access a ZDD variable
@@ -68,7 +83,7 @@ cudd_zdd_zero <- function(manager) {
 #' @export
 cudd_zdd_var <- function(manager, index = NULL) {
   ptr <- .rcudd_call("c_cudd_zdd_var", .cudd_manager_ptr(manager), index)
-  return(methods::new("CuddZDD", ptr = ptr))
+  return(methods::new("CuddZDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' @describeIn CuddZDD-class Combine ZDDs with intersection
@@ -76,8 +91,11 @@ cudd_zdd_var <- function(manager, index = NULL) {
 #' @param e2 A `CuddZDD` instance.
 #' @return A `CuddZDD` instance.
 setMethod("*", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
+  if (!.cudd_check_same_manager(e1, e2, "*")) {
+    stop("Cannot combine ZDDs from different CuddManager instances.", call. = FALSE)
+  }
   ptr <- .rcudd_call("c_cudd_zdd_intersect", .cudd_zdd_ptr(e1), .cudd_zdd_ptr(e2))
-  return(methods::new("CuddZDD", ptr = ptr))
+  return(methods::new("CuddZDD", ptr = ptr, manager_ptr = .cudd_zdd_manager_ptr(e1)))
 })
 
 #' @describeIn CuddZDD-class Combine ZDDs with union
@@ -85,8 +103,11 @@ setMethod("*", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
 #' @param e2 A `CuddZDD` instance.
 #' @return A `CuddZDD` instance.
 setMethod("+", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
+  if (!.cudd_check_same_manager(e1, e2, "+")) {
+    stop("Cannot combine ZDDs from different CuddManager instances.", call. = FALSE)
+  }
   ptr <- .rcudd_call("c_cudd_zdd_union", .cudd_zdd_ptr(e1), .cudd_zdd_ptr(e2))
-  return(methods::new("CuddZDD", ptr = ptr))
+  return(methods::new("CuddZDD", ptr = ptr, manager_ptr = .cudd_zdd_manager_ptr(e1)))
 })
 
 #' @describeIn CuddZDD-class XOR is not defined for ZDDs

@@ -348,7 +348,7 @@ cudd_bdd_realign_disable <- function(manager) {
 #' @export
 cudd_background <- function(manager) {
   ptr <- .rcudd_call("c_cudd_background", .cudd_manager_ptr(manager))
-  return(methods::new("CuddADD", ptr = ptr))
+  return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' @rdname cudd_manager_controls
@@ -493,7 +493,7 @@ cudd_read_inv_perm_zdd <- function(manager, i) {
 #' @export
 cudd_read_vars <- function(manager, i) {
   ptr <- .rcudd_call("c_cudd_read_vars", .cudd_manager_ptr(manager), i)
-  return(methods::new("CuddBDD", ptr = ptr))
+  return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' @rdname cudd_manager_controls

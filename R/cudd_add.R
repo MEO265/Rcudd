@@ -4,11 +4,13 @@
 #' represented in R as an external pointer managed by a finalizer.
 #'
 #' @slot ptr External pointer to the underlying ADD object.
+#' @slot manager_ptr External pointer to the owning CUDD manager.
 #' @keywords internal
 methods::setClass(
   "CuddADD",
   slots = list(
-    ptr = "externalptr"
+    ptr = "externalptr",
+    manager_ptr = "externalptr"
   ),
   validity = function(object) {
     if (!methods::is(object@ptr, "externalptr")) {
@@ -16,6 +18,12 @@ methods::setClass(
     }
     if (is.null(object@ptr)) {
       return("`ptr` must not be NULL.")
+    }
+    if (!methods::is(object@manager_ptr, "externalptr")) {
+      return("`manager_ptr` must be an external pointer.")
+    }
+    if (is.null(object@manager_ptr)) {
+      return("`manager_ptr` must not be NULL.")
     }
     return(TRUE)
   }
@@ -37,6 +45,13 @@ methods::setMethod("show", "CuddADD", function(object) {
   return(add@ptr)
 }
 
+.cudd_add_manager_ptr <- function(add) {
+  if (!methods::is(add, "CuddADD")) {
+    stop("`add` must be a CuddADD object.", call. = FALSE)
+  }
+  return(add@manager_ptr)
+}
+
 #' Create an ADD node that represents logical TRUE
 #'
 #' @param manager A [`CuddManager`] instance.
@@ -44,7 +59,7 @@ methods::setMethod("show", "CuddADD", function(object) {
 #' @export
 cudd_add_one <- function(manager) {
   ptr <- .rcudd_call("c_cudd_add_one", .cudd_manager_ptr(manager))
-  return(methods::new("CuddADD", ptr = ptr))
+  return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' Create an ADD node that represents logical FALSE
@@ -54,7 +69,7 @@ cudd_add_one <- function(manager) {
 #' @export
 cudd_add_zero <- function(manager) {
   ptr <- .rcudd_call("c_cudd_add_zero", .cudd_manager_ptr(manager))
-  return(methods::new("CuddADD", ptr = ptr))
+  return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' Create or access an ADD variable
@@ -68,7 +83,7 @@ cudd_add_zero <- function(manager) {
 #' @export
 cudd_add_var <- function(manager, index = NULL) {
   ptr <- .rcudd_call("c_cudd_add_var", .cudd_manager_ptr(manager), index)
-  return(methods::new("CuddADD", ptr = ptr))
+  return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' @describeIn CuddADD-class Combine ADDs with multiplication
@@ -76,8 +91,11 @@ cudd_add_var <- function(manager, index = NULL) {
 #' @param e2 A `CuddADD` instance.
 #' @return A `CuddADD` instance.
 setMethod("*", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
+  if (!.cudd_check_same_manager(e1, e2, "*")) {
+    stop("Cannot combine ADDs from different CuddManager instances.", call. = FALSE)
+  }
   ptr <- .rcudd_call("c_cudd_add_times", .cudd_add_ptr(e1), .cudd_add_ptr(e2))
-  return(methods::new("CuddADD", ptr = ptr))
+  return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_add_manager_ptr(e1)))
 })
 
 #' @describeIn CuddADD-class Combine ADDs with addition
@@ -85,8 +103,11 @@ setMethod("*", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
 #' @param e2 A `CuddADD` instance.
 #' @return A `CuddADD` instance.
 setMethod("+", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
+  if (!.cudd_check_same_manager(e1, e2, "+")) {
+    stop("Cannot combine ADDs from different CuddManager instances.", call. = FALSE)
+  }
   ptr <- .rcudd_call("c_cudd_add_plus", .cudd_add_ptr(e1), .cudd_add_ptr(e2))
-  return(methods::new("CuddADD", ptr = ptr))
+  return(methods::new("CuddADD", ptr = ptr, manager_ptr = .cudd_add_manager_ptr(e1)))
 })
 
 #' @describeIn CuddADD-class XOR is not defined for ADDs

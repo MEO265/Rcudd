@@ -214,3 +214,32 @@ test_that("CuddManager exposes background and live controls", {
   expect_type(cudd_read_max_live(manager), "integer")
   expect_null(cudd_set_max_live(manager, 1L))
 })
+
+test_that("Cudd operations warn on manager mismatches", {
+  manager_a <- CuddManager()
+  manager_b <- CuddManager()
+
+  bdd_a <- cudd_bdd_one(manager_a)
+  bdd_b <- cudd_bdd_one(manager_b)
+  expect_no_warning(bdd_a + cudd_bdd_zero(manager_a))
+  expect_warning(
+    expect_error(bdd_a + bdd_b, "different CuddManager"),
+    "different CuddManager"
+  )
+
+  add_a <- cudd_add_one(manager_a)
+  add_b <- cudd_add_one(manager_b)
+  expect_no_warning(add_a * cudd_add_zero(manager_a))
+  expect_warning(
+    expect_error(add_a * add_b, "different CuddManager"),
+    "different CuddManager"
+  )
+
+  zdd_a <- cudd_zdd_zero(manager_a)
+  zdd_b <- cudd_zdd_zero(manager_b)
+  expect_no_warning(zdd_a + cudd_zdd_one(manager_a))
+  expect_warning(
+    expect_error(zdd_a + zdd_b, "different CuddManager"),
+    "different CuddManager"
+  )
+})

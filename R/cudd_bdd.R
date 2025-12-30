@@ -4,11 +4,13 @@
 #' represented in R as an external pointer managed by a finalizer.
 #'
 #' @slot ptr External pointer to the underlying BDD object.
+#' @slot manager_ptr External pointer to the owning CUDD manager.
 #' @keywords internal
 methods::setClass(
   "CuddBDD",
   slots = list(
-    ptr = "externalptr"
+    ptr = "externalptr",
+    manager_ptr = "externalptr"
   ),
   validity = function(object) {
     if (!methods::is(object@ptr, "externalptr")) {
@@ -16,6 +18,12 @@ methods::setClass(
     }
     if (is.null(object@ptr)) {
       return("`ptr` must not be NULL.")
+    }
+    if (!methods::is(object@manager_ptr, "externalptr")) {
+      return("`manager_ptr` must be an external pointer.")
+    }
+    if (is.null(object@manager_ptr)) {
+      return("`manager_ptr` must not be NULL.")
     }
     return(TRUE)
   }
@@ -37,6 +45,13 @@ methods::setMethod("show", "CuddBDD", function(object) {
   return(bdd@ptr)
 }
 
+.cudd_bdd_manager_ptr <- function(bdd) {
+  if (!methods::is(bdd, "CuddBDD")) {
+    stop("`bdd` must be a CuddBDD object.", call. = FALSE)
+  }
+  return(bdd@manager_ptr)
+}
+
 #' Create a BDD node that represents logical TRUE
 #'
 #' @param manager A [`CuddManager`] instance.
@@ -44,7 +59,7 @@ methods::setMethod("show", "CuddBDD", function(object) {
 #' @export
 cudd_bdd_one <- function(manager) {
   ptr <- .rcudd_call("c_cudd_bdd_one", .cudd_manager_ptr(manager))
-  return(methods::new("CuddBDD", ptr = ptr))
+  return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' Create a BDD node that represents logical FALSE
@@ -54,7 +69,7 @@ cudd_bdd_one <- function(manager) {
 #' @export
 cudd_bdd_zero <- function(manager) {
   ptr <- .rcudd_call("c_cudd_bdd_zero", .cudd_manager_ptr(manager))
-  return(methods::new("CuddBDD", ptr = ptr))
+  return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' Create or access a BDD variable
@@ -68,7 +83,7 @@ cudd_bdd_zero <- function(manager) {
 #' @export
 cudd_bdd_var <- function(manager, index = NULL) {
   ptr <- .rcudd_call("c_cudd_bdd_var", .cudd_manager_ptr(manager), index)
-  return(methods::new("CuddBDD", ptr = ptr))
+  return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }
 
 #' @describeIn CuddBDD-class Negate a BDD
@@ -76,7 +91,7 @@ cudd_bdd_var <- function(manager, index = NULL) {
 #' @return A `CuddBDD` instance.
 setMethod("!", "CuddBDD", function(x) {
   ptr <- .rcudd_call("c_cudd_bdd_not", .cudd_bdd_ptr(x))
-  return(methods::new("CuddBDD", ptr = ptr))
+  return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(x)))
 })
 
 #' @describeIn CuddBDD-class Combine BDDs with addition (logical OR)
@@ -84,8 +99,11 @@ setMethod("!", "CuddBDD", function(x) {
 #' @param e2 A `CuddBDD` instance.
 #' @return A `CuddBDD` instance.
 setMethod("+", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
+  if (!.cudd_check_same_manager(e1, e2, "+")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
   ptr <- .rcudd_call("c_cudd_bdd_or", .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
-  return(methods::new("CuddBDD", ptr = ptr))
+  return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(e1)))
 })
 
 #' @describeIn CuddBDD-class Combine BDDs with multiplication (logical AND)
@@ -93,8 +111,11 @@ setMethod("+", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
 #' @param e2 A `CuddBDD` instance.
 #' @return A `CuddBDD` instance.
 setMethod("*", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
+  if (!.cudd_check_same_manager(e1, e2, "*")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
   ptr <- .rcudd_call("c_cudd_bdd_and", .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
-  return(methods::new("CuddBDD", ptr = ptr))
+  return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(e1)))
 })
 
 #' @describeIn CuddBDD-class Combine BDDs with XOR
@@ -102,8 +123,11 @@ setMethod("*", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
 #' @param e2 A `CuddBDD` instance.
 #' @return A `CuddBDD` instance.
 setMethod("^", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
+  if (!.cudd_check_same_manager(e1, e2, "^")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
   ptr <- .rcudd_call("c_cudd_bdd_xor", .cudd_bdd_ptr(e1), .cudd_bdd_ptr(e2))
-  return(methods::new("CuddBDD", ptr = ptr))
+  return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(e1)))
 })
 
 #' Print an EPD minterm count for a BDD

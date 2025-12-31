@@ -94,6 +94,65 @@ static ZDD *zdd_from_ptr(SEXP ptr) {
     return static_cast<ZDD *>(addr);
 }
 
+static SEXP bdd_to_xptr(const BDD &bdd) {
+    BDD *result = new BDD(bdd);
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, bdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+static SEXP zdd_to_xptr(const ZDD &zdd) {
+    ZDD *result = new ZDD(zdd);
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, zdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+static std::vector<BDD> bdd_vector_from_list(SEXP list, const char *name) {
+    if (!Rf_isNewList(list)) {
+        Rf_error("'%s' must be a list of CuddBDD objects.", name);
+    }
+    R_xlen_t size = Rf_xlength(list);
+    std::vector<BDD> result;
+    result.reserve(static_cast<size_t>(size));
+    for (R_xlen_t i = 0; i < size; ++i) {
+        SEXP item = VECTOR_ELT(list, i);
+        BDD *bdd = bdd_from_ptr(item);
+        result.push_back(*bdd);
+    }
+    return result;
+}
+
+static SEXP bdd_list_from_vector(const std::vector<BDD> &values) {
+    R_xlen_t size = static_cast<R_xlen_t>(values.size());
+    SEXP list = PROTECT(Rf_allocVector(VECSXP, size));
+    for (R_xlen_t i = 0; i < size; ++i) {
+        SEXP ptr = bdd_to_xptr(values[static_cast<size_t>(i)]);
+        SET_VECTOR_ELT(list, i, ptr);
+    }
+    UNPROTECT(1);
+    return list;
+}
+
+static std::vector<int> int_vector_from_sexp(SEXP vec, const char *name) {
+    if (!Rf_isInteger(vec)) {
+        Rf_error("'%s' must be an integer vector.", name);
+    }
+    R_xlen_t size = Rf_xlength(vec);
+    std::vector<int> result;
+    result.reserve(static_cast<size_t>(size));
+    for (R_xlen_t i = 0; i < size; ++i) {
+        int value = INTEGER(vec)[i];
+        if (value == NA_INTEGER) {
+            Rf_error("'%s' must not contain NA.", name);
+        }
+        result.push_back(value);
+    }
+    return result;
+}
+
 extern "C" SEXP c_cudd_new() {
     try {
         Cudd *mgr = new Cudd();
@@ -1023,6 +1082,367 @@ extern "C" SEXP c_cudd_bdd_xor(SEXP lhs_ptr, SEXP rhs_ptr) {
     R_RegisterCFinalizerEx(ptr, bdd_finalizer, TRUE);
     UNPROTECT(1);
     return ptr;
+}
+
+extern "C" SEXP c_cudd_bdd_restrict(SEXP bdd_ptr, SEXP constraint_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *constraint = bdd_from_ptr(constraint_ptr);
+    BDD *result = new BDD(bdd->Restrict(*constraint));
+    SEXP ptr = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(ptr, bdd_finalizer, TRUE);
+    UNPROTECT(1);
+    return ptr;
+}
+
+extern "C" SEXP c_cudd_bdd_is_zero(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    return Rf_ScalarLogical(bdd->IsZero());
+}
+
+extern "C" SEXP c_cudd_bdd_is_var(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    return Rf_ScalarLogical(bdd->IsVar());
+}
+
+extern "C" SEXP c_cudd_bdd_leq(SEXP lhs_ptr, SEXP rhs_ptr) {
+    BDD *lhs = bdd_from_ptr(lhs_ptr);
+    BDD *rhs = bdd_from_ptr(rhs_ptr);
+    return Rf_ScalarLogical(lhs->Leq(*rhs));
+}
+
+extern "C" SEXP c_cudd_bdd_and_abstract(SEXP bdd_ptr, SEXP other_ptr, SEXP cube_ptr, SEXP limit) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    BDD *cube = bdd_from_ptr(cube_ptr);
+    unsigned int lim = static_cast<unsigned int>(Rf_asInteger(limit));
+    return bdd_to_xptr(bdd->AndAbstract(*other, *cube, lim));
+}
+
+extern "C" SEXP c_cudd_bdd_exist_abstract(SEXP bdd_ptr, SEXP cube_ptr, SEXP limit) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *cube = bdd_from_ptr(cube_ptr);
+    unsigned int lim = static_cast<unsigned int>(Rf_asInteger(limit));
+    return bdd_to_xptr(bdd->ExistAbstract(*cube, lim));
+}
+
+extern "C" SEXP c_cudd_bdd_univ_abstract(SEXP bdd_ptr, SEXP cube_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *cube = bdd_from_ptr(cube_ptr);
+    return bdd_to_xptr(bdd->UnivAbstract(*cube));
+}
+
+extern "C" SEXP c_cudd_bdd_xor_exist_abstract(SEXP bdd_ptr, SEXP other_ptr, SEXP cube_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    BDD *cube = bdd_from_ptr(cube_ptr);
+    return bdd_to_xptr(bdd->XorExistAbstract(*other, *cube));
+}
+
+extern "C" SEXP c_cudd_bdd_boolean_diff(SEXP bdd_ptr, SEXP index) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int idx = Rf_asInteger(index);
+    if (idx == NA_INTEGER || idx < 0) {
+        Rf_error("'index' must be a non-negative integer.");
+    }
+    return bdd_to_xptr(bdd->BooleanDiff(idx));
+}
+
+extern "C" SEXP c_cudd_bdd_var_is_dependent(SEXP bdd_ptr, SEXP var_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *var = bdd_from_ptr(var_ptr);
+    return Rf_ScalarLogical(bdd->VarIsDependent(*var));
+}
+
+extern "C" SEXP c_cudd_bdd_ite(SEXP bdd_ptr, SEXP g_ptr, SEXP h_ptr, SEXP limit) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *g = bdd_from_ptr(g_ptr);
+    BDD *h = bdd_from_ptr(h_ptr);
+    unsigned int lim = static_cast<unsigned int>(Rf_asInteger(limit));
+    return bdd_to_xptr(bdd->Ite(*g, *h, lim));
+}
+
+extern "C" SEXP c_cudd_bdd_ite_constant(SEXP bdd_ptr, SEXP g_ptr, SEXP h_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *g = bdd_from_ptr(g_ptr);
+    BDD *h = bdd_from_ptr(h_ptr);
+    return bdd_to_xptr(bdd->IteConstant(*g, *h));
+}
+
+extern "C" SEXP c_cudd_bdd_intersect(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->Intersect(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_and_limit(SEXP bdd_ptr, SEXP other_ptr, SEXP limit) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    unsigned int lim = static_cast<unsigned int>(Rf_asInteger(limit));
+    return bdd_to_xptr(bdd->And(*other, lim));
+}
+
+extern "C" SEXP c_cudd_bdd_or_limit(SEXP bdd_ptr, SEXP other_ptr, SEXP limit) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    unsigned int lim = static_cast<unsigned int>(Rf_asInteger(limit));
+    return bdd_to_xptr(bdd->Or(*other, lim));
+}
+
+extern "C" SEXP c_cudd_bdd_nand(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->Nand(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_nor(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->Nor(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_xnor(SEXP bdd_ptr, SEXP other_ptr, SEXP limit) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    unsigned int lim = static_cast<unsigned int>(Rf_asInteger(limit));
+    return bdd_to_xptr(bdd->Xnor(*other, lim));
+}
+
+extern "C" SEXP c_cudd_bdd_cofactor(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->Cofactor(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_constrain(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->Constrain(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_compose(SEXP bdd_ptr, SEXP other_ptr, SEXP index) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    int idx = Rf_asInteger(index);
+    if (idx == NA_INTEGER || idx < 0) {
+        Rf_error("'index' must be a non-negative integer.");
+    }
+    return bdd_to_xptr(bdd->Compose(*other, idx));
+}
+
+extern "C" SEXP c_cudd_bdd_permute(SEXP bdd_ptr, SEXP permut) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<int> perm = int_vector_from_sexp(permut, "permut");
+    return bdd_to_xptr(bdd->Permute(perm.data()));
+}
+
+extern "C" SEXP c_cudd_bdd_swap_variables(SEXP bdd_ptr, SEXP x_list, SEXP y_list) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<BDD> x = bdd_vector_from_list(x_list, "x");
+    std::vector<BDD> y = bdd_vector_from_list(y_list, "y");
+    return bdd_to_xptr(bdd->SwapVariables(x, y));
+}
+
+extern "C" SEXP c_cudd_bdd_vector_compose(SEXP bdd_ptr, SEXP vector_list) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<BDD> vec = bdd_vector_from_list(vector_list, "vector");
+    return bdd_to_xptr(bdd->VectorCompose(vec));
+}
+
+extern "C" SEXP c_cudd_bdd_li_compaction(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->LICompaction(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_squeeze(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->Squeeze(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_interpolate(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->Interpolate(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_minimize(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->Minimize(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_subset_compress(SEXP bdd_ptr, SEXP nvars, SEXP threshold) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(nvars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'nvars' must be non-negative and 'threshold' must be an integer.");
+    }
+    return bdd_to_xptr(bdd->SubsetCompress(vars, thresh));
+}
+
+extern "C" SEXP c_cudd_bdd_superset_compress(SEXP bdd_ptr, SEXP nvars, SEXP threshold) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(nvars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'nvars' must be non-negative and 'threshold' must be an integer.");
+    }
+    return bdd_to_xptr(bdd->SupersetCompress(vars, thresh));
+}
+
+extern "C" SEXP c_cudd_bdd_literal_set_intersection(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->LiteralSetIntersection(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_c_projection(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->CProjection(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_min_hamming_dist(SEXP bdd_ptr, SEXP minterm, SEXP upper_bound) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<int> minterm_vec = int_vector_from_sexp(minterm, "minterm");
+    int bound = Rf_asInteger(upper_bound);
+    if (bound == NA_INTEGER) {
+        Rf_error("'upper_bound' must be an integer.");
+    }
+    int result = bdd->MinHammingDist(minterm_vec.data(), bound);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, Rf_ScalarInteger(result));
+    SEXP minterm_out = PROTECT(Rf_allocVector(INTSXP, minterm_vec.size()));
+    for (R_xlen_t i = 0; i < static_cast<R_xlen_t>(minterm_vec.size()); ++i) {
+        INTEGER(minterm_out)[i] = minterm_vec[static_cast<size_t>(i)];
+    }
+    SET_VECTOR_ELT(output, 1, minterm_out);
+    UNPROTECT(2);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_eval(SEXP bdd_ptr, SEXP inputs) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<int> values = int_vector_from_sexp(inputs, "inputs");
+    return bdd_to_xptr(bdd->Eval(values.data()));
+}
+
+extern "C" SEXP c_cudd_bdd_decreasing(SEXP bdd_ptr, SEXP index) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int idx = Rf_asInteger(index);
+    if (idx == NA_INTEGER || idx < 0) {
+        Rf_error("'index' must be a non-negative integer.");
+    }
+    return bdd_to_xptr(bdd->Decreasing(idx));
+}
+
+extern "C" SEXP c_cudd_bdd_increasing(SEXP bdd_ptr, SEXP index) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int idx = Rf_asInteger(index);
+    if (idx == NA_INTEGER || idx < 0) {
+        Rf_error("'index' must be a non-negative integer.");
+    }
+    return bdd_to_xptr(bdd->Increasing(idx));
+}
+
+extern "C" SEXP c_cudd_bdd_make_prime(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->MakePrime(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_subset_heavy_branch(SEXP bdd_ptr, SEXP num_vars, SEXP threshold) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(num_vars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'num_vars' must be non-negative and 'threshold' must be an integer.");
+    }
+    return bdd_to_xptr(bdd->SubsetHeavyBranch(vars, thresh));
+}
+
+extern "C" SEXP c_cudd_bdd_superset_heavy_branch(SEXP bdd_ptr, SEXP num_vars, SEXP threshold) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(num_vars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'num_vars' must be non-negative and 'threshold' must be an integer.");
+    }
+    return bdd_to_xptr(bdd->SupersetHeavyBranch(vars, thresh));
+}
+
+extern "C" SEXP c_cudd_bdd_subset_short_paths(SEXP bdd_ptr, SEXP num_vars, SEXP threshold, SEXP hardlimit) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(num_vars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'num_vars' must be non-negative and 'threshold' must be an integer.");
+    }
+    bool hard = Rf_asLogical(hardlimit);
+    return bdd_to_xptr(bdd->SubsetShortPaths(vars, thresh, hard));
+}
+
+extern "C" SEXP c_cudd_bdd_superset_short_paths(SEXP bdd_ptr, SEXP num_vars, SEXP threshold, SEXP hardlimit) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(num_vars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'num_vars' must be non-negative and 'threshold' must be an integer.");
+    }
+    bool hard = Rf_asLogical(hardlimit);
+    return bdd_to_xptr(bdd->SupersetShortPaths(vars, thresh, hard));
+}
+
+extern "C" SEXP c_cudd_bdd_print_cover(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    bdd->PrintCover();
+    return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_bdd_print_cover_with_cube(SEXP bdd_ptr, SEXP cube_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *cube = bdd_from_ptr(cube_ptr);
+    bdd->PrintCover(*cube);
+    return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_bdd_pick_one_cube(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int size = Cudd_ReadSize(bdd->manager());
+    std::vector<char> buffer(static_cast<size_t>(size) + 1, '\0');
+    bdd->PickOneCube(buffer.data());
+    return Rf_mkString(buffer.data());
+}
+
+extern "C" SEXP c_cudd_bdd_pick_one_minterm(SEXP bdd_ptr, SEXP vars_list) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<BDD> vars = bdd_vector_from_list(vars_list, "vars");
+    return bdd_to_xptr(bdd->PickOneMinterm(vars));
+}
+
+extern "C" SEXP c_cudd_bdd_isop(SEXP bdd_ptr, SEXP upper_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *upper = bdd_from_ptr(upper_ptr);
+    return bdd_to_xptr(bdd->Isop(*upper));
+}
+
+extern "C" SEXP c_cudd_bdd_port_to_zdd(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    return zdd_to_xptr(bdd->PortToZdd());
+}
+
+extern "C" SEXP c_cudd_bdd_factored_form_string(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::string output = bdd->FactoredFormString();
+    return Rf_mkString(output.c_str());
+}
+
+extern "C" SEXP c_cudd_bdd_print_factored_form(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    bdd->PrintFactoredForm();
+    return R_NilValue;
 }
 
 extern "C" SEXP c_cudd_add_times(SEXP lhs_ptr, SEXP rhs_ptr) {

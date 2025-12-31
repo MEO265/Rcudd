@@ -135,6 +135,22 @@ setMethod("^", signature(e1 = "CuddBDD", e2 = "CuddBDD"), function(e1, e2) {
   return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(e1)))
 })
 
+#' Restrict a BDD with a constraint
+#'
+#' Applies the CUDD `Restrict` operator to reduce a BDD given a constraint BDD.
+#'
+#' @param bdd A [`CuddBDD`] instance to restrict.
+#' @param constraint A [`CuddBDD`] instance expressing the restriction.
+#' @return A [`CuddBDD`] instance.
+#' @export
+cudd_bdd_restrict <- function(bdd, constraint) {
+  if (!.cudd_check_same_manager(bdd, constraint, "Restrict")) {
+    stop("Cannot restrict BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(c_cudd_bdd_restrict, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(constraint))
+  return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(bdd)))
+}
+
 #' Print an EPD minterm count for a BDD
 #'
 #' This uses the CUDD `EpdPrintMinterm` implementation, which writes to R's

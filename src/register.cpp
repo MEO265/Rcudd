@@ -52,6 +52,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"c_cudd_bdd_print_minterm", (DL_FUNC) &c_cudd_bdd_print_minterm, 1},
     {"c_cudd_add_print_minterm", (DL_FUNC) &c_cudd_add_print_minterm, 1},
     {"c_cudd_zdd_print_minterm", (DL_FUNC) &c_cudd_zdd_print_minterm, 1},
+    {"c_cudd_bdd_truth_table", (DL_FUNC) &c_cudd_bdd_truth_table, 2},
     {"c_cudd_bdd_print_debug", (DL_FUNC) &c_cudd_bdd_print_debug, 3},
     {"c_cudd_bdd_dump_dot", (DL_FUNC) &c_cudd_bdd_dump_dot, 1},
     {"c_cudd_read_start_time", (DL_FUNC) &c_cudd_read_start_time, 1},

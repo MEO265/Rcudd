@@ -32,9 +32,10 @@ methods::setClass(
 #' @describeIn CuddADD-class Show a brief summary of the ADD.
 #' @param object A `CuddADD` instance.
 #' @keywords internal
+#' @export
 methods::setMethod("show", "CuddADD", function(object) {
   cat("<CuddADD>\n")
-  print(object)
+  cudd_add_print_minterm(object)
   return(invisible(object))
 })
 
@@ -90,6 +91,7 @@ cudd_add_var <- function(manager, index = NULL) {
 #' @param e1 A `CuddADD` instance.
 #' @param e2 A `CuddADD` instance.
 #' @return A `CuddADD` instance.
+#' @export
 setMethod("*", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "*")) {
     stop("Cannot combine ADDs from different CuddManager instances.", call. = FALSE)
@@ -102,6 +104,7 @@ setMethod("*", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
 #' @param e1 A `CuddADD` instance.
 #' @param e2 A `CuddADD` instance.
 #' @return A `CuddADD` instance.
+#' @export
 setMethod("+", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "+")) {
     stop("Cannot combine ADDs from different CuddManager instances.", call. = FALSE)
@@ -114,6 +117,7 @@ setMethod("+", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
 #' @param e1 A `CuddADD` instance.
 #' @param e2 A `CuddADD` instance.
 #' @return An error indicating the operator is unsupported.
+#' @export
 setMethod("^", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
   stop("XOR (^) is not defined for CuddADD.", call. = FALSE)
 })
@@ -121,6 +125,7 @@ setMethod("^", signature(e1 = "CuddADD", e2 = "CuddADD"), function(e1, e2) {
 #' @describeIn CuddADD-class Negation is not defined for ADDs
 #' @param x A `CuddADD` instance.
 #' @return An error indicating the operator is unsupported.
+#' @export
 setMethod("!", "CuddADD", function(x) {
   stop("Negation (!) is not defined for CuddADD.", call. = FALSE)
 })
@@ -144,11 +149,10 @@ cudd_add_epd_print_minterm <- function(add, nvars) {
 #' This uses the CUDD `PrintMinterm` implementation, which writes to R's
 #' output stream.
 #'
-#' @param x A [`CuddADD`] instance.
-#' @param ... Unused.
-#' @return The input `x`, invisibly.
+#' @param add A [`CuddADD`] instance.
+#' @return `NULL`, invisibly.
 #' @export
-setMethod("print", "CuddADD", function(x, ...) {
-  .Call(c_cudd_add_print_minterm, .cudd_add_ptr(x))
-  return(invisible(x))
-})
+cudd_add_print_minterm <- function(add) {
+  .Call(c_cudd_add_print_minterm, .cudd_add_ptr(add))
+  return(invisible(NULL))
+}

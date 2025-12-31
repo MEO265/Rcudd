@@ -1145,6 +1145,45 @@ extern "C" SEXP c_cudd_zdd_print_minterm(SEXP zdd_ptr) {
     return R_NilValue;
 }
 
+extern "C" SEXP c_cudd_bdd_truth_table(SEXP bdd_ptr, SEXP nvars) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars;
+    if (Rf_isNull(nvars)) {
+        vars = Cudd_ReadSize(bdd->manager());
+    } else {
+        if (!Rf_isNumeric(nvars) || Rf_length(nvars) != 1) {
+            Rf_error("'nvars' must be a single numeric value.");
+        }
+        vars = Rf_asInteger(nvars);
+        if (vars == NA_INTEGER || vars < 0) {
+            Rf_error("'nvars' must be a non-negative integer.");
+        }
+    }
+
+    if (vars > 30) {
+        Rf_error("'nvars' is too large to build a truth table.");
+    }
+
+    R_xlen_t rows = static_cast<R_xlen_t>(1ULL << vars);
+    int cols = vars + 1;
+    SEXP table = PROTECT(Rf_allocMatrix(INTSXP, rows, cols));
+    int *data = INTEGER(table);
+    std::vector<int> inputs(static_cast<size_t>(vars), 0);
+
+    for (R_xlen_t row = 0; row < rows; ++row) {
+        for (int var = 0; var < vars; ++var) {
+            int value = static_cast<int>((row >> var) & 1ULL);
+            inputs[static_cast<size_t>(var)] = value;
+            data[static_cast<R_xlen_t>(var) * rows + row] = value;
+        }
+        BDD result = bdd->Eval(inputs.data());
+        data[static_cast<R_xlen_t>(vars) * rows + row] = result.IsOne() ? 1 : 0;
+    }
+
+    UNPROTECT(1);
+    return table;
+}
+
 extern "C" SEXP c_cudd_bdd_print_debug(SEXP bdd_ptr, SEXP nvars, SEXP verbosity) {
     BDD *bdd = bdd_from_ptr(bdd_ptr);
     int vars;

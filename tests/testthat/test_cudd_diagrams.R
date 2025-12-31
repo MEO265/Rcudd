@@ -23,8 +23,12 @@ test_that("BDD operations and conversions return expected classes", {
   output <- capture.output(cudd_bdd_epd_print_minterm(bdd_one, 0L))
   expect_snapshot(output)
 
-  print_output <- capture.output(print(bdd_one))
-  expect_snapshot(print_output)
+  show_output <- capture.output(show(bdd_one))
+  expect_snapshot(show_output)
+
+  truth_table <- cudd_bdd_truth_table(bdd_var, nvars = 1L)
+  expect_identical(truth_table, matrix(c(0L, 1L, 0L, 1L), ncol = 2L,
+                                       dimnames = list(NULL, c("x1", "value"))))
 
   debug_output <- capture.output(cudd_bdd_print_debug(bdd_one, nvars = 1L, verbosity = 2L))
   expect_snapshot(debug_output)
@@ -55,8 +59,9 @@ test_that("ADD operations and conversions return expected classes", {
   output <- capture.output(cudd_add_epd_print_minterm(add_one, 0L))
   expect_snapshot(output)
 
-  print_output <- capture.output(print(add_one))
-  expect_snapshot(print_output)
+  show_output <- capture.output(show(add_one))
+  expect_snapshot(show_output)
+
 })
 
 test_that("ZDD operations and conversions return expected classes", {
@@ -78,6 +83,7 @@ test_that("ZDD operations and conversions return expected classes", {
   bdd_from_zdd <- cudd_zdd_to_bdd(zdd_var)
   expect_s4_class(bdd_from_zdd, "CuddBDD")
 
-  print_output <- capture.output(print(zdd_one))
-  expect_snapshot(print_output)
+  show_output <- capture.output(show(zdd_one))
+  expect_snapshot(show_output)
+
 })

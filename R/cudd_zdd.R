@@ -32,9 +32,10 @@ methods::setClass(
 #' @describeIn CuddZDD-class Show a brief summary of the ZDD.
 #' @param object A `CuddZDD` instance.
 #' @keywords internal
+#' @export
 methods::setMethod("show", "CuddZDD", function(object) {
   cat("<CuddZDD>\n")
-  print(object)
+  cudd_zdd_print_minterm(object)
   return(invisible(object))
 })
 
@@ -90,6 +91,7 @@ cudd_zdd_var <- function(manager, index = NULL) {
 #' @param e1 A `CuddZDD` instance.
 #' @param e2 A `CuddZDD` instance.
 #' @return A `CuddZDD` instance.
+#' @export
 setMethod("*", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "*")) {
     stop("Cannot combine ZDDs from different CuddManager instances.", call. = FALSE)
@@ -102,6 +104,7 @@ setMethod("*", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
 #' @param e1 A `CuddZDD` instance.
 #' @param e2 A `CuddZDD` instance.
 #' @return A `CuddZDD` instance.
+#' @export
 setMethod("+", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
   if (!.cudd_check_same_manager(e1, e2, "+")) {
     stop("Cannot combine ZDDs from different CuddManager instances.", call. = FALSE)
@@ -114,6 +117,7 @@ setMethod("+", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
 #' @param e1 A `CuddZDD` instance.
 #' @param e2 A `CuddZDD` instance.
 #' @return An error indicating the operator is unsupported.
+#' @export
 setMethod("^", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
   stop("XOR (^) is not defined for CuddZDD.", call. = FALSE)
 })
@@ -121,6 +125,7 @@ setMethod("^", signature(e1 = "CuddZDD", e2 = "CuddZDD"), function(e1, e2) {
 #' @describeIn CuddZDD-class Negation is not defined for ZDDs
 #' @param x A `CuddZDD` instance.
 #' @return An error indicating the operator is unsupported.
+#' @export
 setMethod("!", "CuddZDD", function(x) {
   stop("Negation (!) is not defined for CuddZDD.", call. = FALSE)
 })
@@ -130,11 +135,10 @@ setMethod("!", "CuddZDD", function(x) {
 #' This uses the CUDD `PrintMinterm` implementation, which writes to R's
 #' output stream.
 #'
-#' @param x A [`CuddZDD`] instance.
-#' @param ... Unused.
-#' @return The input `x`, invisibly.
+#' @param zdd A [`CuddZDD`] instance.
+#' @return `NULL`, invisibly.
 #' @export
-setMethod("print", "CuddZDD", function(x, ...) {
-  .Call(c_cudd_zdd_print_minterm, .cudd_zdd_ptr(x))
-  return(invisible(x))
-})
+cudd_zdd_print_minterm <- function(zdd) {
+  .Call(c_cudd_zdd_print_minterm, .cudd_zdd_ptr(zdd))
+  return(invisible(NULL))
+}

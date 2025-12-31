@@ -33,6 +33,7 @@ CuddManager <- function() { # nolint: object_name_linter.
 #' @describeIn CuddManager-class Show a brief summary of the manager.
 #' @param object A `CuddManager` instance.
 #' @keywords internal
+#' @export
 methods::setMethod("show", "CuddManager", function(object) {
   cat("<CuddManager>\n")
   return(invisible(object))

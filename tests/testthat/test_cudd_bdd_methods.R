@@ -21,7 +21,7 @@ test_that("additional BDD methods are exposed", {
   expect_named(classified, c("common", "only_bdd", "only_other"))
   expect_true(methods::is(classified$common, "CuddBDD"))
 
-  expect_silent(cudd_bdd_print(bdd_or, 3L))
+  expect_snapshot_output(cudd_bdd_print(bdd_or, 3L))
   expect_silent(cudd_bdd_summary(bdd_or, 3L))
 
   expect_equal(cudd_bdd_correlation(vars[[1L]], vars[[1L]]), 1.0)

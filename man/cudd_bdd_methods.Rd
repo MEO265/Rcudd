@@ -3,7 +3,25 @@
 \name{cudd_bdd_methods}
 \alias{cudd_bdd_methods}
 \alias{cudd_bdd_is_zero}
+\alias{cudd_bdd_is_one}
+\alias{cudd_bdd_is_cube}
 \alias{cudd_bdd_is_var}
+\alias{cudd_bdd_find_essential}
+\alias{cudd_bdd_print_two_literal_clauses}
+\alias{cudd_bdd_count_minterm}
+\alias{cudd_bdd_count_path}
+\alias{cudd_bdd_support}
+\alias{cudd_bdd_support_size}
+\alias{cudd_bdd_support_indices}
+\alias{cudd_bdd_classify_support}
+\alias{cudd_bdd_count_leaves}
+\alias{cudd_bdd_density}
+\alias{cudd_bdd_under_approx}
+\alias{cudd_bdd_over_approx}
+\alias{cudd_bdd_remap_under_approx}
+\alias{cudd_bdd_remap_over_approx}
+\alias{cudd_bdd_biased_under_approx}
+\alias{cudd_bdd_biased_over_approx}
 \alias{cudd_bdd_leq}
 \alias{cudd_bdd_and_abstract}
 \alias{cudd_bdd_exist_abstract}
@@ -50,11 +68,77 @@
 \alias{cudd_bdd_port_to_zdd}
 \alias{cudd_bdd_factored_form_string}
 \alias{cudd_bdd_print_factored_form}
+\alias{cudd_bdd_clipping_and}
+\alias{cudd_bdd_clipping_and_abstract}
+\alias{cudd_bdd_var_are_symmetric}
+\alias{cudd_bdd_adj_permute_x}
+\alias{cudd_bdd_is_var_essential}
+\alias{cudd_bdd_np_and}
+\alias{cudd_bdd_constrain_decomp}
+\alias{cudd_bdd_char_to_vect}
+\alias{cudd_bdd_leq_unless}
+\alias{cudd_bdd_maximally_expand}
+\alias{cudd_bdd_largest_prime_unate}
+\alias{cudd_bdd_split_set}
+\alias{cudd_bdd_estimate_cofactor}
+\alias{cudd_bdd_estimate_cofactor_simple}
+\alias{cudd_bdd_zdd_isop}
+\alias{cudd_bdd_transfer}
 \title{Additional BDD methods}
 \usage{
 cudd_bdd_is_zero(bdd)
 
+cudd_bdd_is_one(bdd)
+
+cudd_bdd_is_cube(bdd)
+
 cudd_bdd_is_var(bdd)
+
+cudd_bdd_find_essential(bdd)
+
+cudd_bdd_print_two_literal_clauses(bdd)
+
+cudd_bdd_count_minterm(bdd, nvars)
+
+cudd_bdd_count_path(bdd)
+
+cudd_bdd_support(bdd)
+
+cudd_bdd_support_size(bdd)
+
+cudd_bdd_support_indices(bdd)
+
+cudd_bdd_classify_support(bdd, other)
+
+cudd_bdd_count_leaves(bdd)
+
+cudd_bdd_density(bdd, nvars)
+
+cudd_bdd_under_approx(bdd, num_vars, threshold = 0L, safe = FALSE, quality = 1)
+
+cudd_bdd_over_approx(bdd, num_vars, threshold = 0L, safe = FALSE, quality = 1)
+
+cudd_bdd_remap_under_approx(bdd, num_vars, threshold = 0L, quality = 1)
+
+cudd_bdd_remap_over_approx(bdd, num_vars, threshold = 0L, quality = 1)
+
+cudd_bdd_biased_under_approx(
+  bdd,
+  bias,
+  num_vars,
+  threshold = 0L,
+  quality1 = 1,
+  quality0 = 1
+)
+
+cudd_bdd_biased_over_approx(
+  bdd,
+  bias,
+  num_vars,
+  threshold = 0L,
+  quality1 = 1,
+  quality0 = 1
+)
 
 cudd_bdd_leq(bdd, other)
 
@@ -147,28 +231,70 @@ cudd_bdd_port_to_zdd(bdd)
 cudd_bdd_factored_form_string(bdd)
 
 cudd_bdd_print_factored_form(bdd)
+
+cudd_bdd_clipping_and(bdd, other, max_depth, direction = 0L)
+
+cudd_bdd_clipping_and_abstract(bdd, other, cube, max_depth, direction = 0L)
+
+cudd_bdd_var_are_symmetric(bdd, index1, index2)
+
+cudd_bdd_adj_permute_x(bdd, x)
+
+cudd_bdd_is_var_essential(bdd, index, phase)
+
+cudd_bdd_np_and(bdd, other)
+
+cudd_bdd_constrain_decomp(bdd)
+
+cudd_bdd_char_to_vect(bdd)
+
+cudd_bdd_leq_unless(bdd, g, d)
+
+cudd_bdd_maximally_expand(bdd, ub, f)
+
+cudd_bdd_largest_prime_unate(bdd, phases)
+
+cudd_bdd_split_set(bdd, x_vars, m)
+
+cudd_bdd_estimate_cofactor(bdd, index, phase)
+
+cudd_bdd_estimate_cofactor_simple(bdd, index)
+
+cudd_bdd_zdd_isop(bdd, upper)
+
+cudd_bdd_transfer(bdd, manager)
 }
 \arguments{
 \item{bdd}{A [`CuddBDD`] instance.}
 
-\item{other, cube, var, g, h, upper}{Additional [`CuddBDD`] instances used by the
-operation.}
+\item{nvars, num_vars, threshold}{Non-negative integer values used by the operation.}
+
+\item{other, cube, var, g, h, upper, bias, phases, ub, f, d}{Additional [`CuddBDD`]
+instances used by the operation.}
+
+\item{safe}{Logical scalar controlling approximate operations.}
+
+\item{quality, quality1, quality0}{Numeric scalars controlling approximate operations.}
 
 \item{limit}{Optional non-negative integer limit passed to CUDD.}
 
-\item{index}{Integer index values used by the operation.}
+\item{index, index1, index2, phase}{Integer index values used by the operation.}
 
 \item{permut}{Integer vector describing a variable permutation.}
 
-\item{x, y, vector, vars}{Lists of [`CuddBDD`] instances.}
-
-\item{nvars, num_vars, threshold}{Non-negative integer values used by the operation.}
+\item{x, y, vector, vars, x_vars}{Lists of [`CuddBDD`] instances.}
 
 \item{minterm, inputs}{Integer vectors used by the operation.}
 
 \item{upper_bound}{Integer upper bound for min hamming distance.}
 
 \item{hardlimit}{Logical scalar for short path routines.}
+
+\item{max_depth, direction}{Integer values used by clipping operations.}
+
+\item{m}{Numeric scalar used by split operations.}
+
+\item{manager}{A [`CuddManager`] instance.}
 }
 \value{
 A [`CuddBDD`] instance, a logical scalar, numeric scalar, character

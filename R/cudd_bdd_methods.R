@@ -2,6 +2,10 @@
   return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_bdd_manager_ptr(bdd)))
 }
 
+.cudd_bdd_wrap_list <- function(ptrs, bdd) {
+  return(lapply(ptrs, .cudd_bdd_wrap, bdd = bdd))
+}
+
 .cudd_check_bdd_list_manager <- function(bdd, vars, op) {
   for (var in vars) {
     if (!.cudd_check_same_manager(bdd, var, op)) {
@@ -20,16 +24,21 @@
 #' Convenience wrappers for additional methods on CUDD BDD objects.
 #'
 #' @param bdd A [`CuddBDD`] instance.
-#' @param other,cube,var,g,h,upper Additional [`CuddBDD`] instances used by the
-#'   operation.
+#' @param other,cube,var,g,h,upper,bias,phases,ub,f,d Additional [`CuddBDD`]
+#'   instances used by the operation.
+#' @param manager A [`CuddManager`] instance.
 #' @param limit Optional non-negative integer limit passed to CUDD.
-#' @param index Integer index values used by the operation.
+#' @param index,index1,index2,phase Integer index values used by the operation.
 #' @param permut Integer vector describing a variable permutation.
-#' @param x,y,vector,vars Lists of [`CuddBDD`] instances.
+#' @param x,y,vector,vars,x_vars Lists of [`CuddBDD`] instances.
 #' @param nvars,num_vars,threshold Non-negative integer values used by the operation.
+#' @param max_depth,direction Integer values used by clipping operations.
+#' @param safe Logical scalar controlling approximate operations.
+#' @param quality,quality1,quality0 Numeric scalars controlling approximate operations.
 #' @param minterm,inputs Integer vectors used by the operation.
 #' @param upper_bound Integer upper bound for min hamming distance.
 #' @param hardlimit Logical scalar for short path routines.
+#' @param m Numeric scalar used by split operations.
 #' @return A [`CuddBDD`] instance, a logical scalar, numeric scalar, character
 #'   scalar, or list depending on the operation.
 #' @name cudd_bdd_methods
@@ -43,8 +52,179 @@ cudd_bdd_is_zero <- function(bdd) {
 
 #' @rdname cudd_bdd_methods
 #' @export
+cudd_bdd_is_one <- function(bdd) {
+  return(.Call(c_cudd_bdd_is_one, .cudd_bdd_ptr(bdd)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_is_cube <- function(bdd) {
+  return(.Call(c_cudd_bdd_is_cube, .cudd_bdd_ptr(bdd)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
 cudd_bdd_is_var <- function(bdd) {
   return(.Call(c_cudd_bdd_is_var, .cudd_bdd_ptr(bdd)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_find_essential <- function(bdd) {
+  ptr <- .Call(c_cudd_bdd_find_essential, .cudd_bdd_ptr(bdd))
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_print_two_literal_clauses <- function(bdd) { # nolint: object_length_linter.
+  .Call(c_cudd_bdd_print_two_literal_clauses, .cudd_bdd_ptr(bdd))
+  return(invisible(NULL))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_count_minterm <- function(bdd, nvars) {
+  return(.Call(c_cudd_bdd_count_minterm, .cudd_bdd_ptr(bdd), nvars))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_count_path <- function(bdd) {
+  return(.Call(c_cudd_bdd_count_path, .cudd_bdd_ptr(bdd)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_support <- function(bdd) {
+  ptr <- .Call(c_cudd_bdd_support, .cudd_bdd_ptr(bdd))
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_support_size <- function(bdd) {
+  return(.Call(c_cudd_bdd_support_size, .cudd_bdd_ptr(bdd)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_support_indices <- function(bdd) {
+  return(.Call(c_cudd_bdd_support_indices, .cudd_bdd_ptr(bdd)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_classify_support <- function(bdd, other) {
+  if (!.cudd_check_same_manager(bdd, other, "ClassifySupport")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  result <- .Call(c_cudd_bdd_classify_support, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(other))
+  output <- .cudd_bdd_wrap_list(result, bdd)
+  names(output) <- c("common", "only_bdd", "only_other")
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_count_leaves <- function(bdd) {
+  return(.Call(c_cudd_bdd_count_leaves, .cudd_bdd_ptr(bdd)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_density <- function(bdd, nvars) {
+  return(.Call(c_cudd_bdd_density, .cudd_bdd_ptr(bdd), nvars))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_under_approx <- function(bdd, num_vars, threshold = 0L, safe = FALSE, quality = 1.0) {
+  ptr <- .Call(
+    c_cudd_bdd_under_approx,
+    .cudd_bdd_ptr(bdd),
+    num_vars,
+    threshold,
+    safe,
+    quality
+  )
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_over_approx <- function(bdd, num_vars, threshold = 0L, safe = FALSE, quality = 1.0) {
+  ptr <- .Call(
+    c_cudd_bdd_over_approx,
+    .cudd_bdd_ptr(bdd),
+    num_vars,
+    threshold,
+    safe,
+    quality
+  )
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_remap_under_approx <- function(bdd, num_vars, threshold = 0L, quality = 1.0) {
+  ptr <- .Call(
+    c_cudd_bdd_remap_under_approx,
+    .cudd_bdd_ptr(bdd),
+    num_vars,
+    threshold,
+    quality
+  )
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_remap_over_approx <- function(bdd, num_vars, threshold = 0L, quality = 1.0) {
+  ptr <- .Call(
+    c_cudd_bdd_remap_over_approx,
+    .cudd_bdd_ptr(bdd),
+    num_vars,
+    threshold,
+    quality
+  )
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_biased_under_approx <- function(bdd, bias, num_vars, threshold = 0L, quality1 = 1.0, quality0 = 1.0) {
+  if (!.cudd_check_same_manager(bdd, bias, "BiasedUnderApprox")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(
+    c_cudd_bdd_biased_under_approx,
+    .cudd_bdd_ptr(bdd),
+    .cudd_bdd_ptr(bias),
+    num_vars,
+    threshold,
+    quality1,
+    quality0
+  )
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_biased_over_approx <- function(bdd, bias, num_vars, threshold = 0L, quality1 = 1.0, quality0 = 1.0) {
+  if (!.cudd_check_same_manager(bdd, bias, "BiasedOverApprox")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(
+    c_cudd_bdd_biased_over_approx,
+    .cudd_bdd_ptr(bdd),
+    .cudd_bdd_ptr(bias),
+    num_vars,
+    threshold,
+    quality1,
+    quality0
+  )
+  return(.cudd_bdd_wrap(ptr, bdd))
 }
 
 #' @rdname cudd_bdd_methods
@@ -473,4 +653,163 @@ cudd_bdd_factored_form_string <- function(bdd) {
 cudd_bdd_print_factored_form <- function(bdd) {
   .Call(c_cudd_bdd_print_factored_form, .cudd_bdd_ptr(bdd))
   return(invisible(NULL))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_clipping_and <- function(bdd, other, max_depth, direction = 0L) {
+  if (!.cudd_check_same_manager(bdd, other, "ClippingAnd")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(
+    c_cudd_bdd_clipping_and,
+    .cudd_bdd_ptr(bdd),
+    .cudd_bdd_ptr(other),
+    max_depth,
+    direction
+  )
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_clipping_and_abstract <- function(bdd, other, cube, max_depth, direction = 0L) {
+  if (!.cudd_check_same_manager(bdd, other, "ClippingAndAbstract") ||
+        !.cudd_check_same_manager(bdd, cube, "ClippingAndAbstract")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(
+    c_cudd_bdd_clipping_and_abstract,
+    .cudd_bdd_ptr(bdd),
+    .cudd_bdd_ptr(other),
+    .cudd_bdd_ptr(cube),
+    max_depth,
+    direction
+  )
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_var_are_symmetric <- function(bdd, index1, index2) {
+  return(.Call(c_cudd_bdd_var_are_symmetric, .cudd_bdd_ptr(bdd), index1, index2))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_adj_permute_x <- function(bdd, x) {
+  if (!.cudd_check_bdd_list_manager(bdd, x, "AdjPermuteX")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(c_cudd_bdd_adj_permute_x, .cudd_bdd_ptr(bdd), lapply(x, .cudd_bdd_ptr))
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_is_var_essential <- function(bdd, index, phase) {
+  return(.Call(c_cudd_bdd_is_var_essential, .cudd_bdd_ptr(bdd), index, phase))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_np_and <- function(bdd, other) {
+  if (!.cudd_check_same_manager(bdd, other, "NPAnd")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(c_cudd_bdd_np_and, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(other))
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_constrain_decomp <- function(bdd) {
+  result <- .Call(c_cudd_bdd_constrain_decomp, .cudd_bdd_ptr(bdd))
+  return(.cudd_bdd_wrap_list(result, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_char_to_vect <- function(bdd) {
+  result <- .Call(c_cudd_bdd_char_to_vect, .cudd_bdd_ptr(bdd))
+  return(.cudd_bdd_wrap_list(result, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_leq_unless <- function(bdd, g, d) {
+  if (!.cudd_check_same_manager(bdd, g, "LeqUnless") ||
+        !.cudd_check_same_manager(bdd, d, "LeqUnless")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  return(.Call(c_cudd_bdd_leq_unless, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(g), .cudd_bdd_ptr(d)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_maximally_expand <- function(bdd, ub, f) {
+  if (!.cudd_check_same_manager(bdd, ub, "MaximallyExpand") ||
+        !.cudd_check_same_manager(bdd, f, "MaximallyExpand")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(
+    c_cudd_bdd_maximally_expand,
+    .cudd_bdd_ptr(bdd),
+    .cudd_bdd_ptr(ub),
+    .cudd_bdd_ptr(f)
+  )
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_largest_prime_unate <- function(bdd, phases) {
+  if (!.cudd_check_same_manager(bdd, phases, "LargestPrimeUnate")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(c_cudd_bdd_largest_prime_unate, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(phases))
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_split_set <- function(bdd, x_vars, m) {
+  if (!.cudd_check_bdd_list_manager(bdd, x_vars, "SplitSet")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(c_cudd_bdd_split_set, .cudd_bdd_ptr(bdd), lapply(x_vars, .cudd_bdd_ptr), m)
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_estimate_cofactor <- function(bdd, index, phase) {
+  return(.Call(c_cudd_bdd_estimate_cofactor, .cudd_bdd_ptr(bdd), index, phase))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_estimate_cofactor_simple <- function(bdd, index) { # nolint: object_length_linter.
+  return(.Call(c_cudd_bdd_estimate_cofactor_simple, .cudd_bdd_ptr(bdd), index))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_zdd_isop <- function(bdd, upper) {
+  if (!.cudd_check_same_manager(bdd, upper, "zddIsop")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  result <- .Call(c_cudd_bdd_zdd_isop, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(upper))
+  output <- list(
+    bdd = .cudd_bdd_wrap(result[[1L]], bdd),
+    zdd = .cudd_zdd_wrap(result[[2L]], bdd)
+  )
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_transfer <- function(bdd, manager) {
+  ptr <- .Call(c_cudd_bdd_transfer, .cudd_bdd_ptr(bdd), .cudd_manager_ptr(manager))
+  return(methods::new("CuddBDD", ptr = ptr, manager_ptr = .cudd_manager_ptr(manager)))
 }

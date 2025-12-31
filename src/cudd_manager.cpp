@@ -153,6 +153,16 @@ static std::vector<int> int_vector_from_sexp(SEXP vec, const char *name) {
     return result;
 }
 
+static SEXP int_vector_to_sexp(const std::vector<unsigned int> &values) {
+    R_xlen_t size = static_cast<R_xlen_t>(values.size());
+    SEXP vec = PROTECT(Rf_allocVector(INTSXP, size));
+    for (R_xlen_t i = 0; i < size; ++i) {
+        INTEGER(vec)[i] = static_cast<int>(values[static_cast<size_t>(i)]);
+    }
+    UNPROTECT(1);
+    return vec;
+}
+
 extern "C" SEXP c_cudd_new() {
     try {
         Cudd *mgr = new Cudd();
@@ -1092,6 +1102,291 @@ extern "C" SEXP c_cudd_bdd_restrict(SEXP bdd_ptr, SEXP constraint_ptr) {
     R_RegisterCFinalizerEx(ptr, bdd_finalizer, TRUE);
     UNPROTECT(1);
     return ptr;
+}
+
+extern "C" SEXP c_cudd_bdd_is_one(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    return Rf_ScalarLogical(bdd->IsOne());
+}
+
+extern "C" SEXP c_cudd_bdd_is_cube(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    return Rf_ScalarLogical(bdd->IsCube());
+}
+
+extern "C" SEXP c_cudd_bdd_find_essential(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    return bdd_to_xptr(bdd->FindEssential());
+}
+
+extern "C" SEXP c_cudd_bdd_print_two_literal_clauses(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    bdd->PrintTwoLiteralClauses();
+    return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_bdd_count_minterm(SEXP bdd_ptr, SEXP nvars) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(nvars);
+    if (vars == NA_INTEGER || vars < 0) {
+        Rf_error("'nvars' must be a non-negative integer.");
+    }
+    return Rf_ScalarReal(bdd->CountMinterm(vars));
+}
+
+extern "C" SEXP c_cudd_bdd_count_path(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    return Rf_ScalarReal(bdd->CountPath());
+}
+
+extern "C" SEXP c_cudd_bdd_support(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    return bdd_to_xptr(bdd->Support());
+}
+
+extern "C" SEXP c_cudd_bdd_support_size(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    return Rf_ScalarInteger(bdd->SupportSize());
+}
+
+extern "C" SEXP c_cudd_bdd_support_indices(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<unsigned int> indices = bdd->SupportIndices();
+    return int_vector_to_sexp(indices);
+}
+
+extern "C" SEXP c_cudd_bdd_classify_support(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    BDD common;
+    BDD only_f;
+    BDD only_g;
+    bdd->ClassifySupport(*other, &common, &only_f, &only_g);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 3));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(common));
+    SET_VECTOR_ELT(output, 1, bdd_to_xptr(only_f));
+    SET_VECTOR_ELT(output, 2, bdd_to_xptr(only_g));
+    UNPROTECT(1);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_count_leaves(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    return Rf_ScalarInteger(bdd->CountLeaves());
+}
+
+extern "C" SEXP c_cudd_bdd_density(SEXP bdd_ptr, SEXP nvars) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(nvars);
+    if (vars == NA_INTEGER || vars < 0) {
+        Rf_error("'nvars' must be a non-negative integer.");
+    }
+    return Rf_ScalarReal(bdd->Density(vars));
+}
+
+extern "C" SEXP c_cudd_bdd_under_approx(SEXP bdd_ptr, SEXP num_vars, SEXP threshold, SEXP safe, SEXP quality) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(num_vars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'num_vars' must be non-negative and 'threshold' must be an integer.");
+    }
+    bool safe_flag = Rf_asLogical(safe);
+    double qual = Rf_asReal(quality);
+    return bdd_to_xptr(bdd->UnderApprox(vars, thresh, safe_flag, qual));
+}
+
+extern "C" SEXP c_cudd_bdd_over_approx(SEXP bdd_ptr, SEXP num_vars, SEXP threshold, SEXP safe, SEXP quality) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(num_vars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'num_vars' must be non-negative and 'threshold' must be an integer.");
+    }
+    bool safe_flag = Rf_asLogical(safe);
+    double qual = Rf_asReal(quality);
+    return bdd_to_xptr(bdd->OverApprox(vars, thresh, safe_flag, qual));
+}
+
+extern "C" SEXP c_cudd_bdd_remap_under_approx(SEXP bdd_ptr, SEXP num_vars, SEXP threshold, SEXP quality) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(num_vars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'num_vars' must be non-negative and 'threshold' must be an integer.");
+    }
+    double qual = Rf_asReal(quality);
+    return bdd_to_xptr(bdd->RemapUnderApprox(vars, thresh, qual));
+}
+
+extern "C" SEXP c_cudd_bdd_remap_over_approx(SEXP bdd_ptr, SEXP num_vars, SEXP threshold, SEXP quality) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(num_vars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'num_vars' must be non-negative and 'threshold' must be an integer.");
+    }
+    double qual = Rf_asReal(quality);
+    return bdd_to_xptr(bdd->RemapOverApprox(vars, thresh, qual));
+}
+
+extern "C" SEXP c_cudd_bdd_biased_under_approx(SEXP bdd_ptr, SEXP bias_ptr, SEXP num_vars, SEXP threshold, SEXP quality1, SEXP quality0) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *bias = bdd_from_ptr(bias_ptr);
+    int vars = Rf_asInteger(num_vars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'num_vars' must be non-negative and 'threshold' must be an integer.");
+    }
+    double qual1 = Rf_asReal(quality1);
+    double qual0 = Rf_asReal(quality0);
+    return bdd_to_xptr(bdd->BiasedUnderApprox(*bias, vars, thresh, qual1, qual0));
+}
+
+extern "C" SEXP c_cudd_bdd_biased_over_approx(SEXP bdd_ptr, SEXP bias_ptr, SEXP num_vars, SEXP threshold, SEXP quality1, SEXP quality0) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *bias = bdd_from_ptr(bias_ptr);
+    int vars = Rf_asInteger(num_vars);
+    int thresh = Rf_asInteger(threshold);
+    if (vars == NA_INTEGER || vars < 0 || thresh == NA_INTEGER) {
+        Rf_error("'num_vars' must be non-negative and 'threshold' must be an integer.");
+    }
+    double qual1 = Rf_asReal(quality1);
+    double qual0 = Rf_asReal(quality0);
+    return bdd_to_xptr(bdd->BiasedOverApprox(*bias, vars, thresh, qual1, qual0));
+}
+
+extern "C" SEXP c_cudd_bdd_clipping_and(SEXP bdd_ptr, SEXP other_ptr, SEXP max_depth, SEXP direction) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    int depth = Rf_asInteger(max_depth);
+    int dir = Rf_asInteger(direction);
+    if (depth == NA_INTEGER || dir == NA_INTEGER) {
+        Rf_error("'max_depth' and 'direction' must be integers.");
+    }
+    return bdd_to_xptr(bdd->ClippingAnd(*other, depth, dir));
+}
+
+extern "C" SEXP c_cudd_bdd_clipping_and_abstract(SEXP bdd_ptr, SEXP other_ptr, SEXP cube_ptr, SEXP max_depth, SEXP direction) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    BDD *cube = bdd_from_ptr(cube_ptr);
+    int depth = Rf_asInteger(max_depth);
+    int dir = Rf_asInteger(direction);
+    if (depth == NA_INTEGER || dir == NA_INTEGER) {
+        Rf_error("'max_depth' and 'direction' must be integers.");
+    }
+    return bdd_to_xptr(bdd->ClippingAndAbstract(*other, *cube, depth, dir));
+}
+
+extern "C" SEXP c_cudd_bdd_var_are_symmetric(SEXP bdd_ptr, SEXP index1, SEXP index2) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int idx1 = Rf_asInteger(index1);
+    int idx2 = Rf_asInteger(index2);
+    if (idx1 == NA_INTEGER || idx1 < 0 || idx2 == NA_INTEGER || idx2 < 0) {
+        Rf_error("'index1' and 'index2' must be non-negative integers.");
+    }
+    return Rf_ScalarLogical(bdd->VarAreSymmetric(idx1, idx2));
+}
+
+extern "C" SEXP c_cudd_bdd_adj_permute_x(SEXP bdd_ptr, SEXP x_list) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<BDD> x = bdd_vector_from_list(x_list, "x");
+    return bdd_to_xptr(bdd->AdjPermuteX(x));
+}
+
+extern "C" SEXP c_cudd_bdd_is_var_essential(SEXP bdd_ptr, SEXP index, SEXP phase) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int idx = Rf_asInteger(index);
+    int phase_val = Rf_asInteger(phase);
+    if (idx == NA_INTEGER || idx < 0 || phase_val == NA_INTEGER) {
+        Rf_error("'index' must be non-negative and 'phase' must be an integer.");
+    }
+    return Rf_ScalarLogical(bdd->IsVarEssential(idx, phase_val));
+}
+
+extern "C" SEXP c_cudd_bdd_np_and(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->NPAnd(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_constrain_decomp(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<BDD> parts = bdd->ConstrainDecomp();
+    return bdd_list_from_vector(parts);
+}
+
+extern "C" SEXP c_cudd_bdd_char_to_vect(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<BDD> parts = bdd->CharToVect();
+    return bdd_list_from_vector(parts);
+}
+
+extern "C" SEXP c_cudd_bdd_leq_unless(SEXP bdd_ptr, SEXP g_ptr, SEXP d_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *g = bdd_from_ptr(g_ptr);
+    BDD *d = bdd_from_ptr(d_ptr);
+    return Rf_ScalarLogical(bdd->LeqUnless(*g, *d));
+}
+
+extern "C" SEXP c_cudd_bdd_maximally_expand(SEXP bdd_ptr, SEXP ub_ptr, SEXP f_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *ub = bdd_from_ptr(ub_ptr);
+    BDD *f = bdd_from_ptr(f_ptr);
+    return bdd_to_xptr(bdd->MaximallyExpand(*ub, *f));
+}
+
+extern "C" SEXP c_cudd_bdd_largest_prime_unate(SEXP bdd_ptr, SEXP phases_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *phases = bdd_from_ptr(phases_ptr);
+    return bdd_to_xptr(bdd->LargestPrimeUnate(*phases));
+}
+
+extern "C" SEXP c_cudd_bdd_split_set(SEXP bdd_ptr, SEXP x_vars, SEXP m) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<BDD> vars = bdd_vector_from_list(x_vars, "x_vars");
+    double value = Rf_asReal(m);
+    return bdd_to_xptr(bdd->SplitSet(vars, value));
+}
+
+extern "C" SEXP c_cudd_bdd_estimate_cofactor(SEXP bdd_ptr, SEXP index, SEXP phase) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int idx = Rf_asInteger(index);
+    int phase_val = Rf_asInteger(phase);
+    if (idx == NA_INTEGER || idx < 0 || phase_val == NA_INTEGER) {
+        Rf_error("'index' must be non-negative and 'phase' must be an integer.");
+    }
+    return Rf_ScalarInteger(bdd->EstimateCofactor(idx, phase_val));
+}
+
+extern "C" SEXP c_cudd_bdd_estimate_cofactor_simple(SEXP bdd_ptr, SEXP index) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int idx = Rf_asInteger(index);
+    if (idx == NA_INTEGER || idx < 0) {
+        Rf_error("'index' must be a non-negative integer.");
+    }
+    return Rf_ScalarInteger(bdd->EstimateCofactorSimple(idx));
+}
+
+extern "C" SEXP c_cudd_bdd_zdd_isop(SEXP bdd_ptr, SEXP upper_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *upper = bdd_from_ptr(upper_ptr);
+    ZDD *zdd = new ZDD();
+    BDD result = bdd->zddIsop(*upper, zdd);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(result));
+    SEXP zdd_ptr = PROTECT(R_MakeExternalPtr(zdd, R_NilValue, R_NilValue));
+    R_RegisterCFinalizerEx(zdd_ptr, zdd_finalizer, TRUE);
+    SET_VECTOR_ELT(output, 1, zdd_ptr);
+    UNPROTECT(2);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_transfer(SEXP bdd_ptr, SEXP mgr_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    Cudd *mgr = cudd_manager_from_ptr(mgr_ptr);
+    return bdd_to_xptr(bdd->Transfer(*mgr));
 }
 
 extern "C" SEXP c_cudd_bdd_is_zero(SEXP bdd_ptr) {

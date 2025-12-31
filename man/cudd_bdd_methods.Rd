@@ -6,6 +6,16 @@
 \alias{cudd_bdd_is_one}
 \alias{cudd_bdd_is_cube}
 \alias{cudd_bdd_is_var}
+\alias{cudd_bdd_print}
+\alias{cudd_bdd_summary}
+\alias{cudd_bdd_apa_print_minterm}
+\alias{cudd_bdd_apa_print_minterm_exp}
+\alias{cudd_bdd_ldbl_count_minterm}
+\alias{cudd_bdd_shortest_path}
+\alias{cudd_bdd_largest_cube}
+\alias{cudd_bdd_shortest_length}
+\alias{cudd_bdd_equiv_dc}
+\alias{cudd_bdd_cof_minterm}
 \alias{cudd_bdd_find_essential}
 \alias{cudd_bdd_print_two_literal_clauses}
 \alias{cudd_bdd_count_minterm}
@@ -29,6 +39,9 @@
 \alias{cudd_bdd_xor_exist_abstract}
 \alias{cudd_bdd_boolean_diff}
 \alias{cudd_bdd_var_is_dependent}
+\alias{cudd_bdd_correlation}
+\alias{cudd_bdd_correlation_weights}
+\alias{cudd_bdd_xor_method}
 \alias{cudd_bdd_ite}
 \alias{cudd_bdd_ite_constant}
 \alias{cudd_bdd_intersect}
@@ -43,6 +56,14 @@
 \alias{cudd_bdd_permute}
 \alias{cudd_bdd_swap_variables}
 \alias{cudd_bdd_vector_compose}
+\alias{cudd_bdd_approx_conj_decomp}
+\alias{cudd_bdd_approx_disj_decomp}
+\alias{cudd_bdd_iter_conj_decomp}
+\alias{cudd_bdd_iter_disj_decomp}
+\alias{cudd_bdd_gen_conj_decomp}
+\alias{cudd_bdd_gen_disj_decomp}
+\alias{cudd_bdd_var_conj_decomp}
+\alias{cudd_bdd_var_disj_decomp}
 \alias{cudd_bdd_li_compaction}
 \alias{cudd_bdd_squeeze}
 \alias{cudd_bdd_interpolate}
@@ -79,6 +100,8 @@
 \alias{cudd_bdd_leq_unless}
 \alias{cudd_bdd_maximally_expand}
 \alias{cudd_bdd_largest_prime_unate}
+\alias{cudd_bdd_solve_eqn}
+\alias{cudd_bdd_verify_sol}
 \alias{cudd_bdd_split_set}
 \alias{cudd_bdd_estimate_cofactor}
 \alias{cudd_bdd_estimate_cofactor_simple}
@@ -93,6 +116,26 @@ cudd_bdd_is_one(bdd)
 cudd_bdd_is_cube(bdd)
 
 cudd_bdd_is_var(bdd)
+
+cudd_bdd_print(bdd, nvars, verbosity = 1L)
+
+cudd_bdd_summary(bdd, nvars, mode = 0L)
+
+cudd_bdd_apa_print_minterm(bdd, nvars)
+
+cudd_bdd_apa_print_minterm_exp(bdd, nvars, precision = 6L)
+
+cudd_bdd_ldbl_count_minterm(bdd, nvars)
+
+cudd_bdd_shortest_path(bdd, weight = NULL)
+
+cudd_bdd_largest_cube(bdd)
+
+cudd_bdd_shortest_length(bdd, weight = NULL)
+
+cudd_bdd_equiv_dc(bdd, g, d)
+
+cudd_bdd_cof_minterm(bdd)
 
 cudd_bdd_find_essential(bdd)
 
@@ -154,6 +197,12 @@ cudd_bdd_boolean_diff(bdd, index)
 
 cudd_bdd_var_is_dependent(bdd, var)
 
+cudd_bdd_correlation(bdd, other)
+
+cudd_bdd_correlation_weights(bdd, other, prob)
+
+cudd_bdd_xor_method(bdd, other)
+
 cudd_bdd_ite(bdd, g, h, limit = 0L)
 
 cudd_bdd_ite_constant(bdd, g, h)
@@ -181,6 +230,22 @@ cudd_bdd_permute(bdd, permut)
 cudd_bdd_swap_variables(bdd, x, y)
 
 cudd_bdd_vector_compose(bdd, vector)
+
+cudd_bdd_approx_conj_decomp(bdd)
+
+cudd_bdd_approx_disj_decomp(bdd)
+
+cudd_bdd_iter_conj_decomp(bdd)
+
+cudd_bdd_iter_disj_decomp(bdd)
+
+cudd_bdd_gen_conj_decomp(bdd)
+
+cudd_bdd_gen_disj_decomp(bdd)
+
+cudd_bdd_var_conj_decomp(bdd)
+
+cudd_bdd_var_disj_decomp(bdd)
 
 cudd_bdd_li_compaction(bdd, other)
 
@@ -254,6 +319,10 @@ cudd_bdd_maximally_expand(bdd, ub, f)
 
 cudd_bdd_largest_prime_unate(bdd, phases)
 
+cudd_bdd_solve_eqn(bdd, y_bdd, n)
+
+cudd_bdd_verify_sol(bdd, g_list, y_index)
+
 cudd_bdd_split_set(bdd, x_vars, m)
 
 cudd_bdd_estimate_cofactor(bdd, index, phase)
@@ -269,7 +338,11 @@ cudd_bdd_transfer(bdd, manager)
 
 \item{nvars, num_vars, threshold}{Non-negative integer values used by the operation.}
 
-\item{other, cube, var, g, h, upper, bias, phases, ub, f, d}{Additional [`CuddBDD`]
+\item{mode, verbosity, precision}{Integer values used for reporting.}
+
+\item{weight}{Optional integer vector used in shortest path calculations.}
+
+\item{other, cube, var, g, h, upper, bias, phases, ub, f, d, y_bdd}{Additional [`CuddBDD`]
 instances used by the operation.}
 
 \item{safe}{Logical scalar controlling approximate operations.}
@@ -280,17 +353,21 @@ instances used by the operation.}
 
 \item{index, index1, index2, phase}{Integer index values used by the operation.}
 
+\item{prob}{Numeric vector of probabilities for correlation weights.}
+
 \item{permut}{Integer vector describing a variable permutation.}
 
-\item{x, y, vector, vars, x_vars}{Lists of [`CuddBDD`] instances.}
+\item{x, y, vector, vars, x_vars, g_list}{Lists of [`CuddBDD`] instances.}
 
-\item{minterm, inputs}{Integer vectors used by the operation.}
+\item{minterm, inputs, y_index}{Integer vectors used by the operation.}
 
 \item{upper_bound}{Integer upper bound for min hamming distance.}
 
 \item{hardlimit}{Logical scalar for short path routines.}
 
 \item{max_depth, direction}{Integer values used by clipping operations.}
+
+\item{n}{Integer size for equation solving.}
 
 \item{m}{Numeric scalar used by split operations.}
 

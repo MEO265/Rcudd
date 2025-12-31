@@ -2,6 +2,7 @@
 #include <R.h>
 #include <Rinternals.h>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 #include "cuddObj.hh"
@@ -161,6 +162,23 @@ static SEXP int_vector_to_sexp(const std::vector<unsigned int> &values) {
     }
     UNPROTECT(1);
     return vec;
+}
+
+static std::vector<double> double_vector_from_sexp(SEXP vec, const char *name) {
+    if (!Rf_isReal(vec)) {
+        Rf_error("'%s' must be a numeric vector.", name);
+    }
+    R_xlen_t size = Rf_xlength(vec);
+    std::vector<double> result;
+    result.reserve(static_cast<size_t>(size));
+    for (R_xlen_t i = 0; i < size; ++i) {
+        double value = REAL(vec)[i];
+        if (ISNA(value)) {
+            Rf_error("'%s' must not contain NA.", name);
+        }
+        result.push_back(value);
+    }
+    return result;
 }
 
 extern "C" SEXP c_cudd_new() {
@@ -1104,6 +1122,136 @@ extern "C" SEXP c_cudd_bdd_restrict(SEXP bdd_ptr, SEXP constraint_ptr) {
     return ptr;
 }
 
+extern "C" SEXP c_cudd_bdd_print(SEXP bdd_ptr, SEXP nvars, SEXP verbosity) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(nvars);
+    int verb = Rf_asInteger(verbosity);
+    if (vars == NA_INTEGER || vars < 0 || verb == NA_INTEGER) {
+        Rf_error("'nvars' must be non-negative and 'verbosity' must be an integer.");
+    }
+    bdd->print(vars, verb);
+    return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_bdd_summary(SEXP bdd_ptr, SEXP nvars, SEXP mode) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(nvars);
+    int summary_mode = Rf_asInteger(mode);
+    if (vars == NA_INTEGER || vars < 0 || summary_mode == NA_INTEGER) {
+        Rf_error("'nvars' must be non-negative and 'mode' must be an integer.");
+    }
+    bdd->summary(vars, summary_mode);
+    return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_bdd_apa_print_minterm(SEXP bdd_ptr, SEXP nvars) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(nvars);
+    if (vars == NA_INTEGER || vars < 0) {
+        Rf_error("'nvars' must be a non-negative integer.");
+    }
+    bdd->ApaPrintMinterm(vars);
+    return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_bdd_apa_print_minterm_exp(SEXP bdd_ptr, SEXP nvars, SEXP precision) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(nvars);
+    int prec = Rf_asInteger(precision);
+    if (vars == NA_INTEGER || vars < 0 || prec == NA_INTEGER) {
+        Rf_error("'nvars' must be non-negative and 'precision' must be an integer.");
+    }
+    bdd->ApaPrintMintermExp(vars, prec);
+    return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_bdd_ldbl_count_minterm(SEXP bdd_ptr, SEXP nvars) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int vars = Rf_asInteger(nvars);
+    if (vars == NA_INTEGER || vars < 0) {
+        Rf_error("'nvars' must be a non-negative integer.");
+    }
+    long double count = bdd->LdblCountMinterm(vars);
+    return Rf_ScalarReal(static_cast<double>(count));
+}
+
+extern "C" SEXP c_cudd_bdd_shortest_path(SEXP bdd_ptr, SEXP weight) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int size = Cudd_ReadSize(bdd->manager());
+    std::vector<int> weight_vec;
+    int *weight_ptr = nullptr;
+    if (!Rf_isNull(weight)) {
+        weight_vec = int_vector_from_sexp(weight, "weight");
+        if (static_cast<int>(weight_vec.size()) != size) {
+            Rf_error("'weight' must have length %d.", size);
+        }
+        weight_ptr = weight_vec.data();
+    }
+    std::vector<int> support(static_cast<size_t>(size), 0);
+    int length = 0;
+    BDD result = bdd->ShortestPath(weight_ptr, support.data(), &length);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 3));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(result));
+    SEXP support_vec = PROTECT(Rf_allocVector(INTSXP, size));
+    for (int i = 0; i < size; ++i) {
+        INTEGER(support_vec)[i] = support[static_cast<size_t>(i)];
+    }
+    SET_VECTOR_ELT(output, 1, support_vec);
+    SET_VECTOR_ELT(output, 2, Rf_ScalarInteger(length));
+    UNPROTECT(2);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_largest_cube(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int length = 0;
+    BDD result = bdd->LargestCube(&length);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(result));
+    SET_VECTOR_ELT(output, 1, Rf_ScalarInteger(length));
+    UNPROTECT(1);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_shortest_length(SEXP bdd_ptr, SEXP weight) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int size = Cudd_ReadSize(bdd->manager());
+    std::vector<int> weight_vec;
+    int *weight_ptr = nullptr;
+    if (!Rf_isNull(weight)) {
+        weight_vec = int_vector_from_sexp(weight, "weight");
+        if (static_cast<int>(weight_vec.size()) != size) {
+            Rf_error("'weight' must have length %d.", size);
+        }
+        weight_ptr = weight_vec.data();
+    }
+    int result = bdd->ShortestLength(weight_ptr);
+    return Rf_ScalarInteger(result);
+}
+
+extern "C" SEXP c_cudd_bdd_equiv_dc(SEXP bdd_ptr, SEXP g_ptr, SEXP d_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *g = bdd_from_ptr(g_ptr);
+    BDD *d = bdd_from_ptr(d_ptr);
+    return Rf_ScalarLogical(bdd->EquivDC(*g, *d));
+}
+
+extern "C" SEXP c_cudd_bdd_cof_minterm(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    int size = Cudd_ReadSize(bdd->manager());
+    double *values = bdd->CofMinterm();
+    if (values == nullptr) {
+        Rf_error("Failed to compute cofactor minterms.");
+    }
+    SEXP output = PROTECT(Rf_allocVector(REALSXP, size + 1));
+    for (int i = 0; i < size + 1; ++i) {
+        REAL(output)[i] = values[i];
+    }
+    free(values);
+    UNPROTECT(1);
+    return output;
+}
+
 extern "C" SEXP c_cudd_bdd_is_one(SEXP bdd_ptr) {
     BDD *bdd = bdd_from_ptr(bdd_ptr);
     return Rf_ScalarLogical(bdd->IsOne());
@@ -1343,6 +1491,39 @@ extern "C" SEXP c_cudd_bdd_largest_prime_unate(SEXP bdd_ptr, SEXP phases_ptr) {
     return bdd_to_xptr(bdd->LargestPrimeUnate(*phases));
 }
 
+extern "C" SEXP c_cudd_bdd_solve_eqn(SEXP bdd_ptr, SEXP y_ptr, SEXP n) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *y = bdd_from_ptr(y_ptr);
+    int count = Rf_asInteger(n);
+    if (count == NA_INTEGER || count < 0) {
+        Rf_error("'n' must be a non-negative integer.");
+    }
+    std::vector<BDD> g;
+    int *y_index = nullptr;
+    BDD result = bdd->SolveEqn(*y, g, &y_index, count);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 3));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(result));
+    SET_VECTOR_ELT(output, 1, bdd_list_from_vector(g));
+    SEXP y_index_vec = PROTECT(Rf_allocVector(INTSXP, count));
+    for (int i = 0; i < count; ++i) {
+        INTEGER(y_index_vec)[i] = y_index[i];
+    }
+    SET_VECTOR_ELT(output, 2, y_index_vec);
+    if (y_index != nullptr) {
+        free(y_index);
+    }
+    UNPROTECT(2);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_verify_sol(SEXP bdd_ptr, SEXP g_list, SEXP y_index) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::vector<BDD> g = bdd_vector_from_list(g_list, "g");
+    std::vector<int> y_index_vec = int_vector_from_sexp(y_index, "y_index");
+    BDD result = bdd->VerifySol(g, y_index_vec.data());
+    return bdd_to_xptr(result);
+}
+
 extern "C" SEXP c_cudd_bdd_split_set(SEXP bdd_ptr, SEXP x_vars, SEXP m) {
     BDD *bdd = bdd_from_ptr(bdd_ptr);
     std::vector<BDD> vars = bdd_vector_from_list(x_vars, "x_vars");
@@ -1448,6 +1629,30 @@ extern "C" SEXP c_cudd_bdd_var_is_dependent(SEXP bdd_ptr, SEXP var_ptr) {
     return Rf_ScalarLogical(bdd->VarIsDependent(*var));
 }
 
+extern "C" SEXP c_cudd_bdd_correlation(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return Rf_ScalarReal(bdd->Correlation(*other));
+}
+
+extern "C" SEXP c_cudd_bdd_correlation_weights(SEXP bdd_ptr, SEXP other_ptr, SEXP prob) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    std::vector<double> prob_vec = double_vector_from_sexp(prob, "prob");
+    int size = Cudd_ReadSize(bdd->manager());
+    if (static_cast<int>(prob_vec.size()) != size) {
+        Rf_error("'prob' must have length %d.", size);
+    }
+    double corr = bdd->CorrelationWeights(*other, prob_vec.data());
+    return Rf_ScalarReal(corr);
+}
+
+extern "C" SEXP c_cudd_bdd_xor_method(SEXP bdd_ptr, SEXP other_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD *other = bdd_from_ptr(other_ptr);
+    return bdd_to_xptr(bdd->Xor(*other));
+}
+
 extern "C" SEXP c_cudd_bdd_ite(SEXP bdd_ptr, SEXP g_ptr, SEXP h_ptr, SEXP limit) {
     BDD *bdd = bdd_from_ptr(bdd_ptr);
     BDD *g = bdd_from_ptr(g_ptr);
@@ -1541,6 +1746,102 @@ extern "C" SEXP c_cudd_bdd_vector_compose(SEXP bdd_ptr, SEXP vector_list) {
     BDD *bdd = bdd_from_ptr(bdd_ptr);
     std::vector<BDD> vec = bdd_vector_from_list(vector_list, "vector");
     return bdd_to_xptr(bdd->VectorCompose(vec));
+}
+
+extern "C" SEXP c_cudd_bdd_approx_conj_decomp(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD g;
+    BDD h;
+    bdd->ApproxConjDecomp(&g, &h);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(g));
+    SET_VECTOR_ELT(output, 1, bdd_to_xptr(h));
+    UNPROTECT(1);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_approx_disj_decomp(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD g;
+    BDD h;
+    bdd->ApproxDisjDecomp(&g, &h);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(g));
+    SET_VECTOR_ELT(output, 1, bdd_to_xptr(h));
+    UNPROTECT(1);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_iter_conj_decomp(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD g;
+    BDD h;
+    bdd->IterConjDecomp(&g, &h);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(g));
+    SET_VECTOR_ELT(output, 1, bdd_to_xptr(h));
+    UNPROTECT(1);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_iter_disj_decomp(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD g;
+    BDD h;
+    bdd->IterDisjDecomp(&g, &h);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(g));
+    SET_VECTOR_ELT(output, 1, bdd_to_xptr(h));
+    UNPROTECT(1);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_gen_conj_decomp(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD g;
+    BDD h;
+    bdd->GenConjDecomp(&g, &h);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(g));
+    SET_VECTOR_ELT(output, 1, bdd_to_xptr(h));
+    UNPROTECT(1);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_gen_disj_decomp(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD g;
+    BDD h;
+    bdd->GenDisjDecomp(&g, &h);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(g));
+    SET_VECTOR_ELT(output, 1, bdd_to_xptr(h));
+    UNPROTECT(1);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_var_conj_decomp(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD g;
+    BDD h;
+    bdd->VarConjDecomp(&g, &h);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(g));
+    SET_VECTOR_ELT(output, 1, bdd_to_xptr(h));
+    UNPROTECT(1);
+    return output;
+}
+
+extern "C" SEXP c_cudd_bdd_var_disj_decomp(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    BDD g;
+    BDD h;
+    bdd->VarDisjDecomp(&g, &h);
+    SEXP output = PROTECT(Rf_allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(output, 0, bdd_to_xptr(g));
+    SET_VECTOR_ELT(output, 1, bdd_to_xptr(h));
+    UNPROTECT(1);
+    return output;
 }
 
 extern "C" SEXP c_cudd_bdd_li_compaction(SEXP bdd_ptr, SEXP other_ptr) {

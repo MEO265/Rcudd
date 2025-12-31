@@ -21,6 +21,19 @@ test_that("additional BDD methods are exposed", {
   expect_named(classified, c("common", "only_bdd", "only_other"))
   expect_true(methods::is(classified$common, "CuddBDD"))
 
+  expect_silent(cudd_bdd_print(bdd_or, 3L))
+  expect_silent(cudd_bdd_summary(bdd_or, 3L))
+
+  expect_equal(cudd_bdd_correlation(vars[[1L]], vars[[1L]]), 1.0)
+  expect_equal(
+    cudd_bdd_correlation_weights(vars[[1L]], vars[[1L]], rep(0.5, 3L)),
+    1.0
+  )
+
+  shortest_length <- cudd_bdd_shortest_length(vars[[1L]])
+  expect_type(shortest_length, "integer")
+  expect_gte(shortest_length, 0L)
+
   manager2 <- CuddManager()
   transferred <- cudd_bdd_transfer(vars[[1L]], manager2)
   expect_true(methods::is(transferred, "CuddBDD"))

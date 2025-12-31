@@ -24,18 +24,22 @@
 #' Convenience wrappers for additional methods on CUDD BDD objects.
 #'
 #' @param bdd A [`CuddBDD`] instance.
-#' @param other,cube,var,g,h,upper,bias,phases,ub,f,d Additional [`CuddBDD`]
+#' @param other,cube,var,g,h,upper,bias,phases,ub,f,d,y_bdd Additional [`CuddBDD`]
 #'   instances used by the operation.
 #' @param manager A [`CuddManager`] instance.
 #' @param limit Optional non-negative integer limit passed to CUDD.
 #' @param index,index1,index2,phase Integer index values used by the operation.
 #' @param permut Integer vector describing a variable permutation.
-#' @param x,y,vector,vars,x_vars Lists of [`CuddBDD`] instances.
+#' @param x,y,vector,vars,x_vars,g_list Lists of [`CuddBDD`] instances.
 #' @param nvars,num_vars,threshold Non-negative integer values used by the operation.
+#' @param weight Optional integer vector used in shortest path calculations.
+#' @param mode,verbosity,precision Integer values used for reporting.
 #' @param max_depth,direction Integer values used by clipping operations.
 #' @param safe Logical scalar controlling approximate operations.
 #' @param quality,quality1,quality0 Numeric scalars controlling approximate operations.
-#' @param minterm,inputs Integer vectors used by the operation.
+#' @param minterm,inputs,y_index Integer vectors used by the operation.
+#' @param prob Numeric vector of probabilities for correlation weights.
+#' @param n Integer size for equation solving.
 #' @param upper_bound Integer upper bound for min hamming distance.
 #' @param hardlimit Logical scalar for short path routines.
 #' @param m Numeric scalar used by split operations.
@@ -66,6 +70,85 @@ cudd_bdd_is_cube <- function(bdd) {
 #' @export
 cudd_bdd_is_var <- function(bdd) {
   return(.Call(c_cudd_bdd_is_var, .cudd_bdd_ptr(bdd)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_print <- function(bdd, nvars, verbosity = 1L) {
+  .Call(c_cudd_bdd_print, .cudd_bdd_ptr(bdd), nvars, verbosity)
+  return(invisible(NULL))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_summary <- function(bdd, nvars, mode = 0L) {
+  .Call(c_cudd_bdd_summary, .cudd_bdd_ptr(bdd), nvars, mode)
+  return(invisible(NULL))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_apa_print_minterm <- function(bdd, nvars) {
+  .Call(c_cudd_bdd_apa_print_minterm, .cudd_bdd_ptr(bdd), nvars)
+  return(invisible(NULL))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_apa_print_minterm_exp <- function(bdd, nvars, precision = 6L) {
+  .Call(c_cudd_bdd_apa_print_minterm_exp, .cudd_bdd_ptr(bdd), nvars, precision)
+  return(invisible(NULL))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_ldbl_count_minterm <- function(bdd, nvars) {
+  return(.Call(c_cudd_bdd_ldbl_count_minterm, .cudd_bdd_ptr(bdd), nvars))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_shortest_path <- function(bdd, weight = NULL) {
+  result <- .Call(c_cudd_bdd_shortest_path, .cudd_bdd_ptr(bdd), weight)
+  output <- list(
+    bdd = .cudd_bdd_wrap(result[[1L]], bdd),
+    support = result[[2L]],
+    length = result[[3L]]
+  )
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_largest_cube <- function(bdd) {
+  result <- .Call(c_cudd_bdd_largest_cube, .cudd_bdd_ptr(bdd))
+  output <- list(
+    bdd = .cudd_bdd_wrap(result[[1L]], bdd),
+    length = result[[2L]]
+  )
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_shortest_length <- function(bdd, weight = NULL) {
+  return(.Call(c_cudd_bdd_shortest_length, .cudd_bdd_ptr(bdd), weight))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_equiv_dc <- function(bdd, g, d) {
+  if (!.cudd_check_same_manager(bdd, g, "EquivDC") ||
+        !.cudd_check_same_manager(bdd, d, "EquivDC")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  return(.Call(c_cudd_bdd_equiv_dc, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(g), .cudd_bdd_ptr(d)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_cof_minterm <- function(bdd) {
+  return(.Call(c_cudd_bdd_cof_minterm, .cudd_bdd_ptr(bdd)))
 }
 
 #' @rdname cudd_bdd_methods
@@ -307,6 +390,34 @@ cudd_bdd_var_is_dependent <- function(bdd, var) {
 
 #' @rdname cudd_bdd_methods
 #' @export
+cudd_bdd_correlation <- function(bdd, other) {
+  if (!.cudd_check_same_manager(bdd, other, "Correlation")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  return(.Call(c_cudd_bdd_correlation, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(other)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_correlation_weights <- function(bdd, other, prob) {
+  if (!.cudd_check_same_manager(bdd, other, "CorrelationWeights")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  return(.Call(c_cudd_bdd_correlation_weights, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(other), prob))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_xor_method <- function(bdd, other) {
+  if (!.cudd_check_same_manager(bdd, other, "Xor")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(c_cudd_bdd_xor_method, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(other))
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
 cudd_bdd_ite <- function(bdd, g, h, limit = 0L) {
   if (!.cudd_check_same_manager(bdd, g, "Ite") ||
         !.cudd_check_same_manager(bdd, h, "Ite")) {
@@ -449,6 +560,78 @@ cudd_bdd_vector_compose <- function(bdd, vector) {
   }
   ptr <- .Call(c_cudd_bdd_vector_compose, .cudd_bdd_ptr(bdd), lapply(vector, .cudd_bdd_ptr))
   return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_approx_conj_decomp <- function(bdd) {
+  result <- .Call(c_cudd_bdd_approx_conj_decomp, .cudd_bdd_ptr(bdd))
+  output <- .cudd_bdd_wrap_list(result, bdd)
+  names(output) <- c("g", "h")
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_approx_disj_decomp <- function(bdd) {
+  result <- .Call(c_cudd_bdd_approx_disj_decomp, .cudd_bdd_ptr(bdd))
+  output <- .cudd_bdd_wrap_list(result, bdd)
+  names(output) <- c("g", "h")
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_iter_conj_decomp <- function(bdd) {
+  result <- .Call(c_cudd_bdd_iter_conj_decomp, .cudd_bdd_ptr(bdd))
+  output <- .cudd_bdd_wrap_list(result, bdd)
+  names(output) <- c("g", "h")
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_iter_disj_decomp <- function(bdd) {
+  result <- .Call(c_cudd_bdd_iter_disj_decomp, .cudd_bdd_ptr(bdd))
+  output <- .cudd_bdd_wrap_list(result, bdd)
+  names(output) <- c("g", "h")
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_gen_conj_decomp <- function(bdd) {
+  result <- .Call(c_cudd_bdd_gen_conj_decomp, .cudd_bdd_ptr(bdd))
+  output <- .cudd_bdd_wrap_list(result, bdd)
+  names(output) <- c("g", "h")
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_gen_disj_decomp <- function(bdd) {
+  result <- .Call(c_cudd_bdd_gen_disj_decomp, .cudd_bdd_ptr(bdd))
+  output <- .cudd_bdd_wrap_list(result, bdd)
+  names(output) <- c("g", "h")
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_var_conj_decomp <- function(bdd) {
+  result <- .Call(c_cudd_bdd_var_conj_decomp, .cudd_bdd_ptr(bdd))
+  output <- .cudd_bdd_wrap_list(result, bdd)
+  names(output) <- c("g", "h")
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_var_disj_decomp <- function(bdd) {
+  result <- .Call(c_cudd_bdd_var_disj_decomp, .cudd_bdd_ptr(bdd))
+  output <- .cudd_bdd_wrap_list(result, bdd)
+  names(output) <- c("g", "h")
+  return(output)
 }
 
 #' @rdname cudd_bdd_methods
@@ -768,6 +951,36 @@ cudd_bdd_largest_prime_unate <- function(bdd, phases) {
     stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
   }
   ptr <- .Call(c_cudd_bdd_largest_prime_unate, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(phases))
+  return(.cudd_bdd_wrap(ptr, bdd))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_solve_eqn <- function(bdd, y_bdd, n) {
+  if (!.cudd_check_same_manager(bdd, y_bdd, "SolveEqn")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  result <- .Call(c_cudd_bdd_solve_eqn, .cudd_bdd_ptr(bdd), .cudd_bdd_ptr(y_bdd), n)
+  output <- list(
+    bdd = .cudd_bdd_wrap(result[[1L]], bdd),
+    g = .cudd_bdd_wrap_list(result[[2L]], bdd),
+    y_index = result[[3L]]
+  )
+  return(output)
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
+cudd_bdd_verify_sol <- function(bdd, g_list, y_index) {
+  if (!.cudd_check_bdd_list_manager(bdd, g_list, "VerifySol")) {
+    stop("Cannot combine BDDs from different CuddManager instances.", call. = FALSE)
+  }
+  ptr <- .Call(
+    c_cudd_bdd_verify_sol,
+    .cudd_bdd_ptr(bdd),
+    lapply(g_list, .cudd_bdd_ptr),
+    y_index
+  )
   return(.cudd_bdd_wrap(ptr, bdd))
 }
 

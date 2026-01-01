@@ -43,6 +43,7 @@ extern "C" SEXP c_cudd_bdd_and(SEXP lhs_ptr, SEXP rhs_ptr);
 extern "C" SEXP c_cudd_bdd_or(SEXP lhs_ptr, SEXP rhs_ptr);
 extern "C" SEXP c_cudd_bdd_xor(SEXP lhs_ptr, SEXP rhs_ptr);
 extern "C" SEXP c_cudd_bdd_restrict(SEXP bdd_ptr, SEXP constraint_ptr);
+extern "C" SEXP c_cudd_bdd_ite_formula(SEXP bdd_ptr);
 extern "C" SEXP c_cudd_bdd_print(SEXP bdd_ptr, SEXP nvars, SEXP verbosity);
 extern "C" SEXP c_cudd_bdd_summary(SEXP bdd_ptr, SEXP nvars, SEXP mode);
 extern "C" SEXP c_cudd_bdd_apa_print_minterm(SEXP bdd_ptr, SEXP nvars);

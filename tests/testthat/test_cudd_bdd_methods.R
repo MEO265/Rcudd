@@ -29,6 +29,7 @@ test_that("additional BDD methods are exposed", {
     cudd_bdd_correlation_weights(vars[[1L]], vars[[1L]], rep(0.5, 3L)),
     1.0
   )
+  expect_identical(cudd_bdd_ite_formula(vars[[1L]] + vars[[2L]]), "ite(x0, TRUE, ite(x1, TRUE, FALSE))")
 
   shortest_length <- cudd_bdd_shortest_length(vars[[1L]])
   expect_type(shortest_length, "integer")

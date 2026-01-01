@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "cuddObj.hh"
 
@@ -179,6 +180,49 @@ static std::vector<double> double_vector_from_sexp(SEXP vec, const char *name) {
         result.push_back(value);
     }
     return result;
+}
+
+static std::string bdd_ite_formula(DdManager *mgr, DdNode *node, std::unordered_map<DdNode *, std::string> &memo) {
+    bool complemented = Cudd_IsComplement(node);
+    DdNode *regular = Cudd_Regular(node);
+    if (Cudd_IsConstant(regular)) {
+        bool is_one = regular == Cudd_ReadOne(mgr);
+        if (complemented) {
+            is_one = !is_one;
+        }
+        return is_one ? "TRUE" : "FALSE";
+    }
+    if (complemented) {
+        return "!(" + bdd_ite_formula(mgr, regular, memo) + ")";
+    }
+    auto found = memo.find(regular);
+    if (found != memo.end()) {
+        return found->second;
+    }
+    int index = static_cast<int>(Cudd_NodeReadIndex(regular));
+    std::string var = "x" + std::to_string(index);
+    DdNode *t = Cudd_T(regular);
+    DdNode *e = Cudd_E(regular);
+    bool t_comp = Cudd_IsComplement(t);
+    bool e_comp = Cudd_IsComplement(e);
+    DdNode *t_reg = Cudd_Regular(t);
+    DdNode *e_reg = Cudd_Regular(e);
+    std::string formula;
+    if (t_reg == e_reg && t_comp != e_comp) {
+        if (t_comp && !e_comp) {
+            std::string sub = bdd_ite_formula(mgr, e, memo);
+            formula = "xor(" + var + ", " + sub + ")";
+        } else {
+            std::string sub = bdd_ite_formula(mgr, t, memo);
+            formula = "!(xor(" + var + ", " + sub + "))";
+        }
+    } else {
+        std::string t_formula = bdd_ite_formula(mgr, t, memo);
+        std::string e_formula = bdd_ite_formula(mgr, e, memo);
+        formula = "ite(" + var + ", " + t_formula + ", " + e_formula + ")";
+    }
+    memo.emplace(regular, formula);
+    return formula;
 }
 
 extern "C" SEXP c_cudd_new() {
@@ -1142,6 +1186,13 @@ extern "C" SEXP c_cudd_bdd_summary(SEXP bdd_ptr, SEXP nvars, SEXP mode) {
     }
     bdd->summary(vars, summary_mode);
     return R_NilValue;
+}
+
+extern "C" SEXP c_cudd_bdd_ite_formula(SEXP bdd_ptr) {
+    BDD *bdd = bdd_from_ptr(bdd_ptr);
+    std::unordered_map<DdNode *, std::string> memo;
+    std::string formula = bdd_ite_formula(bdd->manager(), bdd->getNode(), memo);
+    return Rf_mkString(formula.c_str());
 }
 
 extern "C" SEXP c_cudd_bdd_apa_print_minterm(SEXP bdd_ptr, SEXP nvars) {

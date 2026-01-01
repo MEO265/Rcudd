@@ -6,6 +6,7 @@
 \alias{cudd_bdd_is_one}
 \alias{cudd_bdd_is_cube}
 \alias{cudd_bdd_is_var}
+\alias{cudd_bdd_ite_formula}
 \alias{cudd_bdd_print}
 \alias{cudd_bdd_summary}
 \alias{cudd_bdd_apa_print_minterm}
@@ -116,6 +117,8 @@ cudd_bdd_is_one(bdd)
 cudd_bdd_is_cube(bdd)
 
 cudd_bdd_is_var(bdd)
+
+cudd_bdd_ite_formula(bdd)
 
 cudd_bdd_print(bdd, nvars, verbosity = 1L)
 

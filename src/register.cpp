@@ -40,6 +40,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"c_cudd_bdd_or", (DL_FUNC) &c_cudd_bdd_or, 2},
     {"c_cudd_bdd_xor", (DL_FUNC) &c_cudd_bdd_xor, 2},
     {"c_cudd_bdd_restrict", (DL_FUNC) &c_cudd_bdd_restrict, 2},
+    {"c_cudd_bdd_ite_formula", (DL_FUNC) &c_cudd_bdd_ite_formula, 1},
     {"c_cudd_bdd_print", (DL_FUNC) &c_cudd_bdd_print, 3},
     {"c_cudd_bdd_summary", (DL_FUNC) &c_cudd_bdd_summary, 3},
     {"c_cudd_bdd_apa_print_minterm", (DL_FUNC) &c_cudd_bdd_apa_print_minterm, 2},

@@ -74,6 +74,12 @@ cudd_bdd_is_var <- function(bdd) {
 
 #' @rdname cudd_bdd_methods
 #' @export
+cudd_bdd_ite_formula <- function(bdd) {
+  return(.Call(c_cudd_bdd_ite_formula, .cudd_bdd_ptr(bdd)))
+}
+
+#' @rdname cudd_bdd_methods
+#' @export
 cudd_bdd_print <- function(bdd, nvars, verbosity = 1L) {
   .Call(c_cudd_bdd_print, .cudd_bdd_ptr(bdd), nvars, verbosity)
   return(invisible(NULL))

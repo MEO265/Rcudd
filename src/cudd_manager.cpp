@@ -183,6 +183,30 @@ static std::vector<double> double_vector_from_sexp(SEXP vec, const char *name) {
 }
 
 static std::string bdd_ite_formula(DdManager *mgr, DdNode *node, std::unordered_map<DdNode *, std::string> &memo) {
+    auto make_not = [](const std::string &expr) {
+        return "not(" + expr + ")";
+    };
+    auto make_and = [](const std::string &lhs, const std::string &rhs) {
+        return "and(" + lhs + ", " + rhs + ")";
+    };
+    auto make_or = [](const std::string &lhs, const std::string &rhs) {
+        return "or(" + lhs + ", " + rhs + ")";
+    };
+    auto make_xor = [](const std::string &lhs, const std::string &rhs) {
+        return "xor(" + lhs + ", " + rhs + ")";
+    };
+    auto is_const = [mgr](DdNode *candidate, bool &value) {
+        DdNode *regular = Cudd_Regular(candidate);
+        if (!Cudd_IsConstant(regular)) {
+            return false;
+        }
+        bool is_one = regular == Cudd_ReadOne(mgr);
+        if (Cudd_IsComplement(candidate)) {
+            is_one = !is_one;
+        }
+        value = is_one;
+        return true;
+    };
     bool complemented = Cudd_IsComplement(node);
     DdNode *regular = Cudd_Regular(node);
     if (Cudd_IsConstant(regular)) {
@@ -193,7 +217,7 @@ static std::string bdd_ite_formula(DdManager *mgr, DdNode *node, std::unordered_
         return is_one ? "TRUE" : "FALSE";
     }
     if (complemented) {
-        return "!(" + bdd_ite_formula(mgr, regular, memo) + ")";
+        return make_not(bdd_ite_formula(mgr, regular, memo));
     }
     auto found = memo.find(regular);
     if (found != memo.end()) {
@@ -207,19 +231,45 @@ static std::string bdd_ite_formula(DdManager *mgr, DdNode *node, std::unordered_
     bool e_comp = Cudd_IsComplement(e);
     DdNode *t_reg = Cudd_Regular(t);
     DdNode *e_reg = Cudd_Regular(e);
+    bool t_const = false;
+    bool e_const = false;
+    bool t_value = false;
+    bool e_value = false;
+    t_const = is_const(t, t_value);
+    e_const = is_const(e, e_value);
     std::string formula;
     if (t_reg == e_reg && t_comp != e_comp) {
         if (t_comp && !e_comp) {
             std::string sub = bdd_ite_formula(mgr, e, memo);
-            formula = "xor(" + var + ", " + sub + ")";
+            formula = make_xor(var, sub);
         } else {
             std::string sub = bdd_ite_formula(mgr, t, memo);
-            formula = "!(xor(" + var + ", " + sub + "))";
+            formula = make_not(make_xor(var, sub));
         }
+    } else if (t_const && e_const) {
+        if (t_value == e_value) {
+            formula = t_value ? "TRUE" : "FALSE";
+        } else if (t_value) {
+            formula = var;
+        } else {
+            formula = make_not(var);
+        }
+    } else if (t_const && t_value) {
+        std::string e_formula = bdd_ite_formula(mgr, e, memo);
+        formula = make_or(var, e_formula);
+    } else if (t_const && !t_value) {
+        std::string e_formula = bdd_ite_formula(mgr, e, memo);
+        formula = make_and(make_not(var), e_formula);
+    } else if (e_const && !e_value) {
+        std::string t_formula = bdd_ite_formula(mgr, t, memo);
+        formula = make_and(var, t_formula);
+    } else if (e_const && e_value) {
+        std::string t_formula = bdd_ite_formula(mgr, t, memo);
+        formula = make_or(make_not(var), t_formula);
     } else {
         std::string t_formula = bdd_ite_formula(mgr, t, memo);
         std::string e_formula = bdd_ite_formula(mgr, e, memo);
-        formula = "ite(" + var + ", " + t_formula + ", " + e_formula + ")";
+        formula = make_or(make_and(var, t_formula), make_and(make_not(var), e_formula));
     }
     memo.emplace(regular, formula);
     return formula;

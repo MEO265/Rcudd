@@ -195,6 +195,19 @@ cudd_read_reorderings <- function(manager) {
 #' Convenience wrappers around the CUDD manager API for tuning reordering,
 #' time limits, memory limits, and reading manager statistics.
 #'
+#' Reordering heuristic integers follow the CUDD enum ordering:
+#' `0` = `CUDD_REORDER_SAME`, `1` = `CUDD_REORDER_NONE`, `2` = `CUDD_REORDER_RANDOM`,
+#' `3` = `CUDD_REORDER_RANDOM_PIVOT`, `4` = `CUDD_REORDER_SIFT`,
+#' `5` = `CUDD_REORDER_SIFT_CONVERGE`, `6` = `CUDD_REORDER_SYMM_SIFT`,
+#' `7` = `CUDD_REORDER_SYMM_SIFT_CONV`, `8` = `CUDD_REORDER_WINDOW2`,
+#' `9` = `CUDD_REORDER_WINDOW3`, `10` = `CUDD_REORDER_WINDOW4`,
+#' `11` = `CUDD_REORDER_WINDOW2_CONV`, `12` = `CUDD_REORDER_WINDOW3_CONV`,
+#' `13` = `CUDD_REORDER_WINDOW4_CONV`, `14` = `CUDD_REORDER_GROUP_SIFT`,
+#' `15` = `CUDD_REORDER_GROUP_SIFT_CONV`, `16` = `CUDD_REORDER_ANNEALING`,
+#' `17` = `CUDD_REORDER_GENETIC`, `18` = `CUDD_REORDER_LINEAR`,
+#' `19` = `CUDD_REORDER_LINEAR_CONVERGE`, `20` = `CUDD_REORDER_LAZY_SIFT`,
+#' `21` = `CUDD_REORDER_EXACT`.
+#'
 #' @param manager A [`CuddManager`] instance.
 #' @param st,tl,inc Numeric scalars used for time limit operations.
 #' @param method Optional integer reordering method (CUDD enum value).
@@ -206,6 +219,8 @@ cudd_read_reorderings <- function(manager) {
 #' @param gc Integer CUDD aggregation type.
 #' @param recomb,symm,arc,pop,xovers Integers for genetic algorithm settings.
 #' @param factor Integer randomization factor.
+#' @param heuristic Integer reordering heuristic (CUDD enum value).
+#' @param minsize Integer minimum size for reordering.
 #' @param nr Integer next reordering value.
 #' @param max_mem Numeric memory limit.
 #' @param add A [`CuddADD`] instance.
@@ -307,6 +322,12 @@ cudd_autodyn_disable_zdd <- function(manager) {
 #' @export
 cudd_reordering_status_zdd <- function(manager) {
   return(.Call(c_cudd_reordering_status_zdd, .cudd_manager_ptr(manager)))
+}
+
+#' @rdname cudd_manager_controls
+#' @export
+cudd_reduce_heap <- function(manager, heuristic = NULL, minsize = 0L) {
+  return(.Call(c_cudd_reduce_heap, .cudd_manager_ptr(manager), heuristic, minsize))
 }
 
 #' @rdname cudd_manager_controls

@@ -30,6 +30,14 @@ test_that("additional BDD methods are exposed", {
     1.0
   )
   expect_identical(cudd_bdd_ite_formula(vars[[1L]] + vars[[2L]]), "or(x0, x1)")
+  expect_identical(cudd_bdd_ite_formula(vars[[1L]] * vars[[2L]]), "and(x0, x1)")
+  expect_identical(cudd_bdd_ite_formula(!vars[[1L]]), "not(x0)")
+  expect_identical(cudd_bdd_ite_formula(vars[[1L]] ^ vars[[2L]]), "xor(x0, x1)")
+  expect_identical(cudd_bdd_ite_formula(!(vars[[1L]] ^ vars[[2L]])), "not(xor(x0, x1))")
+  expect_identical(
+    cudd_bdd_ite_formula((!vars[[1L]]) * vars[[2L]]),
+    "and(not(x0), x1)"
+  )
 
   shortest_length <- cudd_bdd_shortest_length(vars[[1L]])
   expect_type(shortest_length, "integer")

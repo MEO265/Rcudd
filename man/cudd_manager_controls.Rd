@@ -27,6 +27,7 @@
 \alias{cudd_autodyn_enable_zdd}
 \alias{cudd_autodyn_disable_zdd}
 \alias{cudd_reordering_status_zdd}
+\alias{cudd_reduce_heap}
 \alias{cudd_zdd_realignment_enabled}
 \alias{cudd_zdd_realign_enable}
 \alias{cudd_zdd_realign_disable}
@@ -150,6 +151,8 @@ cudd_autodyn_enable_zdd(manager, method = NULL)
 cudd_autodyn_disable_zdd(manager)
 
 cudd_reordering_status_zdd(manager)
+
+cudd_reduce_heap(manager, heuristic = NULL, minsize = 0L)
 
 cudd_zdd_realignment_enabled(manager)
 
@@ -306,6 +309,10 @@ cudd_bdd_var_is_bound(manager, index)
 
 \item{method}{Optional integer reordering method (CUDD enum value).}
 
+\item{heuristic}{Integer reordering heuristic (CUDD enum value).}
+
+\item{minsize}{Integer minimum size for reordering.}
+
 \item{add}{A [`CuddADD`] instance.}
 
 \item{mc, mr, smv, sms, max_live}{Integers used for cache/reordering limits.}
@@ -330,4 +337,18 @@ A scalar value or `NULL`, depending on the call.
 \description{
 Convenience wrappers around the CUDD manager API for tuning reordering,
 time limits, memory limits, and reading manager statistics.
+}
+\details{
+Reordering heuristic integers follow the CUDD enum ordering:
+`0` = `CUDD_REORDER_SAME`, `1` = `CUDD_REORDER_NONE`, `2` = `CUDD_REORDER_RANDOM`,
+`3` = `CUDD_REORDER_RANDOM_PIVOT`, `4` = `CUDD_REORDER_SIFT`,
+`5` = `CUDD_REORDER_SIFT_CONVERGE`, `6` = `CUDD_REORDER_SYMM_SIFT`,
+`7` = `CUDD_REORDER_SYMM_SIFT_CONV`, `8` = `CUDD_REORDER_WINDOW2`,
+`9` = `CUDD_REORDER_WINDOW3`, `10` = `CUDD_REORDER_WINDOW4`,
+`11` = `CUDD_REORDER_WINDOW2_CONV`, `12` = `CUDD_REORDER_WINDOW3_CONV`,
+`13` = `CUDD_REORDER_WINDOW4_CONV`, `14` = `CUDD_REORDER_GROUP_SIFT`,
+`15` = `CUDD_REORDER_GROUP_SIFT_CONV`, `16` = `CUDD_REORDER_ANNEALING`,
+`17` = `CUDD_REORDER_GENETIC`, `18` = `CUDD_REORDER_LINEAR`,
+`19` = `CUDD_REORDER_LINEAR_CONVERGE`, `20` = `CUDD_REORDER_LAZY_SIFT`,
+`21` = `CUDD_REORDER_EXACT`.
 }

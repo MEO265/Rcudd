@@ -23,5 +23,5 @@
 #'
 #' @export
 bdd_restrict_chain <- function(exprs, additional_constraints = character()) {
-  .Call(c_bdd_restrict_chain, exprs, additional_constraints)
+  return(.Call(c_bdd_restrict_chain, exprs, additional_constraints))
 }

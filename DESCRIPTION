@@ -2,7 +2,7 @@ Package: Rcudd
 Title: R-Wrapper for the CUDD BDD Library
 Version: 0.0.0.9999
 Authors@R: c(
-	person("Matthias", "Ollech", email = "ollech@gmx.de", role = c("aut", "cre")),
+	person("Matthias", "Ollech", email = "ollech@gmx.com", role = c("aut", "cre")),
 	person("Regents of the University of Colorado", comment = "Copyright holder of included CUDD library", role = "cph")
   )
 Description:

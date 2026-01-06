@@ -6,8 +6,10 @@ Authors@R: c(
 	person("Regents of the University of Colorado", comment = "Copyright holder of included CUDD library", role = "cph")
   )
 Description:
-    Wrapper for the CUDD library providing Binary Decision Diagrams (BDDs) functionality in R.
-    For now, only a some functionality for reducing Logical expressions using BDDs is provided.
+    Provides an R interface to the 'CUDD' library
+    (<https://github.com/cuddorg/cudd>) for working with binary decision diagrams
+    (BDDs) and supports reduction of logical expressions using BDD-based
+    methods.
 License: GPL (>= 3)
 RoxygenNote: 7.3.3
 Encoding: UTF-8

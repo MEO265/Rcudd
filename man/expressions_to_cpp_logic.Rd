@@ -37,3 +37,6 @@ placeholders <- expressions_to_cpp_logic(quote(x && y), quote(!(x && y)))$placeh
 placeholders
 
 }
+\seealso{
+[cpp_logic_to_expressions()] for restoring readable R expressions.
+}

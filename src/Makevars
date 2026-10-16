@@ -2,7 +2,7 @@ all: $(SHLIB)
 $(SHLIB): cudd_pack/cudd/.libs/libcudd.a
 
 # Changes in the bundled library must invalidate a previously built archive.
-CUDD_SOURCES = $(wildcard cudd_pack/*.h cudd_pack/*/*.c cudd_pack/*/*.h cudd_pack/*/*.cc cudd_pack/*/*.hh)
+CUDD_SOURCES = cudd_pack/*/*.c cudd_pack/*/*.h cudd_pack/*/*.cc cudd_pack/*/*.hh
 CUDD_BUILD_INPUTS = cudd_pack/configure cudd_pack/Makefile.in cudd_pack/config.h.in
 
 cudd_pack/cudd/.libs/libcudd.a: $(CUDD_SOURCES) $(CUDD_BUILD_INPUTS)

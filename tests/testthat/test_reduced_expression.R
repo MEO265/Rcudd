@@ -36,9 +36,9 @@ test_that("standalone expressions round-trip and agree on all boolean inputs", {
     expect_type(reduced, "character")
     expect_length(reduced, 1L)
     expect_identical(evaluate(reduced), evaluate(expr), info = expr)
-    expect_identical(
+    expect_false(
       bdd_literals(paste0("(", expr, ") ^ (", reduced, ")"))$constant,
-      FALSE, info = expr
+      info = expr
     )
   }
 })
@@ -98,10 +98,11 @@ test_that("rendered chain expressions agree with their inputs within each contex
   }
 })
 
-test_that("R expression chains expose rendered placeholder formulas", {
+test_that("R expression chains expose readable formulas and retain C++ strings", {
   result <- bdd_restrict_from_expressions(
     list(quote(y || x), quote((x || y || z) && w))
   )
-  expect_identical(result$chain[[2L]]$reduced_expression, "p3 & p4")
+  expect_identical(result$chain[[2L]]$reduced_expression, "z && w")
+  expect_identical(result$chain[[2L]]$reduced_cpp_expression, "p3 & p4")
   expect_identical(result$placeholders, c(p1 = "y", p2 = "x", p3 = "z", p4 = "w"))
 })

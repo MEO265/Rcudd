@@ -48,3 +48,6 @@ expression_to_cpp_logic(quote(((x && y) || f(z)) && w))
 expression_to_cpp_logic("xor(x, y) || f(z) && w")
 
 }
+\seealso{
+[cpp_logic_to_expression()] for restoring readable R expressions.
+}

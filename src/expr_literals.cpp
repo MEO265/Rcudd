@@ -234,52 +234,7 @@ extern "C" SEXP bdd_remaining_literals(SEXP expr_in) {
 
         BDD root = rcudd::parse_bdd_expression(expr, mgr, var_idx, idx_to_name);
 
-        std::string reduced_expression = rcudd::bdd_expression(root, idx_to_name);
-
-        SEXP result = PROTECT(Rf_allocVector(VECSXP, 4));
-        SEXP names = PROTECT(Rf_allocVector(STRSXP, 4));
-        SET_STRING_ELT(names, 0, Rf_mkChar("constant"));
-        SET_STRING_ELT(names, 1, Rf_mkChar("variables"));
-        SET_STRING_ELT(names, 2, Rf_mkChar("initial_variables"));
-        SET_STRING_ELT(names, 3, Rf_mkChar("reduced_expression"));
-        Rf_setAttrib(result, R_NamesSymbol, names);
-
-        SEXP constant = PROTECT(Rf_allocVector(LGLSXP, 1));
-        int const_val = NA_LOGICAL;
-        if (root.IsOne()) {
-            const_val = 1;
-        } else if (root.IsZero()) {
-            const_val = 0;
-        }
-        LOGICAL(constant)[0] = const_val;
-        SET_VECTOR_ELT(result, 0, constant);
-
-        auto support = root.SupportIndices();
-        std::vector<std::string> names_out;
-        names_out.reserve(support.size());
-        for (unsigned int idx : support) {
-            if (idx < idx_to_name.size()) {
-                names_out.push_back(idx_to_name[idx]);
-            }
-        }
-
-        std::sort(names_out.begin(), names_out.end());
-        SEXP vars = PROTECT(Rf_allocVector(STRSXP, names_out.size()));
-        for (R_xlen_t i = 0; i < static_cast<R_xlen_t>(names_out.size()); ++i) {
-            SET_STRING_ELT(vars, i, Rf_mkChar(names_out[i].c_str()));
-        }
-        SET_VECTOR_ELT(result, 1, vars);
-
-        std::vector<std::string> initial_names(idx_to_name.begin(), idx_to_name.end());
-        std::sort(initial_names.begin(), initial_names.end());
-        SEXP initial_vars = PROTECT(Rf_allocVector(STRSXP, initial_names.size()));
-        for (R_xlen_t i = 0; i < static_cast<R_xlen_t>(initial_names.size()); ++i) {
-            SET_STRING_ELT(initial_vars, i, Rf_mkChar(initial_names[i].c_str()));
-        }
-        SET_VECTOR_ELT(result, 2, initial_vars);
-        SET_VECTOR_ELT(result, 3, Rf_mkString(reduced_expression.c_str()));
-
-        UNPROTECT(5);
+        SEXP result = rcudd::bdd_summary(root, idx_to_name, idx_to_name);
         return result;
     } catch (const std::exception &ex) {
         Rf_error("Failed to build the ROBDD: %s", ex.what());

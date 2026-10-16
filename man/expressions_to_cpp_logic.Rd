@@ -38,5 +38,5 @@ placeholders
 
 }
 \seealso{
-[cpp_logic_to_expressions()] for restoring readable R expressions.
+[cpp_logic_to_r()] for restoring readable R expressions.
 }

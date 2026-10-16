@@ -36,7 +36,7 @@
 #'
 #' expression_to_cpp_logic("xor(x, y) || f(z) && w")
 #'
-#' @seealso [cpp_logic_to_expression()] for restoring readable R expressions.
+#' @seealso [cpp_logic_to_r()] for restoring readable R expressions.
 #'
 #' @export
 expression_to_cpp_logic <- function(expr, use_placeholders = TRUE) {
@@ -74,7 +74,7 @@ expression_to_cpp_logic <- function(expr, use_placeholders = TRUE) {
 #' placeholders <- expressions_to_cpp_logic(quote(x && y), quote(!(x && y)))$placeholders
 #' placeholders
 #'
-#' @seealso [cpp_logic_to_expressions()] for restoring readable R expressions.
+#' @seealso [cpp_logic_to_r()] for restoring readable R expressions.
 #'
 #' @export
 expressions_to_cpp_logic <- function(..., use_placeholders = TRUE) {

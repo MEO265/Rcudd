@@ -5,7 +5,7 @@
 #' original R expressions and comparison tokens by comparisons of the original
 #' operands. The result uses `&&`, `||`, `!`, `xor()`, `TRUE` and `FALSE`.
 #'
-#' @param expr A single C++ style logical string.
+#' @param exprs Character vector of C++ style logical strings.
 #' @param placeholders Named character vector mapping ordinary placeholders to
 #'   original R expressions, as returned by [expressions_to_cpp_logic()].
 #' @param order_variables Named character vector mapping comparison operand
@@ -25,40 +25,19 @@
 #' names; comparison placeholders require both operand mappings. The result
 #' is not guaranteed to be the shortest equivalent expression.
 #'
-#' @return A character scalar containing a parseable R expression.
+#' @return A character vector of parseable R expressions, in input order.
+#'   `cpp_logic_to_r()` handles both a single expression and a vector.
+#'   `cpp_logic_to_expression()` and `cpp_logic_to_expressions()` are retained
+#'   as compatibility wrappers; the former requires a single string.
 #'
 #' @examples
 #' converted <- expression_to_cpp_logic(quote(a >= b && ready))
-#' cpp_logic_to_expression(
+#' cpp_logic_to_r(
 #'   converted$expression, converted$placeholders, converted$order_variables
 #' )
 #'
 #' @export
-cpp_logic_to_expression <- function(expr, placeholders = character(), order_variables = character()) {
-  if (!is.character(expr) || length(expr) != 1L || is.na(expr)) {
-    stop("`expr` must be a non-missing character scalar.")
-  }
-  return(cpp_logic_to_expressions(expr, placeholders, order_variables)[[1L]])
-}
-
-#' Restore multiple readable R expressions from C++ logical strings
-#'
-#' Uses a shared placeholder mapping to restore several expressions, including
-#' reduced strings returned by [bdd_literals()] or [bdd_restrict_chain()].
-#'
-#' @param exprs Character vector of C++ style logical strings.
-#' @inheritParams cpp_logic_to_expression
-#'
-#' @return A character vector of parseable R expressions, in input order.
-#'
-#' @examples
-#' converted <- expressions_to_cpp_logic(quote(a > b), quote(a <= b))
-#' cpp_logic_to_expressions(
-#'   converted$expressions, converted$placeholders, converted$order_variables
-#' )
-#'
-#' @export
-cpp_logic_to_expressions <- function(exprs, placeholders = character(), order_variables = character()) {
+cpp_logic_to_r <- function(exprs, placeholders = character(), order_variables = character()) {
   if (!is.character(exprs) || anyNA(exprs)) {
     stop("`exprs` must be a character vector without missing values.")
   }
@@ -78,6 +57,22 @@ cpp_logic_to_expressions <- function(exprs, placeholders = character(), order_va
     node <- parse_cpp_logic(expr, placeholders, order_variables)
     return(deparse1(cpp_logic_as_language(node, order_variables), width.cutoff = 500L, backtick = TRUE))
   }, character(1L), USE.NAMES = FALSE))
+}
+
+#' @rdname cpp_logic_to_r
+#' @param expr A single C++ style logical string (compatibility wrapper).
+#' @export
+cpp_logic_to_expression <- function(expr, placeholders = character(), order_variables = character()) {
+  if (!is.character(expr) || length(expr) != 1L || is.na(expr)) {
+    stop("`expr` must be a non-missing character scalar.")
+  }
+  cpp_logic_to_r(expr, placeholders, order_variables)
+}
+
+#' @rdname cpp_logic_to_r
+#' @export
+cpp_logic_to_expressions <- function(exprs, placeholders = character(), order_variables = character()) {
+  cpp_logic_to_r(exprs, placeholders, order_variables)
 }
 
 # Comparisons carry a subset of the three possible ordering outcomes. Keeping

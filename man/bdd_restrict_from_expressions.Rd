@@ -17,7 +17,7 @@ A list with elements:
 * `order_variables`: mapping of comparison variable tokens to their names.
 * `chain`: result of [bdd_restrict_chain()] with ordering constraints applied.
   Each `reduced_expression` is translated back to readable R syntax with
-  [cpp_logic_to_expressions()], including the original operands and comparison
+  [cpp_logic_to_r()], including the original operands and comparison
   operators such as `>`, `>=` and `<=`. The corresponding
   `reduced_cpp_expression` retains the raw string with C++ placeholders.
   The reduced expressions are equivalent to their inputs within the ordering

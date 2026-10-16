@@ -20,4 +20,4 @@ cran-comments.md
 ^LICENSE\.md$
 ^\.rwbo-test$
 ^rwbo-output$
-^inst/scripts/RWBO_FIX_PROMPT\.md$
+^dev$

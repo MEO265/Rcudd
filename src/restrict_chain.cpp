@@ -56,53 +56,6 @@ extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in
                 rcudd::parse_bdd_expression(expr, mgr, var_idx, idx_to_name);
         }
 
-        auto bdd_summary = [&](const BDD &bdd, const std::vector<std::string> &initial_vars) {
-            std::string reduced_expression = rcudd::bdd_expression(bdd, idx_to_name);
-            SEXP entry = PROTECT(Rf_allocVector(VECSXP, 4));
-            SEXP names = PROTECT(Rf_allocVector(STRSXP, 4));
-            SET_STRING_ELT(names, 0, Rf_mkChar("constant"));
-            SET_STRING_ELT(names, 1, Rf_mkChar("variables"));
-            SET_STRING_ELT(names, 2, Rf_mkChar("initial_variables"));
-            SET_STRING_ELT(names, 3, Rf_mkChar("reduced_expression"));
-            Rf_setAttrib(entry, R_NamesSymbol, names);
-
-            SEXP constant = PROTECT(Rf_allocVector(LGLSXP, 1));
-            int const_val = NA_LOGICAL;
-            if (bdd.IsOne()) {
-                const_val = 1;
-            } else if (bdd.IsZero()) {
-                const_val = 0;
-            }
-            LOGICAL(constant)[0] = const_val;
-            SET_VECTOR_ELT(entry, 0, constant);
-
-            auto support = bdd.SupportIndices();
-            std::vector<std::string> names_out;
-            names_out.reserve(support.size());
-            for (unsigned int idx : support) {
-                if (idx < idx_to_name.size()) {
-                    names_out.push_back(idx_to_name[idx]);
-                }
-            }
-            std::sort(names_out.begin(), names_out.end());
-
-            SEXP vars = PROTECT(Rf_allocVector(STRSXP, names_out.size()));
-            for (R_xlen_t i = 0; i < static_cast<R_xlen_t>(names_out.size()); ++i) {
-                SET_STRING_ELT(vars, i, Rf_mkChar(names_out[i].c_str()));
-            }
-            SET_VECTOR_ELT(entry, 1, vars);
-
-            SEXP initial = PROTECT(Rf_allocVector(STRSXP, initial_vars.size()));
-            for (R_xlen_t i = 0; i < static_cast<R_xlen_t>(initial_vars.size()); ++i) {
-                SET_STRING_ELT(initial, i, Rf_mkChar(initial_vars[i].c_str()));
-            }
-            SET_VECTOR_ELT(entry, 2, initial);
-            SET_VECTOR_ELT(entry, 3, Rf_mkString(reduced_expression.c_str()));
-
-            UNPROTECT(4);
-            return entry;
-        };
-
         SEXP out = PROTECT(Rf_allocVector(VECSXP, n));
         BDD previous_constraints = mgr.bddOne();
 
@@ -111,7 +64,7 @@ extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in
             BDD context = previous_constraints & shared_constraints;
             BDD result = original.Restrict(context);
 
-            SEXP entry = bdd_summary(result, initial_names[static_cast<std::size_t>(i)]);
+            SEXP entry = PROTECT(rcudd::bdd_summary(result, idx_to_name, initial_names[static_cast<std::size_t>(i)]));
             SET_VECTOR_ELT(out, i, entry);
             UNPROTECT(1); // entry
             previous_constraints = previous_constraints & !bdds[static_cast<std::size_t>(i)];

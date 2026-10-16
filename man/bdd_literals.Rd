@@ -2,7 +2,7 @@
 % Please edit documentation in R/literals.R
 \name{bdd_literals}
 \alias{bdd_literals}
-\title{Reduce literals of boolean expression}
+\title{Simplify a Boolean expression with a BDD}
 \usage{
 bdd_literals(expr)
 }
@@ -13,23 +13,22 @@ bdd_literals(expr)
 A list with four elements:
 * `constant`: logical scalar. `TRUE` or `FALSE` when the expression reduces to
   a constant, otherwise `NA`.
-* `variables`: character vector with the remaining literal names (empty when
+* `variables`: sorted remaining variable names (empty when
   `constant` is set).
-* `initial_variables`: all literal names that appeared in the original
-  expression.
+* `initial_variables`: sorted variable names from the original expression.
 * `reduced_expression`: character scalar representing the reduced BDD using
   `!`, `&` and `|`, or `true`/`false` for constants.
 }
 \description{
 Builds a reduced ordered binary decision diagram (ROBDD) via CUDD from the
-provided expression and reports which literals remain in the diagram after
+provided expression and reports which variables remain in the diagram after
 reduction, together with a factored expression for the reduced diagram.
 }
 \details{
 Allowed operators are `!` (negation), `&` (and), `|` (or) and `^` (XOR).
 Parentheses can be used for grouping. Variable names are any non-empty
-strings that are neither operators nor whitespace, which makes the parser
-reusable from other functions.
+tokens without whitespace or operator characters. `true` and `false`
+(case insensitive) are reserved constants. Precedence is `!`, `&`, `^`, `|`.
 
 
 The reduced expression uses the original variable names and the same C++

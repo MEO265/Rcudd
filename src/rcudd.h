@@ -26,6 +26,8 @@ BDD parse_bdd_expression(const std::string &expr,
                          std::vector<std::string> *encountered_vars = nullptr);
 std::string bdd_expression(const BDD &bdd,
                            const std::vector<std::string> &idx_to_name);
+SEXP bdd_summary(const BDD &root, const std::vector<std::string> &names_by_index,
+                 std::vector<std::string> initial_names);
 }
 #endif
 

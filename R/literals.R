@@ -1,13 +1,13 @@
-#' Reduce literals of boolean expression
+#' Simplify a Boolean expression with a BDD
 #'
 #' Builds a reduced ordered binary decision diagram (ROBDD) via CUDD from the
-#' provided expression and reports which literals remain in the diagram after
+#' provided expression and reports which variables remain in the diagram after
 #' reduction, together with a factored expression for the reduced diagram.
 #'
 #' Allowed operators are `!` (negation), `&` (and), `|` (or) and `^` (XOR).
 #' Parentheses can be used for grouping. Variable names are any non-empty
-#' strings that are neither operators nor whitespace, which makes the parser
-#' reusable from other functions.
+#' tokens without whitespace or operator characters. `true` and `false`
+#' (case insensitive) are reserved constants. Precedence is `!`, `&`, `^`, `|`.
 #'
 #' @param expr A character vector of length 1 containing a boolean expression in C++ syntax.
 #'
@@ -20,10 +20,9 @@
 #' @return A list with four elements:
 #' * `constant`: logical scalar. `TRUE` or `FALSE` when the expression reduces to
 #'   a constant, otherwise `NA`.
-#' * `variables`: character vector with the remaining literal names (empty when
+#' * `variables`: sorted remaining variable names (empty when
 #'   `constant` is set).
-#' * `initial_variables`: all literal names that appeared in the original
-#'   expression.
+#' * `initial_variables`: sorted variable names from the original expression.
 #' * `reduced_expression`: character scalar representing the reduced BDD using
 #'   `!`, `&` and `|`, or `true`/`false` for constants.
 #'
@@ -40,8 +39,8 @@ bdd_literals <- function(expr) {
 #' Check expression for redundant variables
 #'
 #' Evaluates the given expression via `bdd_literals()` and returns `TRUE` when
-#' at least one variable from the original expression is not required in the
-#' reduced ROBDD (including the case where the expression is a constant).
+#' at least one input variable is absent from the reduced BDD. Constant inputs
+#' without variables return `FALSE`.
 #'
 #' @inheritParams bdd_literals
 #'
@@ -55,12 +54,5 @@ bdd_literals <- function(expr) {
 bdd_has_redundant_variables <- function(expr) {
   result <- bdd_literals(expr)
 
-  if (!is.na(result$constant)) {
-    return(TRUE)
-  }
-
-  initial <- result$initial_variables
-  remaining <- result$variables
-
-  return(!all(initial %in% remaining))
+  any(!result$initial_variables %in% result$variables)
 }

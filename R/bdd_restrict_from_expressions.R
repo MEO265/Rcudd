@@ -14,7 +14,7 @@
 #' * `order_variables`: mapping of comparison variable tokens to their names.
 #' * `chain`: result of [bdd_restrict_chain()] with ordering constraints applied.
 #'   Each `reduced_expression` is translated back to readable R syntax with
-#'   [cpp_logic_to_expressions()], including the original operands and comparison
+#'   [cpp_logic_to_r()], including the original operands and comparison
 #'   operators such as `>`, `>=` and `<=`. The corresponding
 #'   `reduced_cpp_expression` retains the raw string with C++ placeholders.
 #'   The reduced expressions are equivalent to their inputs within the ordering
@@ -36,7 +36,7 @@ bdd_restrict_from_expressions <- function(exprs) {
   )
 
   reduced_cpp <- vapply(chain, function(entry) entry$reduced_expression, character(1L))
-  reduced_r <- cpp_logic_to_expressions(
+  reduced_r <- cpp_logic_to_r(
     reduced_cpp, converted$placeholders, converted$order_variables
   )
   for (i in seq_along(chain)) {

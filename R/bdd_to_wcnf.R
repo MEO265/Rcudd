@@ -26,8 +26,7 @@
 #'
 #' Native callers with an existing `BDD` use `rcudd::write_bdd_wcnf()` declared
 #' in `inst/include/rcudd/bdd_wcnf.hpp`; no parsing or string conversion is needed.
-#' See the installed `scripts/README.md` for a concrete C++ example and the
-#' `prepare_rwbo()`, `solve_rwbo()` and `read_rwbo_result()` helpers.
+#' See the installed `scripts/README.md` for an example.
 #'
 #' @return An `rwbo_formula_problem` list with the original expression,
 #' essential `variables`, their zero-based CUDD `variable_indices`, logical

@@ -32,6 +32,8 @@ test_that("bdd_has_redundant_variables identifies removable literals", {
   expect_true(bdd_has_redundant_variables("(y & x) | (y & !x)"))
   expect_false(bdd_has_redundant_variables("x & y"))
   expect_true(bdd_has_redundant_variables("x | !x"))
+  expect_false(bdd_has_redundant_variables("true"))
+  expect_false(bdd_has_redundant_variables("false"))
 })
 
 test_that("bdd_restrict_chain applies chained restrictions", {

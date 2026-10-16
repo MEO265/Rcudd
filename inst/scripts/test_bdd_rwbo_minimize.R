@@ -14,7 +14,7 @@ expect_error <- function(expr, pattern) {
   stopifnot(inherits(error, "error"), grepl(pattern, conditionMessage(error), fixed = TRUE))
 }
 solve_case <- function(expr, expected, bound = max(3L, expected)) {
-  problem <- prepare_rwbo(expr, tempfile(tmpdir = test_dir, fileext = ".wcnf"), bound)
+  problem <- Rcudd::bdd_to_wcnf(expr, tempfile(tmpdir = test_dir, fileext = ".wcnf"), bound)
   result <- solve_rwbo(problem, time_limit = 60L)
   stopifnot(result$verified, result$optimal, identical(result$operator_count, as.integer(expected)))
   operators <- gregexpr("[&|^!]", result$expression)[[1L]]
@@ -94,7 +94,7 @@ solve_case("\u00e4", 0L, 0L)
 # solve and validate the native-produced file with the real Rwbo binary.
 native_fixture <- Sys.getenv("RCUDD_NATIVE_FIXTURE", "")
 if (nzchar(native_fixture)) {
-  native_problem <- prepare_rwbo("!(a ^ b)", tempfile(tmpdir = test_dir), 3L)
+  native_problem <- Rcudd::bdd_to_wcnf("!(a ^ b)", tempfile(tmpdir = test_dir), 3L)
   stopifnot(identical(readLines(native_problem$wcnf_file), readLines(native_fixture)))
   native_problem$wcnf_file <- normalizePath(native_fixture, winslash = "/")
   native_result <- solve_rwbo(native_problem)
@@ -102,28 +102,28 @@ if (nzchar(native_fixture)) {
   cat("PASS: existing reordered native BDD -> native WCNF -> Rwbo -> equivalent minimum2\n")
 }
 
-too_small <- prepare_rwbo("!(a & b)", tempfile(tmpdir = test_dir), 1L)
+too_small <- Rcudd::bdd_to_wcnf("!(a & b)", tempfile(tmpdir = test_dir), 1L)
 unsat <- solve_rwbo(too_small)
 stopifnot(unsat$status == "UNSATISFIABLE", !unsat$optimal, !unsat$verified, is.na(unsat$expression))
-zero_bound <- prepare_rwbo("!a", tempfile(tmpdir = test_dir), 0L)
+zero_bound <- Rcudd::bdd_to_wcnf("!a", tempfile(tmpdir = test_dir), 0L)
 stopifnot(solve_rwbo(zero_bound)$status == "UNSATISFIABLE")
-support_bound <- prepare_rwbo(rwbo_example_expression(), tempfile(tmpdir = test_dir), 4L)
+support_bound <- Rcudd::bdd_to_wcnf(rwbo_example_expression(), tempfile(tmpdir = test_dir), 4L)
 stopifnot(solve_rwbo(support_bound)$status == "UNSATISFIABLE")
 
-unknown <- read_rwbo_result(example$problem, "s UNKNOWN")
+unknown <- Rcudd::interpret_rwbo_output(example$problem, "s UNKNOWN")
 stopifnot(!unknown$verified, !unknown$optimal, is.na(unknown$expression))
-missing_model <- read_rwbo_result(example$problem, "s OPTIMUM FOUND\no 5")
+missing_model <- Rcudd::interpret_rwbo_output(example$problem, "s OPTIMUM FOUND\no 5")
 stopifnot(!missing_model$optimal, !missing_model$verified)
-candidate <- read_rwbo_result(example$problem, sub("s OPTIMUM FOUND", "s SATISFIABLE",
+candidate <- Rcudd::interpret_rwbo_output(example$problem, sub("s OPTIMUM FOUND", "s SATISFIABLE",
                                                 example$result$solver_output, fixed = TRUE))
 stopifnot(candidate$verified, !candidate$optimal)
-expect_error(read_rwbo_result(example$problem, "s OPTIMUM FOUND\no 5\nv 1 0"), "incomplete or invalid")
-expect_error(read_rwbo_result(example$problem, sub("o 5", "o 99", example$result$solver_output,
+expect_error(Rcudd::interpret_rwbo_output(example$problem, "s OPTIMUM FOUND\no 5\nv 1 0"), "incomplete or invalid")
+expect_error(Rcudd::interpret_rwbo_output(example$problem, sub("o 5", "o 99", example$result$solver_output,
                                                  fixed = TRUE)), "cost does not match")
-expect_error(prepare_rwbo("a & b", tempfile(tmpdir = test_dir), max_variables = 1L), "truth-table limit")
-expect_error(prepare_rwbo("a & b", tempfile(tmpdir = test_dir), max_operators = -1L), "whole number")
-expect_error(prepare_rwbo("a & b", tempfile(tmpdir = test_dir), max_clauses = 1L), "Clause limit")
-expect_error(prepare_rwbo("a & b", tempfile(tmpdir = test_dir), max_operators = 1000000L), "Clause limit")
+expect_error(Rcudd::bdd_to_wcnf("a & b", tempfile(tmpdir = test_dir), max_variables = 1L), "truth-table limit")
+expect_error(Rcudd::bdd_to_wcnf("a & b", tempfile(tmpdir = test_dir), max_operators = -1L), "whole number")
+expect_error(Rcudd::bdd_to_wcnf("a & b", tempfile(tmpdir = test_dir), max_clauses = 1L), "Clause limit")
+expect_error(Rcudd::bdd_to_wcnf("a & b", tempfile(tmpdir = test_dir), max_operators = 1000000L), "Clause limit")
 
 # The corrected Rwbo wrapper must preserve complete long physical model lines.
 long <- solve_case(paste(letters[1:8], collapse = " | "), 7L, 8L)

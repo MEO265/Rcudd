@@ -52,8 +52,7 @@ the essential-support lower bound writes a contradictory WCNF.
 
 Native callers with an existing `BDD` use `rcudd::write_bdd_wcnf()` declared
 in `inst/include/rcudd/bdd_wcnf.hpp`; no parsing or string conversion is needed.
-See the installed `scripts/README.md` for a concrete C++ example and the
-`prepare_rwbo()`, `solve_rwbo()` and `read_rwbo_result()` helpers.
+See the installed `scripts/README.md` for an example.
 }
 \examples{
 path <- tempfile(fileext = ".wcnf")

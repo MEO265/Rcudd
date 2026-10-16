@@ -6,8 +6,9 @@ Authors@R: c(
 	person("Regents of the University of Colorado", comment = "Copyright holder of included CUDD library", role = "cph")
   )
 Description:
-    Wrapper for the CUDD library providing Binary Decision Diagrams (BDDs) functionality in R.
-    For now, only a some functionality for reducing Logical expressions using BDDs is provided.
+    Simplifies Boolean expressions and conditional chains using the CUDD
+    binary decision diagram library. Converts quoted R expressions to and from
+    Boolean formulas and exports bounded formula synthesis problems for MaxSAT.
 License: GPL (>= 3)
 Encoding: UTF-8
 Depends:

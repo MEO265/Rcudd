@@ -1,5 +1,5 @@
 # Exact Boolean formula synthesis with Rcudd and Rwbo.
-# Source for prepare_rwbo(), solve_rwbo(), and read_rwbo_result(); run with
+# Source for solve_rwbo(); run with
 # Rscript for the eight-term example. See the adjacent README.md.
 # In expression strings, ^ means Boolean XOR and ! means NOT (Rcudd syntax).
 
@@ -23,30 +23,16 @@ rwbo_example_expression <- function() {
   }
 }
 
-# Build one BDD and let the native exporter consume its existing CUDD root.
-# The exact encoder and its metadata are also available to native C++ callers.
-prepare_rwbo <- function(expr, wcnf_file = "formula.wcnf", max_operators = 8L,
-                         max_variables = 10L, max_clauses = 2000000L) {
-  .rwbo_require("Rcudd")
-  Rcudd::bdd_to_wcnf(expr, wcnf_file, max_operators, max_variables, max_clauses)
-}
-
-# The package exposes the same interpreter to R and native C++ callers.
-read_rwbo_result <- function(problem, output) {
-  .rwbo_require("Rcudd")
-  Rcudd::interpret_rwbo_output(problem, output)
-}
-
 solve_rwbo <- function(problem, time_limit = 60L) {
-  if (!inherits(problem, "rwbo_formula_problem")) stop("Use a problem returned by prepare_rwbo().")
+  if (!inherits(problem, "rwbo_formula_problem")) stop("Use a problem returned by Rcudd::bdd_to_wcnf().")
   time_limit <- .rwbo_integer(time_limit, "time_limit")
-  if (!is.null(problem$shortcut)) return(read_rwbo_result(problem, ""))
+  if (!is.null(problem$shortcut)) return(Rcudd::interpret_rwbo_output(problem, ""))
   .rwbo_require("Rwbo")
   output <- Rwbo::run_open_wbo(
     args = c("-algorithm=1", "-print-model", "-verbosity=0", problem$wcnf_file),
     timeout = time_limit
   )
-  read_rwbo_result(problem, output)
+  Rcudd::interpret_rwbo_output(problem, output)
 }
 
 rwbo_main <- function(args = commandArgs(trailingOnly = TRUE)) {
@@ -74,7 +60,8 @@ rwbo_main <- function(args = commandArgs(trailingOnly = TRUE)) {
   if (!dir.exists(options$output_dir)) {
     if (!dir.create(options$output_dir, recursive = TRUE)) stop("Cannot create output directory.")
   }
-  problem <- prepare_rwbo(options$expr, file.path(options$output_dir, "formula.wcnf"),
+  .rwbo_require("Rcudd")
+  problem <- Rcudd::bdd_to_wcnf(options$expr, file.path(options$output_dir, "formula.wcnf"),
                           options$max_operators, options$max_variables)
   saveRDS(problem, file.path(options$output_dir, "problem.rds"))
   cat("Input expression: ", problem$expression, "\n",

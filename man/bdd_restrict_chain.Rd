@@ -17,14 +17,9 @@ previous expressions and applied in a single restriction. This preserves
 relationships through variables absent from the expression being simplified.}
 }
 \value{
-List with one entry per input expression. Each entry mirrors the
-  structure of [bdd_literals()]:
-* `constant`: logical scalar indicating whether the restricted BDD  collapses
-  to a constant (`TRUE`/`FALSE`) or `NA` when it is non-constant.
-* `variables`: remaining variable names in the restricted diagram (sorted).
-* `initial_variables`: variables that appeared in the input expressions (sorted).
-* `reduced_expression`: character scalar representing the restricted BDD using
-  `!`, `&` and `|`, or `true`/`false` for constants.
+One [bdd_literals()] result per input, in input order.
+  `initial_variables` refers to that branch's input. `reduced_expression`
+  agrees with it only within the branch's context and need not be shortest.
 }
 \description{
 Builds reduced ordered binary decision diagrams (ROBDDs) for a sequence of
@@ -42,12 +37,6 @@ When the combined context is contradictory, CUDD returns a constant FALSE,
 including when the input expression is TRUE. A FALSE result can therefore
 indicate either an expression that is false throughout its context or an
 unreachable context.
-
-Each entry includes a factored expression for its reduced diagram, using the
-original variable names and C++ syntax. This expression is equivalent to the
-input only within that entry's combined context. It is not guaranteed to be
-the shortest expression, and rendering can expand a compact BDD into a larger
-string.
 }
 \examples{
 bdd_restrict_chain("x", c("!x | z", "!z"))

@@ -11,9 +11,10 @@ bdd_restrict_chain(exprs, additional_constraints = character())
 C++ syntax (operators `!`, `&`, `|`, `^`).}
 
 \item{additional_constraints}{Optional character vector of logical
-expressions in C++ syntax. They are combined with the negated previous
-expressions before applying `Restrict`, preserving relationships through
-variables absent from the expression being simplified.}
+expressions in C++ syntax. All additional constraints are conjoined once.
+For each expression, this conjunction is combined with the negation of all
+previous expressions and applied in a single restriction. This preserves
+relationships through variables absent from the expression being simplified.}
 }
 \value{
 List with one entry per input expression. Each entry mirrors the
@@ -35,11 +36,10 @@ The reduced diagram agrees with the input wherever the combined context is
 true. Its behavior outside that context is unspecified; this is a reduction
 operation, not a check of whether the context itself is satisfiable.
 
-When the combined context is contradictory, there is no unique reduction.
-In that case the original sequential behavior is preserved: negated previous
-diagrams are applied in reverse order, followed by the additional constraints
-in input order. In particular, a constant TRUE can remain TRUE under
-contradictory additional constraints.
+When the combined context is contradictory, CUDD returns a constant FALSE,
+including when the input expression is TRUE. A FALSE result can therefore
+indicate either an expression that is false throughout its context or an
+unreachable context.
 }
 \examples{
 bdd_restrict_chain("x", c("!x | z", "!z"))

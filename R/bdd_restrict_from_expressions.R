@@ -13,6 +13,8 @@
 #' * `placeholders`: mapping of placeholder names to original expression strings.
 #' * `order_variables`: mapping of comparison variable tokens to their names.
 #' * `chain`: result of [bdd_restrict_chain()] with ordering constraints applied.
+#'   Its `reduced_expression` strings use the translated placeholder names in
+#'   C++ syntax; the original R expressions are not substituted back into them.
 #'
 #' @examples
 #' bdd_restrict_from_expressions(list(quote(x || y < z || y >= z)))

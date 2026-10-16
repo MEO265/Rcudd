@@ -205,6 +205,17 @@ BDD parse_bdd_expression(const std::string &expr,
     return parser.parse_expression();
 }
 
+std::string bdd_expression(const BDD &bdd,
+                           const std::vector<std::string> &idx_to_name) {
+    // CUDD expects names in BDD index order, not sorted support order.
+    std::vector<const char *> names;
+    names.reserve(idx_to_name.size());
+    for (const auto &name : idx_to_name) {
+        names.push_back(name.c_str());
+    }
+    return bdd.FactoredFormString(names.data());
+}
+
 } // namespace rcudd
 
 extern "C" SEXP bdd_remaining_literals(SEXP expr_in) {
@@ -223,11 +234,14 @@ extern "C" SEXP bdd_remaining_literals(SEXP expr_in) {
 
         BDD root = rcudd::parse_bdd_expression(expr, mgr, var_idx, idx_to_name);
 
-        SEXP result = PROTECT(Rf_allocVector(VECSXP, 3));
-        SEXP names = PROTECT(Rf_allocVector(STRSXP, 3));
+        std::string reduced_expression = rcudd::bdd_expression(root, idx_to_name);
+
+        SEXP result = PROTECT(Rf_allocVector(VECSXP, 4));
+        SEXP names = PROTECT(Rf_allocVector(STRSXP, 4));
         SET_STRING_ELT(names, 0, Rf_mkChar("constant"));
         SET_STRING_ELT(names, 1, Rf_mkChar("variables"));
         SET_STRING_ELT(names, 2, Rf_mkChar("initial_variables"));
+        SET_STRING_ELT(names, 3, Rf_mkChar("reduced_expression"));
         Rf_setAttrib(result, R_NamesSymbol, names);
 
         SEXP constant = PROTECT(Rf_allocVector(LGLSXP, 1));
@@ -263,6 +277,7 @@ extern "C" SEXP bdd_remaining_literals(SEXP expr_in) {
             SET_STRING_ELT(initial_vars, i, Rf_mkChar(initial_names[i].c_str()));
         }
         SET_VECTOR_ELT(result, 2, initial_vars);
+        SET_VECTOR_ELT(result, 3, Rf_mkString(reduced_expression.c_str()));
 
         UNPROTECT(5);
         return result;

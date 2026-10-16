@@ -22,6 +22,8 @@ BDD parse_bdd_expression(const std::string &expr,
                          std::unordered_map<std::string, unsigned int> &var_idx,
                          std::vector<std::string> &idx_to_name,
                          std::vector<std::string> *encountered_vars = nullptr);
+std::string bdd_expression(const BDD &bdd,
+                           const std::vector<std::string> &idx_to_name);
 }
 #endif
 

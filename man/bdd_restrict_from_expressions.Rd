@@ -16,6 +16,8 @@ A list with elements:
 * `placeholders`: mapping of placeholder names to original expression strings.
 * `order_variables`: mapping of comparison variable tokens to their names.
 * `chain`: result of [bdd_restrict_chain()] with ordering constraints applied.
+  Its `reduced_expression` strings use the translated placeholder names in
+  C++ syntax; the original R expressions are not substituted back into them.
 }
 \description{
 Converts one or more R expressions to C++ style logical strings using

@@ -57,11 +57,13 @@ extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in
         }
 
         auto bdd_summary = [&](const BDD &bdd, const std::vector<std::string> &initial_vars) {
-            SEXP entry = PROTECT(Rf_allocVector(VECSXP, 3));
-            SEXP names = PROTECT(Rf_allocVector(STRSXP, 3));
+            std::string reduced_expression = rcudd::bdd_expression(bdd, idx_to_name);
+            SEXP entry = PROTECT(Rf_allocVector(VECSXP, 4));
+            SEXP names = PROTECT(Rf_allocVector(STRSXP, 4));
             SET_STRING_ELT(names, 0, Rf_mkChar("constant"));
             SET_STRING_ELT(names, 1, Rf_mkChar("variables"));
             SET_STRING_ELT(names, 2, Rf_mkChar("initial_variables"));
+            SET_STRING_ELT(names, 3, Rf_mkChar("reduced_expression"));
             Rf_setAttrib(entry, R_NamesSymbol, names);
 
             SEXP constant = PROTECT(Rf_allocVector(LGLSXP, 1));
@@ -95,6 +97,7 @@ extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in
                 SET_STRING_ELT(initial, i, Rf_mkChar(initial_vars[i].c_str()));
             }
             SET_VECTOR_ELT(entry, 2, initial);
+            SET_VECTOR_ELT(entry, 3, Rf_mkString(reduced_expression.c_str()));
 
             UNPROTECT(4);
             return entry;

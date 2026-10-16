@@ -167,9 +167,12 @@ cpp_logic_from_expressions <- function(exprs, use_placeholders = TRUE) {
       ))
     }
 
-    # Keep placeholder naming deterministic so equivalent comparisons reuse the
-    # same token order regardless of how the operands were written.
+    # Register new operands deterministically, then orient the pair by token
+    # names, just as order_constraints() does. Encounter order can assign a
+    # later token to a lexically earlier operand; n10 also sorts before n2.
     ordered_names <- sort(c(lhs_name, rhs_name))
+    ordered_tokens <- vapply(ordered_names, token_for_variable, character(1L), USE.NAMES = FALSE)
+    ordered_names <- ordered_names[order(ordered_tokens)]
     left <- ordered_names[[1L]]
     right <- ordered_names[[2L]]
 

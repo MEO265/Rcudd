@@ -1,0 +1,50 @@
+# Native exporter tests do not require Rwbo; the script integration tests run it.
+test_that("native export keeps CUDD indices separate from names and truth rows", {
+  file <- tempfile(fileext = ".wcnf")
+  on.exit(unlink(file))
+  problem <- bdd_to_wcnf("(z & !z) | (b ^ a)", file, max_operators = 3L)
+  expect_s3_class(problem, "rwbo_formula_problem")
+  expect_identical(problem$variables, c("a", "b"))
+  expect_identical(problem$variable_indices, c(2L, 1L))
+  expect_identical(problem$inputs, expand.grid(a = c(FALSE, TRUE), b = c(FALSE, TRUE),
+                                             KEEP.OUT.ATTRS = FALSE))
+  expect_identical(problem$target, xor(problem$inputs$a, problem$inputs$b))
+  expect_null(problem$bdd_expression)
+  expect_match(problem$encoding, "native CUDD", fixed = TRUE)
+  lines <- readLines(file)
+  expect_equal(length(lines) - 1L, problem$nclauses)
+  expect_true(all(grepl(" 0$", lines[-1L])))
+})
+
+test_that("native export supports constant and UTF-8 variable shortcuts", {
+  file <- tempfile()
+  on.exit(unlink(file))
+  for (value in c("true", "false", "x", "\u00e4")) {
+    problem <- bdd_to_wcnf(value, file, max_operators = 0L)
+    expect_identical(problem$shortcut, value)
+    expect_length(problem$gates, 0L)
+    expect_identical(problem$nclauses, 2L)
+    expect_identical(readLines(file), c("p wcnf 1 2 2", "2 1 0", "1 1 0"))
+  }
+  problem <- bdd_to_wcnf("!x", file, max_operators = 0L)
+  expect_null(problem$shortcut)
+  expect_identical(readLines(file), c("p wcnf 1 3 2", "2 1 0", "2 -1 0", "1 1 0"))
+})
+
+test_that("resource checks precede allocations and output changes", {
+  file <- tempfile()
+  on.exit(unlink(file))
+  writeLines("sentinel", file)
+  # Exact count is 496; coarse lower bound is smaller than this requested limit.
+  expect_error(bdd_to_wcnf("a ^ b", file, 3L, max_clauses = 490L), "Clause limit")
+  expect_identical(readLines(file), "sentinel")
+  expect_error(bdd_to_wcnf("a ^ b", file, 1000000L), "Clause limit")
+  expect_identical(readLines(file), "sentinel")
+  expect_error(bdd_to_wcnf("a ^ b", file, max_variables = 1L), "truth-table limit")
+  expect_error(bdd_to_wcnf("a", file, max_operators = -1L), "whole number")
+  expect_error(bdd_to_wcnf("a", file, max_operators = Inf), "whole number")
+  expect_error(bdd_to_wcnf("a", file, max_clauses = NA_real_), "whole number")
+  expect_error(bdd_to_wcnf(NA_character_, file), "non-missing string")
+  expect_error(bdd_to_wcnf("a &", file), "Unexpected end")
+  expect_error(bdd_to_wcnf("a", file.path(tempfile(), "missing.wcnf")), "Cannot open")
+})

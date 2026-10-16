@@ -8,3 +8,5 @@ README.*
 !README.md
 !README.Rmd
 *.Rcheck
+/.rwbo-test/
+/rwbo-output/

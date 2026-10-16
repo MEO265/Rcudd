@@ -76,6 +76,24 @@ int main(int argc, char **argv) {
     must_throw([&] { rcudd::write_bdd_wcnf(root, names, fixture, options); });
     options.max_operators = 3;
     must_throw([&] { rcudd::write_bdd_wcnf(root, names, "", options); });
+    options.max_operators = 1;
+    auto negation = rcudd::write_bdd_wcnf(!a, names, directory + "/native-not.wcnf", options);
+    const auto &gate = negation.gates[0];
+    std::vector<bool> selected(negation.nvars + 1, false);
+    for (int id : {gate.kind[4], gate.left[2], gate.left_value[1], gate.out[0]}) selected[id] = true;
+    std::string output = "s OPTIMUM FOUND\no 1\nv";
+    for (int id = 1; id <= negation.nvars; ++id) output += " " + std::to_string(selected[id] ? id : -id);
+    output += " 0\n";
+    const auto solution = rcudd::interpret_rwbo_output(negation, output);
+    assert(solution.verified && solution.optimal && solution.expression == "!a" && solution.operator_count == 1);
+    const auto unknown = rcudd::interpret_rwbo_output(negation, "s UNKNOWN");
+    assert(!unknown.verified && !unknown.optimal && !unknown.has_expression);
+    auto corrupt = negation; corrupt.gates[0].left[0] = negation.nvars + 1;
+    must_throw([&] { rcudd::interpret_rwbo_output(corrupt, output); });
+    corrupt = constant; corrupt.shortcut = "true";
+    must_throw([&] { rcudd::interpret_rwbo_output(corrupt, ""); });
+    auto trivial = rcudd::interpret_rwbo_output(constant, "");
+    assert(trivial.verified && trivial.optimal && trivial.expression == "false");
     std::cout << "Native existing-BDD/reordering/complement/resource checks passed.\n";
     return 0;
 }

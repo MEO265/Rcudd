@@ -59,5 +59,23 @@ WcnfProblem write_bdd_wcnf(const BDD &root,
                            const std::string &wcnf_file,
                            const WcnfOptions &options = WcnfOptions());
 
+struct WcnfSolution {
+    bool has_expression = false;
+    std::string expression;
+    int operator_count = -1;
+    bool optimal = false;
+    bool verified = false;
+    std::string status = "UNKNOWN";
+};
+
+// Interpret the solver's complete stdout (not a filename). Validates metadata,
+// complete signed model, WCNF hard clauses/objective and the decoded tree on
+// all target rows. Throws on invalid metadata/model/objective/clauses. UNKNOWN,
+// UNSAT and missing models return an unverified result without an expression.
+// Expects complete output lines, as returned by the corrected Rwbo wrapper.
+// OPTIMUM FOUND yields optimal=true only after all validation succeeds;
+// validated zero-cost BDD shortcuts are directly proven without solver output.
+WcnfSolution interpret_rwbo_output(const WcnfProblem &problem,
+                                    const std::string &output);
 } // namespace rcudd
 #endif

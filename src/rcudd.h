@@ -9,6 +9,7 @@
 
 extern "C" SEXP bdd_remaining_literals(SEXP expr_in);
 extern "C" SEXP bdd_wcnf_expression(SEXP, SEXP, SEXP, SEXP, SEXP);
+extern "C" SEXP interpret_rwbo_expression(SEXP, SEXP);
 extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in);
 
 #ifdef __cplusplus

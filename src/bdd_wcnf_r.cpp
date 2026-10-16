@@ -121,3 +121,127 @@ extern "C" SEXP bdd_wcnf_expression(SEXP expr_in, SEXP file_in, SEXP operators_i
     }
     return R_NilValue;
 }
+namespace {
+SEXP field(SEXP list, const char *key) {
+    if (TYPEOF(list) != VECSXP) throw std::invalid_argument("Problem/gate metadata must be a named list.");
+    SEXP names = Rf_getAttrib(list, R_NamesSymbol);
+    if (TYPEOF(names) != STRSXP || XLENGTH(names) != XLENGTH(list))
+        throw std::invalid_argument("Problem/gate metadata must have names.");
+    SEXP result = R_NilValue;
+    bool found = false;
+    for (R_xlen_t i = 0; i < XLENGTH(list); ++i) {
+        if (STRING_ELT(names, i) == NA_STRING) throw std::invalid_argument("Metadata field names cannot be missing.");
+        if (std::string(CHAR(STRING_ELT(names, i))) == key) {
+            if (found) throw std::invalid_argument("Duplicate metadata field.");
+            found = true; result = VECTOR_ELT(list, i);
+        }
+    }
+    if (!found) throw std::invalid_argument(std::string("Missing metadata field: ") + key);
+    return result;
+}
+std::vector<int> sat_ids(SEXP value, std::size_t expected, unsigned int nvars) {
+    if (TYPEOF(value) != INTSXP || XLENGTH(value) != static_cast<R_xlen_t>(expected) || expected > nvars)
+        throw std::invalid_argument("Invalid gate metadata dimensions/type.");
+    std::vector<int> result(expected);
+    for (std::size_t i = 0; i < expected; ++i) {
+        const int id = INTEGER(value)[i];
+        if (id == NA_INTEGER || id < 1 || static_cast<unsigned int>(id) > nvars)
+            throw std::invalid_argument("Invalid gate SAT-id metadata.");
+        result[i] = id;
+    }
+    return result;
+}
+rcudd::WcnfProblem from_r_problem(SEXP input) {
+    rcudd::WcnfProblem p;
+    p.max_operators = scalar_bound(field(input, "max_operators"), "max_operators", 0);
+    p.lower_bound = scalar_bound(field(input, "lower_bound"), "lower_bound", 0);
+    p.nvars = static_cast<int>(scalar_bound(field(input, "nvars"), "nvars", 1));
+    p.nclauses = scalar_bound(field(input, "nclauses"), "nclauses", 1);
+    SEXP names = field(input, "variables");
+    if (TYPEOF(names) != STRSXP || XLENGTH(names) > 20)
+        throw std::invalid_argument("Invalid essential variable metadata.");
+    const std::size_t n = static_cast<std::size_t>(XLENGTH(names));
+    for (std::size_t i = 0; i < n; ++i) {
+        if (STRING_ELT(names, i) == NA_STRING) throw std::invalid_argument("Essential variable names cannot be missing.");
+        p.variables.emplace_back(Rf_translateCharUTF8(STRING_ELT(names, i)));
+    }
+    SEXP indices = field(input, "variable_indices");
+    if (TYPEOF(indices) != INTSXP || XLENGTH(indices) != static_cast<R_xlen_t>(n))
+        throw std::invalid_argument("Invalid variable-index metadata.");
+    for (std::size_t i = 0; i < n; ++i) {
+        if (INTEGER(indices)[i] == NA_INTEGER || INTEGER(indices)[i] < 0)
+            throw std::invalid_argument("Invalid variable-index metadata.");
+        p.variable_indices.push_back(static_cast<unsigned int>(INTEGER(indices)[i]));
+    }
+    const std::size_t rows = std::size_t(1) << n;
+    SEXP target = field(input, "target");
+    if (TYPEOF(target) != LGLSXP || XLENGTH(target) != static_cast<R_xlen_t>(rows))
+        throw std::invalid_argument("Invalid target metadata dimensions/type.");
+    p.target.reserve(rows);
+    for (std::size_t i = 0; i < rows; ++i) {
+        if (LOGICAL(target)[i] == NA_LOGICAL) throw std::invalid_argument("Target metadata cannot contain NA.");
+        p.target.push_back(LOGICAL(target)[i] != 0);
+    }
+    SEXP file = field(input, "wcnf_file");
+    scalar_string(file, "wcnf_file");
+    p.wcnf_file = Rf_translateChar(STRING_ELT(file, 0));
+    SEXP shortcut = field(input, "shortcut");
+    if (shortcut != R_NilValue) { p.has_shortcut = true; p.shortcut = scalar_string(shortcut, "shortcut"); }
+    SEXP gates = field(input, "gates");
+    if (TYPEOF(gates) != VECSXP || XLENGTH(gates) > p.nvars ||
+        (XLENGTH(gates) && XLENGTH(gates) != p.max_operators))
+        throw std::invalid_argument("Invalid gate-count metadata.");
+    if (XLENGTH(gates)) {
+        const std::uint64_t k = static_cast<std::uint64_t>(XLENGTH(gates));
+        const std::uint64_t expected_ids = k * (5 + 2 * (n + 2) + 3 * rows) + k * (k - 1);
+        if (expected_ids != static_cast<std::uint64_t>(p.nvars))
+            throw std::invalid_argument("SAT-variable count does not match gate metadata.");
+    }
+    p.gates.resize(static_cast<std::size_t>(XLENGTH(gates)));
+    for (std::size_t i = 0; i < p.gates.size(); ++i) {
+        SEXP gate = VECTOR_ELT(gates, i);
+        rcudd::WcnfGate &out = p.gates[i];
+        SEXP kinds = field(gate, "kind");
+        const auto ids = sat_ids(kinds, 5, p.nvars);
+        const char *kind_names[] = {"unused", "and", "or", "xor", "not"};
+        SEXP labels = Rf_getAttrib(kinds, R_NamesSymbol);
+        if (TYPEOF(labels) != STRSXP || XLENGTH(labels) != 5)
+            throw std::invalid_argument("Invalid operator-name metadata.");
+        for (int j = 0; j < 5; ++j) {
+            if (STRING_ELT(labels, j) == NA_STRING || std::string(CHAR(STRING_ELT(labels, j))) != kind_names[j])
+                throw std::invalid_argument("Invalid operator-name metadata.");
+            out.kind[j] = ids[j];
+        }
+        out.left = sat_ids(field(gate, "left"), n + 2 + i, p.nvars);
+        out.right = sat_ids(field(gate, "right"), n + 2 + i, p.nvars);
+        out.left_value = sat_ids(field(gate, "left_value"), rows, p.nvars);
+        out.right_value = sat_ids(field(gate, "right_value"), rows, p.nvars);
+        out.out = sat_ids(field(gate, "out"), rows, p.nvars);
+    }
+    return p;
+}
+} // namespace
+
+extern "C" SEXP interpret_rwbo_expression(SEXP problem_in, SEXP output_in) {
+    try {
+        const rcudd::WcnfProblem problem = from_r_problem(problem_in);
+        if (TYPEOF(output_in) != STRSXP || XLENGTH(output_in) != 1 || STRING_ELT(output_in, 0) == NA_STRING)
+            throw std::invalid_argument("Solver output must be a non-missing character scalar.");
+        const std::string output(Rf_translateCharUTF8(STRING_ELT(output_in, 0)));
+        const rcudd::WcnfSolution solution = rcudd::interpret_rwbo_output(problem, output);
+        SEXP result = PROTECT(Rf_allocVector(VECSXP, 6));
+        name_list(result, {"expression", "operator_count", "optimal", "verified", "status", "wcnf_file"});
+        if (solution.has_expression) SET_VECTOR_ELT(result, 0, strings({solution.expression}));
+        else SET_VECTOR_ELT(result, 0, Rf_ScalarString(NA_STRING));
+        SET_VECTOR_ELT(result, 1, Rf_ScalarInteger(solution.operator_count < 0 ? NA_INTEGER : solution.operator_count));
+        SET_VECTOR_ELT(result, 2, Rf_ScalarLogical(solution.optimal));
+        SET_VECTOR_ELT(result, 3, Rf_ScalarLogical(solution.verified));
+        SET_VECTOR_ELT(result, 4, strings({solution.status}));
+        SET_VECTOR_ELT(result, 5, field(problem_in, "wcnf_file"));
+        UNPROTECT(1);
+        return result;
+    } catch (const std::exception &error) {
+        Rf_error("Failed to interpret Rwbo output: %s", error.what());
+    }
+    return R_NilValue;
+}

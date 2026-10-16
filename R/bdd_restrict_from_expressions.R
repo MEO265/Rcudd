@@ -1,7 +1,7 @@
 #' Build a BDD restriction chain from R expressions with ordering constraints
 #'
 #' Converts one or more R expressions to C++ style logical strings using
-#' [cpp_logic_from_expressions()] and evaluates them with [bdd_restrict_chain()],
+#' [expressions_to_cpp_logic()] and evaluates them with [bdd_restrict_chain()],
 #' automatically supplying ordering constraints derived from placeholders for
 #' comparison operators.
 #'
@@ -16,6 +16,7 @@
 #'
 #' @examples
 #' bdd_restrict_from_expressions(list(quote(x || y < z || y >= z)))
+#' bdd_restrict_from_expressions(list(quote(b < c && a < b && a >= c)))
 #'
 #' @export
 bdd_restrict_from_expressions <- function(exprs) {

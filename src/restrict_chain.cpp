@@ -48,13 +48,12 @@ extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in
             initial_names.push_back(std::move(encountered));
         }
 
-        std::vector<BDD> constraint_bdds;
-        constraint_bdds.reserve(static_cast<std::size_t>(n_constraints));
+        BDD shared_constraints = mgr.bddOne();
         for (R_xlen_t i = 0; i < n_constraints; ++i) {
             const char *expr_c = CHAR(STRING_ELT(additional_constraints_in, i));
             std::string expr(expr_c ? expr_c : "");
-            constraint_bdds.push_back(
-                rcudd::parse_bdd_expression(expr, mgr, var_idx, idx_to_name));
+            shared_constraints = shared_constraints &
+                rcudd::parse_bdd_expression(expr, mgr, var_idx, idx_to_name);
         }
 
         auto bdd_summary = [&](const BDD &bdd, const std::vector<std::string> &initial_vars) {
@@ -102,24 +101,17 @@ extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in
         };
 
         SEXP out = PROTECT(Rf_allocVector(VECSXP, n));
+        BDD previous_constraints = mgr.bddOne();
 
         for (R_xlen_t i = 0; i < n; ++i) {
-            BDD result = bdds[static_cast<std::size_t>(i)];
-            if (i > 0) {
-                // Apply negated prior BDDs so each later expression excludes
-                // solutions that were already covered earlier in the chain.
-                for (std::size_t j = static_cast<std::size_t>(i); j-- > 0;) {
-                    result = result.Restrict(!bdds[j]);
-                }
-            }
-
-            for (const auto &constraint : constraint_bdds) {
-                result = result.Restrict(constraint);
-            }
+            const BDD &original = bdds[static_cast<std::size_t>(i)];
+            BDD context = previous_constraints & shared_constraints;
+            BDD result = original.Restrict(context);
 
             SEXP entry = bdd_summary(result, initial_names[static_cast<std::size_t>(i)]);
             SET_VECTOR_ELT(out, i, entry);
             UNPROTECT(1); // entry
+            previous_constraints = previous_constraints & !bdds[static_cast<std::size_t>(i)];
         }
 
         UNPROTECT(1);

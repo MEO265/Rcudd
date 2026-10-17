@@ -50,6 +50,8 @@ check_solver_case <- function(variables, target, minimum) {
     isTRUE(result$optimization$verified),
     isTRUE(result$optimization$optimal),
     result$optimization$operator_count_after == minimum,
+    result$optimization$cost_after == 2L * minimum,
+    result$optimization$cost_after < result$optimization$cost_before,
     count_xor(result$reduced_expression) == 2L,
     identical(result$variables, bdd_literals(result$reduced_cpp_expression)$variables)
   )
@@ -93,6 +95,8 @@ stopifnot(
   identical(proxy$variables, "p2"),
   proxy$optimization$operator_count_before == 1L,
   proxy$optimization$operator_count_after == 0L,
+  proxy$optimization$cost_before == 1L,
+  proxy$optimization$cost_after == 0L,
   isTRUE(proxy$optimization$applied),
   isTRUE(proxy$optimization$verified),
   isTRUE(proxy$optimization$optimal),

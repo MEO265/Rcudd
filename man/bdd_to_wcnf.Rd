@@ -38,8 +38,9 @@ to avoid rendering a potentially very large expression.
 \description{
 Builds a BDD once and delegates to the native exporter, which evaluates the
 existing CUDD graph directly. It writes a weighted CNF problem minimizing the
-number of binary AND (\code{&}), OR (\code{|}), XOR (\code{^}) and unary NOT (\code{!}) operators
-in a formula tree. This function exports the problem; it does not run Rwbo.
+cost of a formula tree: unary NOT (\code{!}) costs one; binary AND (\code{&}), OR (\code{|})
+and XOR (\code{^}) cost two each. This function exports the problem; it does not
+run Rwbo.
 }
 \details{
 The encoding has \code{2^n} rows for the union of expression and context variables,
@@ -47,10 +48,11 @@ even when the BDD is
 compact. Exact clause and SAT-variable bounds are checked before large
 allocations or file writes. Clauses are streamed to disk. Each active
 non-root gate has exactly one consumer, so shared subexpressions incur their
-complete printed cost. Once an optimum within the bound is proved by a
-MaxSAT solver, every cheaper formula also fits: the optimum is global for
-this operator set, cost and variable pool, with equivalence restricted to
-\code{care}. UNSAT only excludes formulas within the bound.
+complete printed cost. The bound limits operator count, independently of
+cost. A proved MaxSAT optimum is optimal within this bound. It is also global
+when its cost is at most \code{max_operators + 1}: every strictly cheaper formula
+then fits, since each operator costs at least one. Equivalence is restricted
+to \code{care}. UNSAT only excludes formulas within the bound.
 
 Constants and positive variables have zero-cost shortcuts. A tiny WCNF still
 includes a soft clause for compatibility with Open-WBO 0.1.2. A bound below

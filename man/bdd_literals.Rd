@@ -41,10 +41,13 @@ With \code{use_rwbo > 0}, a verified improvement may also contain \code{^}. An
 \code{solver_error}, \code{invalid_output} or \code{not_improved}. The R-expression
 interface also returns this list with status \code{disabled} when RWBO is off.
 \item \code{applied}: whether a solver formula replaced the BDD result.
-\item \code{operator_count_before}, \code{operator_count_after}: Boolean operator costs
-of the BDD expression and the returned formula.
+\item \code{operator_count_before}, \code{operator_count_after}: numbers of Boolean operators
+in the BDD expression and the returned formula.
+\item \code{cost_before}, \code{cost_after}: weighted costs with unary \code{!} costing 1 and
+binary operators costing 2.
 \item \code{verified}, \code{optimal}: validity and minimality established by a checked
-model or a direct BDD proof. A verified candidate need not be optimal.
+model or a direct BDD proof. Solver minimality is within \code{max_operators};
+a verified candidate need not be optimal.
 \item \code{solver_status}, \code{message}: solver status and a brief diagnostic, or \code{NA}.
 }
 }
@@ -64,8 +67,8 @@ syntax as the input. It represents the same boolean function, but is not
 guaranteed to be the shortest expression. Rendering can expand a compact BDD
 into a larger string.
 
-Optional synthesis uses one unit per binary \code{&}, \code{|}, \code{^} or unary \code{!} in
-a formula tree, including repeated subexpressions. It searches for strictly
+Optional synthesis assigns cost 1 to unary \code{!} and cost 2 to binary \code{&}, \code{|}
+and \code{^} in a formula tree, including repeated subexpressions. It searches for strictly
 cheaper formulas within the operator bound. Proven minima are skipped;
 without a context, other formulas without repeated variables are also
 skipped as a heuristic. Resource limits, missing Rwbo and solver failures

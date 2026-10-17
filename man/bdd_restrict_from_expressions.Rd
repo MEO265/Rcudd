@@ -41,8 +41,8 @@ constraints and the negations of all earlier expressions in the chain.
 \code{reachable} reports whether context AND condition is satisfiable. Thus a
 reachable context with a false condition differs from an unreachable
 context. Each entry has an \code{optimization} diagnostic, including when RWBO
-is disabled; see \code{\link[=bdd_literals]{bdd_literals()}} for its fields. Operator costs count
-the Boolean formula before conversion back to R comparisons.
+is disabled; see \code{\link[=bdd_literals]{bdd_literals()}} for its fields. Operator counts and costs
+refer to the Boolean formula before conversion back to R comparisons.
 }
 }
 \description{

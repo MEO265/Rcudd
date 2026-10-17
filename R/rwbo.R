@@ -62,11 +62,19 @@
   if (hits[[1L]] == -1L) 0L else length(hits)
 }
 
+.rwbo_operator_cost <- function(expr) {
+  operators <- regmatches(expr, gregexpr("[!&|^]", expr, perl = TRUE))[[1L]]
+  # Use doubles for arithmetic: a long formula's weighted cost can exceed an R integer.
+  sum(ifelse(operators == "!", 1, 2))
+}
+
 .rwbo_diagnostic <- function(status, before, after = before, applied = FALSE,
                              verified = FALSE, optimal = FALSE,
-                             solver_status = NA_character_, message = NA_character_) {
+                             solver_status = NA_character_, message = NA_character_,
+                             cost_before, cost_after = cost_before) {
   list(status = status, applied = applied,
        operator_count_before = as.integer(before), operator_count_after = as.integer(after),
+       cost_before = as.numeric(cost_before), cost_after = as.numeric(cost_after),
        verified = verified, optimal = optimal, solver_status = solver_status,
        message = .rwbo_message(message))
 }
@@ -91,10 +99,12 @@
 
   before <- prepared$operator_count
   if (is.null(before)) before <- .rwbo_operator_count(entry$reduced_expression)
+  cost_before <- prepared$cost
+  if (is.null(cost_before)) cost_before <- .rwbo_operator_cost(entry$reduced_expression)
   message <- prepared$message
   entry$optimization <- .rwbo_diagnostic(
     prepared$status, before, verified = isTRUE(prepared$optimal),
-    optimal = isTRUE(prepared$optimal), message = message
+    optimal = isTRUE(prepared$optimal), message = message, cost_before = cost_before
   )
   if (!identical(prepared$status, "prepared")) return(entry)
 
@@ -130,18 +140,25 @@
     return(entry)
   }
   count <- result$operator_count
-  if (length(count) != 1L || is.na(count) || !is.finite(count) || count < 0 ||
-      count != floor(count) ||
+  cost <- result$cost
+  valid_number <- function(value) {
+    typeof(value) %in% c("integer", "double") && !is.object(value) && is.null(dim(value)) &&
+      length(value) == 1L && !is.na(value) && is.finite(value) && value >= 0 &&
+      value == floor(value)
+  }
+  if (!valid_number(count) || count > .Machine$integer.max || !valid_number(cost) ||
       !is.character(result$expression) || length(result$expression) != 1L ||
-      is.na(result$expression) || !nzchar(result$expression)) {
+      is.na(result$expression) || !nzchar(result$expression) ||
+      count != .rwbo_operator_count(result$expression) ||
+      cost != .rwbo_operator_cost(result$expression)) {
     entry$optimization$status <- "invalid_output"
     entry$optimization$message <- "The verified result has invalid formula metadata."
     return(entry)
   }
   entry$optimization$verified <- TRUE
-  entry$optimization$optimal <- isTRUE(result$optimal) && count <= before
+  entry$optimization$optimal <- isTRUE(result$optimal) && cost <= cost_before
   entry$optimization$status <- "not_improved"
-  if (count >= before) return(entry)
+  if (cost >= cost_before) return(entry)
 
   candidate <- tryCatch(bdd_literals(result$expression), error = identity)
   if (inherits(candidate, "error")) {
@@ -156,7 +173,8 @@
   entry$variables <- candidate$variables
   entry$optimization <- .rwbo_diagnostic(
     "improved", before, count, applied = TRUE, verified = TRUE,
-    optimal = isTRUE(result$optimal), solver_status = result$status
+    optimal = isTRUE(result$optimal), solver_status = result$status,
+    cost_before = cost_before, cost_after = cost
   )
   entry
 }

@@ -25,7 +25,8 @@ and an optimization diagnostic. `TRUE` as the final input represents `else`.
 enables optional Rwbo synthesis up to that many Boolean variables, including
 context variables; `Inf` removes this filter. Logical flags are rejected.
 Independent operator, clause and time limits remain; missing Rwbo or a failed
-search retains the BDD result. See [solver examples](inst/scripts/README.md).
+search retains the BDD result. NOT costs one; AND, OR and XOR cost two each.
+See [solver examples](inst/scripts/README.md).
 
 For Boolean strings use `bdd_literals()` or `bdd_restrict_chain()`. Manual
 solver workflows use `bdd_to_wcnf()` and `interpret_rwbo_output()`.

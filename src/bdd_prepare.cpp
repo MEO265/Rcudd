@@ -28,17 +28,18 @@ unsigned int bound(SEXP config, const char *name, unsigned int minimum) {
     return static_cast<unsigned int>(number);
 }
 SEXP metadata(const char *status, const std::string &message, SEXP problem,
-              int operators, bool optimal) {
-    SEXP out = PROTECT(Rf_allocVector(VECSXP, 5));
-    SEXP names = PROTECT(Rf_allocVector(STRSXP, 5));
-    const char *labels[] = {"status", "message", "problem", "operator_count", "optimal"};
-    for (int i = 0; i < 5; ++i) SET_STRING_ELT(names, i, Rf_mkChar(labels[i]));
+              int operators, int cost, bool optimal) {
+    SEXP out = PROTECT(Rf_allocVector(VECSXP, 6));
+    SEXP names = PROTECT(Rf_allocVector(STRSXP, 6));
+    const char *labels[] = {"status", "message", "problem", "operator_count", "cost", "optimal"};
+    for (int i = 0; i < 6; ++i) SET_STRING_ELT(names, i, Rf_mkChar(labels[i]));
     Rf_setAttrib(out, R_NamesSymbol, names);
     SET_VECTOR_ELT(out, 0, Rf_mkString(status));
     SET_VECTOR_ELT(out, 1, Rf_mkString(message.c_str()));
     SET_VECTOR_ELT(out, 2, problem);
     SET_VECTOR_ELT(out, 3, Rf_ScalarInteger(operators));
-    SET_VECTOR_ELT(out, 4, Rf_ScalarLogical(optimal));
+    SET_VECTOR_ELT(out, 4, Rf_ScalarInteger(cost));
+    SET_VECTOR_ELT(out, 5, Rf_ScalarLogical(optimal));
     UNPROTECT(2);
     return out;
 }
@@ -82,9 +83,16 @@ void RwboPreparation::attach(SEXP summary, const BDD &root, const BDD &care,
                             const std::string &care_expression) {
     if (!enabled) return;
     const std::string baseline(Rf_translateCharUTF8(STRING_ELT(VECTOR_ELT(summary, 3), 0)));
-    const int operators = static_cast<int>(std::count_if(baseline.begin(), baseline.end(), [](char ch) {
-        return ch == '!' || ch == '&' || ch == '|' || ch == '^';
-    }));
+    std::size_t operators_wide = 0, cost_wide = 0;
+    for (char ch : baseline) {
+        if (ch == '!' || ch == '&' || ch == '|' || ch == '^') {
+            ++operators_wide;
+            cost_wide += ch == '!' ? 1 : 2;
+        }
+    }
+    if (cost_wide > INT_MAX - 1)
+        throw std::runtime_error("Baseline operator cost exceeds supported integer limits.");
+    const int operators = static_cast<int>(operators_wide), cost = static_cast<int>(cost_wide);
     const char *status = "prepared";
     std::string message;
     bool optimal = false;
@@ -107,7 +115,7 @@ void RwboPreparation::attach(SEXP summary, const BDD &root, const BDD &care,
             status = "variable_limit"; message = "Expression and context exceed the variable limit.";
         } else try {
             WcnfOptions bounded = options;
-            bounded.max_operators = std::min(options.max_operators, static_cast<unsigned int>(operators - 1));
+            bounded.max_operators = std::min(options.max_operators, static_cast<unsigned int>(cost - 1));
             const auto native = write_bdd_wcnf(root, care, names,
                 directory + "/formula-" + std::to_string(++counter) + ".wcnf", bounded);
             SEXP expr = PROTECT(Rf_ScalarString(Rf_mkCharCE(original.c_str(), CE_UTF8)));
@@ -120,7 +128,7 @@ void RwboPreparation::attach(SEXP summary, const BDD &root, const BDD &care,
             status = "resource_limit"; message = error.what();
         }
     }
-    SEXP value = PROTECT(metadata(status, message, has_problem ? VECTOR_ELT(problem, 0) : R_NilValue, operators, optimal));
+    SEXP value = PROTECT(metadata(status, message, has_problem ? VECTOR_ELT(problem, 0) : R_NilValue, operators, cost, optimal));
     Rf_setAttrib(summary, Rf_install("rwbo"), value);
     UNPROTECT(2);
 }

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -85,15 +86,15 @@ int main(int argc, char **argv) {
     for (int id = 1; id <= negation.nvars; ++id) output += " " + std::to_string(selected[id] ? id : -id);
     output += " 0\n";
     const auto solution = rcudd::interpret_rwbo_output(negation, output);
-    assert(solution.verified && solution.optimal && solution.expression == "!a" && solution.operator_count == 1);
+    assert(solution.verified && solution.optimal && solution.expression == "!a" && solution.operator_count == 1 && solution.cost == 1);
     const auto unknown = rcudd::interpret_rwbo_output(negation, "s UNKNOWN");
-    assert(!unknown.verified && !unknown.optimal && !unknown.has_expression);
+    assert(!unknown.verified && !unknown.optimal && !unknown.has_expression && unknown.cost == -1);
     auto corrupt = negation; corrupt.gates[0].left[0] = negation.nvars + 1;
     must_throw([&] { rcudd::interpret_rwbo_output(corrupt, output); });
     corrupt = constant; corrupt.shortcut = "true";
     must_throw([&] { rcudd::interpret_rwbo_output(corrupt, ""); });
     auto trivial = rcudd::interpret_rwbo_output(constant, "");
-    assert(trivial.verified && trivial.optimal && trivial.expression == "false");
+    assert(trivial.verified && trivial.optimal && trivial.expression == "false" && trivial.cost == 0);
 
     // A context variable can be a cheaper equivalent proxy for the root.
     const BDD proxy_care = !(c ^ (a & b));
@@ -129,12 +130,30 @@ int main(int argc, char **argv) {
         xor_selected[xor_gate.right_value[row]] = contextual.input(row, 1);
         xor_selected[xor_gate.out[row]] = contextual.input(row, 0) != contextual.input(row, 1);
     }
-    std::string xor_output = "s OPTIMUM FOUND\no 1\nv";
+    std::string xor_output = "s OPTIMUM FOUND\no 2\nv";
     for (int id = 1; id <= contextual.nvars; ++id)
         xor_output += " " + std::to_string(xor_selected[id] ? id : -id);
     xor_output += " 0\n";
     const auto xor_solution = rcudd::interpret_rwbo_output(contextual, xor_output);
     assert(xor_solution.verified && xor_solution.optimal && xor_solution.expression == "a ^ b");
+    assert(xor_solution.operator_count == 1 && xor_solution.cost == 2);
+    auto bad_cost = xor_output;
+    bad_cost.replace(bad_cost.find("o 2"), 3, "o 1");
+    must_throw([&] { rcudd::interpret_rwbo_output(contextual, bad_cost); });
+    std::ifstream wcnf(contextual.wcnf_file);
+    std::string line;
+    std::getline(wcnf, line);
+    assert(line == "p wcnf " + std::to_string(contextual.nvars) + " " +
+                   std::to_string(contextual.nclauses) + " 3");
+    unsigned int soft = 0;
+    while (std::getline(wcnf, line)) {
+        std::istringstream clause(line);
+        int weight;
+        clause >> weight;
+        assert(weight == 1 || weight == 3);
+        soft += weight == 1;
+    }
+    assert(soft == 2);
     auto invalid_care = contextual; invalid_care.care.pop_back();
     must_throw([&] { rcudd::interpret_rwbo_output(invalid_care, xor_output); });
     Cudd other_manager;

@@ -14,6 +14,7 @@ test_that("native interpretation validates and decodes a complete formula", {
   result <- interpret_rwbo_output(case$problem, case$output)
   expect_identical(result$expression, "!x")
   expect_identical(result$operator_count, 1L)
+  expect_identical(result$cost, 1L)
   expect_true(result$verified)
   expect_true(result$optimal)
   candidate <- interpret_rwbo_output(case$problem, sub("OPTIMUM FOUND", "SATISFIABLE", case$output))
@@ -24,6 +25,8 @@ test_that("native interpretation validates and decodes a complete formula", {
     expect_false(missing$verified)
     expect_false(missing$optimal)
     expect_true(is.na(missing$expression))
+    expect_true(is.na(missing$cost))
+    expect_true(is.na(missing$operator_count))
   }
 })
 
@@ -41,7 +44,7 @@ test_that("malformed models, objective values and WCNF files fail", {
   expect_error(interpret_rwbo_output(case$problem, sub("o 1", "o 1.5", case$output)), "Invalid integer")
   lines <- readLines(case$problem$wcnf_file)
   corrupted <- lines
-  corrupted[[2L]] <- paste(2L, -case$problem$gates[[1L]]$kind[["not"]], 0L)
+  corrupted[[2L]] <- paste(3L, -case$problem$gates[[1L]]$kind[["not"]], 0L)
   writeLines(corrupted, case$problem$wcnf_file)
   expect_error(interpret_rwbo_output(case$problem, case$output), "hard clause")
   writeLines(lines[-length(lines)], case$problem$wcnf_file)
@@ -98,6 +101,7 @@ test_that("contextual shortcuts are verified against original conditions and con
   expect_true(result$verified)
   expect_true(result$optimal)
   expect_identical(result$operator_count, 0L)
+  expect_identical(result$cost, 0L)
   bad <- problem; bad$care_expression <- "true"
   expect_error(interpret_rwbo_output(bad, ""), "BDD equivalence")
   bad <- problem; bad$care[[1L]] <- NA
@@ -139,12 +143,36 @@ test_that("context leaves all gate semantics constrained outside its root rows",
                 gate$left_value[problem$inputs$a], gate$right_value[problem$inputs$b],
                 gate$out[problem$target])
   model[positive] <- positive
-  output <- function(model) paste("s OPTIMUM FOUND\no 1\nv", paste(model, collapse = " "), "0")
+  output <- function(model) paste("s OPTIMUM FOUND\no 2\nv", paste(model, collapse = " "), "0")
   result <- interpret_rwbo_output(problem, output(model))
   expect_identical(result$expression, "a ^ b")
+  expect_identical(result$operator_count, 1L)
+  expect_identical(result$cost, 2L)
   expect_true(result$optimal)
+  expect_error(interpret_rwbo_output(problem, sub("o 2", "o 1", output(model))), "cost does not match")
   outside <- which(!problem$care)[[1L]]
   id <- gate$out[[outside]]
   model[[id]] <- -model[[id]]
   expect_error(interpret_rwbo_output(problem, output(model)), "hard clause")
+})
+
+test_that("the interpreter rejects weights or costs inconsistent with the objective", {
+  case <- make_not_case()
+  on.exit(unlink(case$problem$wcnf_file))
+  lines <- readLines(case$problem$wcnf_file)
+  bad <- lines
+  bad[[length(bad) - 1L]] <- sub("^1 ", "2 ", bad[[length(bad) - 1L]])
+  writeLines(bad, case$problem$wcnf_file)
+  expect_error(interpret_rwbo_output(case$problem, case$output), "clause weight")
+  bad <- lines
+  bad[[1L]] <- sub(" 3$", " 2", bad[[1L]])
+  writeLines(bad, case$problem$wcnf_file)
+  expect_error(interpret_rwbo_output(case$problem, case$output), "does not match the saved problem")
+  # A satisfied replacement soft clause hides the NOT cost in the file. The
+  # decoded operator costs still reject this forged objective and solver cost.
+  bad <- lines
+  bad[[length(bad) - 1L]] <- tail(lines, 1L)
+  writeLines(bad, case$problem$wcnf_file)
+  expect_error(interpret_rwbo_output(case$problem, sub("o 1", "o 0", case$output)),
+               "cost does not match the decoded formula")
 })

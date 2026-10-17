@@ -50,6 +50,12 @@ public:
         ++count;
     }
     void soft(int literal) { stream << "1 " << literal << " 0\n"; ++count; }
+    void soft(std::initializer_list<int> literals) {
+        stream << "1";
+        for (int literal : literals) stream << ' ' << literal;
+        stream << " 0\n";
+        ++count;
+    }
     template <typename Container> void at_most_one(const Container &ids) {
         for (std::size_t i = 0; i < ids.size(); ++i)
             for (std::size_t j = i + 1; j < ids.size(); ++j) hard({-ids[i], -ids[j]});
@@ -150,10 +156,10 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
         // A cheap lower bound rejects huge k before a gate-count loop/allocation.
         const Count per_rows = add(mul(12, k), add(mul(mul(2, inputs), k),
                                                 mul(mul(2, k), k - 1)));
-        check_clauses(add(add(mul(rows, per_rows), cared_rows), k), options.max_clauses);
+        check_clauses(add(add(mul(rows, per_rows), cared_rows), mul(2, k)), options.max_clauses);
         variables = add(mul(k, add(5 + 2 * inputs, mul(3, rows))), mul(k, k - 1));
         if (variables > sat_limit) throw std::runtime_error("SAT variable limit exceeded.");
-        clauses = add(add(cared_rows, k), p.lower_bound); // root, soft, lower bound
+        clauses = add(add(cared_rows, mul(2, k)), p.lower_bound); // root, soft, lower bound
         for (Count i = 0; i < k; ++i) {
             const Count sources = inputs + i, remaining = k - i - 1;
             clauses = add(clauses, add(15 + 3 * sources, mul(3, pairs(sources))));
@@ -195,7 +201,7 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
         g.left_value = fresh(rows); g.right_value = fresh(rows); g.out = fresh(rows);
     }
     if (next_id != p.nvars) throw std::runtime_error("Internal SAT variable-count mismatch.");
-    Writer out(path, p.nvars, clauses, k + 1);
+    Writer out(path, p.nvars, clauses, 2 * k + 1);
     for (std::size_t i = 0; i < p.gates.size(); ++i) {
         const WcnfGate &g = p.gates[i];
         const int unused = g.kind[0];
@@ -253,7 +259,12 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
     const std::vector<int> &root_out = p.gates.back().out;
     for (std::size_t row = 0; row < rows; ++row)
         if (p.care.empty() || p.care[row]) out.hard({p.target[row] ? root_out[row] : -root_out[row]});
-    for (const WcnfGate &g : p.gates) out.soft(g.kind[0]);
+    for (const WcnfGate &g : p.gates) {
+        // Every active operator costs one; binary operators cost one more.
+        // Unit-weight clauses retain the unweighted MaxSAT formulation.
+        out.soft(g.kind[0]);
+        out.soft({g.kind[0], g.kind[4]});
+    }
     out.finish(clauses);
     return p;
 }

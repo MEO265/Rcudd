@@ -7,6 +7,7 @@ lintr_eval_boolean <- function(expr, inputs) {
 lintr_expect_optimization <- function(entry) {
   expect_named(entry$optimization, c(
     "status", "applied", "operator_count_before", "operator_count_after",
+    "cost_before", "cost_after",
     "verified", "optimal", "solver_status", "message"
   ), ignore.order = TRUE)
   for (field in c("status", "solver_status", "message")) {
@@ -18,7 +19,7 @@ lintr_expect_optimization <- function(entry) {
     expect_length(entry$optimization[[field]], 1L)
     expect_false(is.na(entry$optimization[[field]]), info = field)
   }
-  for (field in c("operator_count_before", "operator_count_after")) {
+  for (field in c("operator_count_before", "operator_count_after", "cost_before", "cost_after")) {
     expect_length(entry$optimization[[field]], 1L)
     expect_true(is.numeric(entry$optimization[[field]]), info = field)
     expect_gte(entry$optimization[[field]], 0, label = field)
@@ -60,6 +61,17 @@ test_that("common quoted inputs normalize to the same nonempty chain", {
   for (empty in list(list(), expression(), character())) {
     expect_error(bdd_restrict_from_expressions(empty), "exprs|empty|least one")
   }
+})
+
+test_that("disabled diagnostics count Boolean costs before R reconstruction", {
+  result <- bdd_restrict_from_expressions(quote(!flag && count > 1), use_rwbo = 0L)
+  branch <- result$chain[[1L]]
+  expect_identical(branch$optimization$status, "disabled")
+  expect_identical(branch$optimization$operator_count_before, 3L)
+  expect_identical(branch$optimization$operator_count_after, 3L)
+  expect_identical(branch$optimization$cost_before, 4)
+  expect_identical(branch$optimization$cost_after, 4)
+  lintr_expect_optimization(branch)
 })
 
 test_that("reachability distinguishes false conditions and exhausted contexts", {

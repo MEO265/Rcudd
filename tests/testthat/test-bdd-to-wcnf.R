@@ -31,12 +31,35 @@ test_that("native export supports constant and UTF-8 variable shortcuts", {
   expect_identical(readLines(file), c("p wcnf 1 3 2", "2 1 0", "2 -1 0", "1 1 0"))
 })
 
+test_that("weighted operator costs use only unit-weight soft clauses", {
+  file <- tempfile(fileext = ".wcnf")
+  on.exit(unlink(file))
+  problem <- bdd_to_wcnf("a ^ b", file, max_operators = 1L)
+  lines <- readLines(file)
+  expect_identical(lines[[1L]], "p wcnf 25 132 3")
+  expect_identical(problem$nclauses, 132L)
+  expect_identical(problem$objective, "weighted operator cost: ! = 1; &, | and ^ = 2")
+  gate <- problem$gates[[1L]]
+  expect_identical(tail(lines, 2L), c(
+    paste(1L, gate$kind[["unused"]], 0L),
+    paste(1L, gate$kind[["unused"]], gate$kind[["not"]], 0L)
+  ))
+  expect_true(all(startsWith(lines[-c(1L, length(lines) - 1L, length(lines))], "3 ")))
+
+  problem <- bdd_to_wcnf("a ^ b", file, max_operators = 3L)
+  lines <- readLines(file)
+  expect_identical(problem$nclauses, 499L)
+  weights <- as.integer(sub(" .*", "", lines[-1L]))
+  expect_true(all(weights %in% c(1L, 7L)))
+  expect_identical(sum(weights == 1L), 6L)
+})
+
 test_that("resource checks precede allocations and output changes", {
   file <- tempfile()
   on.exit(unlink(file))
   writeLines("sentinel", file)
-  # Exact count is 496; coarse lower bound is smaller than this requested limit.
-  expect_error(bdd_to_wcnf("a ^ b", file, 3L, max_clauses = 490L), "Clause limit")
+  # Exact count is 499; coarse lower bound is smaller than this requested limit.
+  expect_error(bdd_to_wcnf("a ^ b", file, 3L, max_clauses = 498L), "Clause limit")
   expect_identical(readLines(file), "sentinel")
   expect_error(bdd_to_wcnf("a ^ b", file, 1000000L), "Clause limit")
   expect_identical(readLines(file), "sentinel")

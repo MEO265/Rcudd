@@ -74,8 +74,8 @@ rwbo_main <- function(args = commandArgs(trailingOnly = TRUE)) {
   saveRDS(result, file.path(options$output_dir, "result.rds"))
   writeLines(result$solver_output, file.path(options$output_dir, "solver.log"))
   cat("Status: ", result$status, "\nExpression: ", result$expression,
-      "\nOperators: ", result$operator_count, "\nBDD equivalent: ", result$verified,
-      "\nGlobal minimum proven: ", result$optimal, "\n", sep = "")
+      "\nOperators: ", result$operator_count, "\nCost: ", result$cost, "\nBDD equivalent: ", result$verified,
+      "\nMinimum within operator bound proven: ", result$optimal, "\n", sep = "")
   if (!result$verified) {
     stop("No verified formula returned. UNSAT means no formula within --max-operators; ",
          "UNKNOWN may require a longer --time-limit.", call. = FALSE)

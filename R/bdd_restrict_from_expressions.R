@@ -37,8 +37,8 @@
 #'   `reachable` reports whether context AND condition is satisfiable. Thus a
 #'   reachable context with a false condition differs from an unreachable
 #'   context. Each entry has an `optimization` diagnostic, including when RWBO
-#'   is disabled; see [bdd_literals()] for its fields. Operator costs count
-#'   the Boolean formula before conversion back to R comparisons.
+#'   is disabled; see [bdd_literals()] for its fields. Operator counts and costs
+#'   refer to the Boolean formula before conversion back to R comparisons.
 #'
 #' @examples
 #' bdd_restrict_from_expressions(quote((x && y) || (x && !y)))$chain
@@ -73,7 +73,10 @@ bdd_restrict_from_expressions <- function(exprs, use_rwbo = 0L, rwbo_control = l
   )
   for (i in seq_along(chain)) {
     if (is.null(chain[[i]]$optimization)) {
-      chain[[i]]$optimization <- .rwbo_diagnostic("disabled", .rwbo_operator_count(reduced_cpp[[i]]))
+      chain[[i]]$optimization <- .rwbo_diagnostic(
+        "disabled", .rwbo_operator_count(reduced_cpp[[i]]),
+        cost_before = .rwbo_operator_cost(reduced_cpp[[i]])
+      )
     }
     chain[[i]]$reduced_cpp_expression <- reduced_cpp[[i]]
     chain[[i]]$reduced_expression <- reduced_r[[i]]

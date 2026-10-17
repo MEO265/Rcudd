@@ -99,7 +99,7 @@ void validate_problem(const WcnfProblem &p) {
     if (next != p.nvars) invalid("SAT-variable count does not match gate metadata.");
     const std::uint64_t k = p.gates.size(), rows = p.target.size(), inputs = n + 2;
     const auto cared_rows = p.care.empty() ? rows : std::count(p.care.begin(), p.care.end(), true);
-    std::uint64_t clauses = cared_rows + k + p.lower_bound;
+    std::uint64_t clauses = cared_rows + 2 * k + p.lower_bound;
     auto pairs = [](std::uint64_t count) { return count < 2 ? 0 : count * (count - 1) / 2; };
     for (std::uint64_t i = 0; i < k; ++i) {
         const std::uint64_t sources = inputs + i, remaining = k - i - 1;
@@ -172,7 +172,7 @@ int check_wcnf(const WcnfProblem &problem, const std::vector<std::int8_t> &value
             if (!(tokens >> token >> format >> nv >> nc >> weight) || token != "p" || format != "wcnf" ||
                 (tokens >> extra)) invalid("Invalid WCNF header.");
             top = number(weight);
-            const long long expected_top = problem.gates.empty() ? 2 : static_cast<long long>(problem.max_operators) + 1;
+            const long long expected_top = problem.gates.empty() ? 2 : 2 * static_cast<long long>(problem.max_operators) + 1;
             if (number(nv) != problem.nvars || number(nc) != static_cast<long long>(problem.nclauses) || top != expected_top)
                 invalid("The WCNF does not match the saved problem.");
             header = true;
@@ -181,7 +181,7 @@ int check_wcnf(const WcnfProblem &problem, const std::vector<std::int8_t> &value
         if (++clauses > static_cast<long long>(problem.nclauses)) invalid("WCNF clause count mismatch.");
         tokens >> token;
         const long long weight = number(token);
-        if (weight <= 0) invalid("Invalid WCNF clause weight.");
+        if (weight != 1 && weight != top) invalid("Invalid WCNF clause weight: expected unit soft or hard weight.");
         bool satisfied = false, terminated = false;
         while (tokens >> token) {
             const long long literal = number(token);
@@ -207,7 +207,7 @@ std::vector<DecodedGate> decode(const WcnfProblem &problem, const std::vector<st
     std::vector<DecodedGate> decoded(problem.gates.size());
     std::vector<int> consumers(problem.gates.size(), 0);
     bool used = false;
-    int operators = 0;
+    int decoded_cost = 0;
     auto selected = [&](const auto &ids, int expected) {
         int count = 0; std::size_t selected = 0;
         for (std::size_t i = 0; i < ids.size(); ++i) if (model[ids[i]]) { ++count; selected = i; }
@@ -222,7 +222,7 @@ std::vector<DecodedGate> decode(const WcnfProblem &problem, const std::vector<st
         item.left = selected(gate.left, item.op == 0 ? 0 : 1);
         item.right = selected(gate.right, item.op == 0 || item.op == 4 ? 0 : 1);
         if (item.op == 0) { if (used) invalid("Unused gates do not form a prefix."); continue; }
-        used = true; ++operators;
+        used = true; decoded_cost += item.op == 4 ? 1 : 2;
         if (item.op != 4 && item.left > item.right) invalid("Commutative gate sources are not ordered.");
         auto consume = [&](std::size_t source) {
             if (source >= inputs) {
@@ -233,7 +233,7 @@ std::vector<DecodedGate> decode(const WcnfProblem &problem, const std::vector<st
         };
         consume(item.left); if (item.op != 4) consume(item.right);
     }
-    if (decoded.empty() || !decoded.back().op || operators != cost)
+    if (decoded.empty() || !decoded.back().op || decoded_cost != cost)
         invalid("Solver cost does not match the decoded formula.");
     for (std::size_t i = 0; i + 1 < decoded.size(); ++i)
         if (consumers[i] != (decoded[i].op ? 1 : 0)) invalid("Decoded operators do not form a formula tree.");
@@ -298,7 +298,7 @@ WcnfSolution interpret_rwbo_output(const WcnfProblem &problem, const std::string
     WcnfSolution result;
     if (problem.has_shortcut) {
         result.has_expression = true; result.expression = problem.shortcut;
-        result.operator_count = 0; result.optimal = true; result.verified = true;
+        result.operator_count = 0; result.cost = 0; result.optimal = true; result.verified = true;
         result.status = "TRIVIAL OPTIMUM";
         return result;
     }
@@ -311,7 +311,9 @@ WcnfSolution interpret_rwbo_output(const WcnfProblem &problem, const std::string
     const std::vector<DecodedGate> gates = decode(problem, model, cost);
     verify_truth(problem, gates, model);
     result.expression = render(problem, gates);
-    result.has_expression = true; result.operator_count = cost;
+    result.has_expression = true; result.cost = cost;
+    result.operator_count = static_cast<int>(std::count_if(gates.begin(), gates.end(),
+                                                        [](const DecodedGate &gate) { return gate.op != 0; }));
     result.verified = true; result.optimal = parsed.status == "OPTIMUM FOUND";
     return result;
 }

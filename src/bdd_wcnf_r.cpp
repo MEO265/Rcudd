@@ -72,7 +72,7 @@ SEXP as_r_problem(const WcnfProblem &p, SEXP expression, SEXP care_expression) {
     SET_VECTOR_ELT(result, 4, target);
     SET_VECTOR_ELT(result, 5, Rf_ScalarInteger(p.max_operators));
     if (p.has_shortcut) SET_VECTOR_ELT(result, 6, strings({p.shortcut}));
-    SET_VECTOR_ELT(result, 7, Rf_mkString("number of &, |, ^ and ! operators in a formula"));
+    SET_VECTOR_ELT(result, 7, Rf_mkString("weighted operator cost: ! = 1; &, | and ^ = 2"));
     SET_VECTOR_ELT(result, 8, Rf_ScalarInteger(p.lower_bound));
     SET_VECTOR_ELT(result, 9, Rf_ScalarInteger(p.nvars));
     SET_VECTOR_ELT(result, 10, Rf_ScalarInteger(static_cast<int>(p.nclauses)));
@@ -280,8 +280,8 @@ extern "C" SEXP interpret_rwbo_expression(SEXP problem_in, SEXP output_in) {
         const std::string output(Rf_translateCharUTF8(STRING_ELT(output_in, 0)));
         const rcudd::WcnfSolution solution = rcudd::interpret_rwbo_output(problem, output);
         verify_expression_metadata(problem_in, problem);
-        SEXP result = PROTECT(Rf_allocVector(VECSXP, 6));
-        name_list(result, {"expression", "operator_count", "optimal", "verified", "status", "wcnf_file"});
+        SEXP result = PROTECT(Rf_allocVector(VECSXP, 7));
+        name_list(result, {"expression", "operator_count", "optimal", "verified", "status", "wcnf_file", "cost"});
         if (solution.has_expression) SET_VECTOR_ELT(result, 0, strings({solution.expression}));
         else SET_VECTOR_ELT(result, 0, Rf_ScalarString(NA_STRING));
         SET_VECTOR_ELT(result, 1, Rf_ScalarInteger(solution.operator_count < 0 ? NA_INTEGER : solution.operator_count));
@@ -289,6 +289,7 @@ extern "C" SEXP interpret_rwbo_expression(SEXP problem_in, SEXP output_in) {
         SET_VECTOR_ELT(result, 3, Rf_ScalarLogical(solution.verified));
         SET_VECTOR_ELT(result, 4, strings({solution.status}));
         SET_VECTOR_ELT(result, 5, field(problem_in, "wcnf_file"));
+        SET_VECTOR_ELT(result, 6, Rf_ScalarInteger(solution.cost < 0 ? NA_INTEGER : solution.cost));
         UNPROTECT(1);
         return result;
     } catch (const std::exception &error) {

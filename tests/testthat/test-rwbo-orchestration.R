@@ -1,18 +1,24 @@
 rwbo_internal <- function(name) getFromNamespace(name, "Rcudd")
 
-rwbo_prepared_entry <- function(before = 5L) {
+rwbo_prepared_entry <- function(expression = "(a & !b) | (!a & b)") {
   entry <- list(constant = NA, variables = c("a", "b"),
                 initial_variables = c("a", "b", "z"),
-                reduced_expression = "(a & !b) | (!a & b)",
+                reduced_expression = expression,
                 context_reachable = TRUE, reachable = TRUE)
-  attr(entry, "rwbo") <- list(status = "prepared", message = "", operator_count = before,
-                               optimal = FALSE, problem = list(wcnf_file = "unused.wcnf"))
+  attr(entry, "rwbo") <- list(
+    status = "prepared", message = "",
+    operator_count = rwbo_internal(".rwbo_operator_count")(expression),
+    cost = rwbo_internal(".rwbo_operator_cost")(expression),
+    optimal = FALSE, problem = list(wcnf_file = "unused.wcnf")
+  )
   entry
 }
 
-rwbo_decoded <- function(cost = 1L, optimal = TRUE, verified = TRUE,
-                          expression = "a ^ b", status = "OPTIMUM FOUND") {
-  list(expression = expression, operator_count = cost, optimal = optimal,
+rwbo_decoded <- function(expression = "a ^ b", optimal = TRUE, verified = TRUE,
+                          cost = rwbo_internal(".rwbo_operator_cost")(expression),
+                          operator_count = rwbo_internal(".rwbo_operator_count")(expression),
+                          status = "OPTIMUM FOUND") {
+  list(expression = expression, operator_count = operator_count, cost = cost, optimal = optimal,
        verified = verified, status = status)
 }
 
@@ -108,13 +114,90 @@ test_that("only verified strictly cheaper candidates replace formulas", {
   expect_identical(result$optimization$status, "improved")
   expect_identical(result$optimization$operator_count_before, 5L)
   expect_identical(result$optimization$operator_count_after, 1L)
+  expect_identical(result$optimization$cost_before, 8)
+  expect_identical(result$optimization$cost_after, 2)
   expect_true(result$optimization$verified)
   expect_true(result$optimization$optimal)
   expect_null(attr(result, "rwbo", exact = TRUE))
 })
 
-test_that("verified candidates and minimum proofs remain distinct", {
-  decoded <- rwbo_decoded(cost = 5L, optimal = FALSE, status = "SATISFIABLE")
+test_that("adoption compares weighted costs even when the operator count grows", {
+  # Both expressions denote !a. The mocked candidate isolates the adoption rule;
+  # it deliberately makes no claim to be a minimum.
+  entry <- rwbo_prepared_entry("!(a & (a | (a & a)))")
+  decoded <- rwbo_decoded(expression = "!!!!!a", optimal = FALSE, status = "SATISFIABLE")
+  local_mocked_bindings(.rwbo_elapsed = function() 1,
+                        .rwbo_run_solver = function(...) "stdout",
+                        interpret_rwbo_output = function(...) decoded,
+                        .package = "Rcudd")
+  result <- rwbo_internal(".rwbo_finish")(entry, list(start = 0, time_limit = 5L))
+  expect_identical(result$reduced_expression, "!!!!!a")
+  expect_identical(result$optimization$operator_count_before, 4L)
+  expect_identical(result$optimization$operator_count_after, 5L)
+  expect_identical(result$optimization$cost_before, 7)
+  expect_identical(result$optimization$cost_after, 5)
+  expect_true(result$optimization$applied)
+  expect_false(result$optimization$optimal)
+})
+
+test_that("equal or higher weighted costs retain the baseline", {
+  entry <- rwbo_prepared_entry("!!!a")
+  decoded <- rwbo_decoded(expression = "!(a & a)")
+  local_mocked_bindings(.rwbo_elapsed = function() 1,
+                        .rwbo_run_solver = function(...) "stdout",
+                        interpret_rwbo_output = function(...) decoded,
+                        .package = "Rcudd")
+  finish <- rwbo_internal(".rwbo_finish")
+  state <- list(start = 0, time_limit = 5L)
+  equal <- finish(entry, state)
+  expect_identical(equal$reduced_expression, "!!!a")
+  expect_identical(equal$optimization$status, "not_improved")
+  expect_identical(equal$optimization$operator_count_after, 3L)
+  expect_identical(equal$optimization$cost_after, 3)
+  expect_true(equal$optimization$optimal)
+  # This equivalent candidate has fewer operators, but higher cost.
+  entry <- rwbo_prepared_entry("!!!!!a")
+  decoded <- rwbo_decoded(expression = "!(a & (a | (a & a)))")
+  higher <- finish(entry, state)
+  expect_identical(higher$reduced_expression, "!!!!!a")
+  expect_false(higher$optimization$applied)
+  expect_false(higher$optimization$optimal)
+  expect_identical(higher$optimization$operator_count_after, 5L)
+  expect_identical(higher$optimization$cost_after, 5)
+})
+
+test_that("malformed decoded cost and count metadata are recoverable", {
+  decoded <- rwbo_decoded()
+  local_mocked_bindings(.rwbo_elapsed = function() 1,
+                        .rwbo_run_solver = function(...) "stdout",
+                        interpret_rwbo_output = function(...) decoded,
+                        .package = "Rcudd")
+  finish <- rwbo_internal(".rwbo_finish")
+  state <- list(start = 0, time_limit = 5L)
+  for (field in c("cost", "operator_count")) {
+    for (value in list(NULL, NA_real_, NaN, Inf, -1, 0.5, TRUE, "2", c(1, 2),
+                       structure(2, class = "odd"), matrix(2), 2^32)) {
+      decoded <- rwbo_decoded()
+      decoded[field] <- list(value)
+      result <- finish(rwbo_prepared_entry(), state)
+      expect_identical(result$optimization$status, "invalid_output", info = field)
+      expect_false(result$optimization$applied)
+      expect_false(result$optimization$verified)
+      expect_identical(result$optimization$cost_before, 8)
+      expect_identical(result$optimization$cost_after, 8)
+    }
+  }
+  # Plausible scalar metadata must also match the decoded formula.
+  for (values in list(c(cost = 1L, operator_count = 1L),
+                      c(cost = 2L, operator_count = 2L))) {
+    decoded <- rwbo_decoded(cost = values[["cost"]], operator_count = values[["operator_count"]])
+    expect_identical(finish(rwbo_prepared_entry(), state)$optimization$status, "invalid_output")
+  }
+})
+
+test_that("verified candidates and bounded minimum proofs remain distinct", {
+  decoded <- rwbo_decoded(expression = "(a & !b) | (!a & b)",
+                          optimal = FALSE, status = "SATISFIABLE")
   local_mocked_bindings(.rwbo_elapsed = function() 1,
                         .rwbo_run_solver = function(...) "stdout",
                         interpret_rwbo_output = function(...) decoded,
@@ -128,9 +211,9 @@ test_that("verified candidates and minimum proofs remain distinct", {
   expect_false(result$optimization$optimal)
   decoded$optimal <- TRUE
   expect_true(finish(rwbo_prepared_entry(), state)$optimization$optimal)
-  decoded$operator_count <- 6L
+  decoded <- rwbo_decoded(expression = "((a & !b) | (!a & b)) & true")
   expect_false(finish(rwbo_prepared_entry(), state)$optimization$optimal)
-  decoded <- rwbo_decoded(cost = 1L, optimal = FALSE, status = "SATISFIABLE")
+  decoded <- rwbo_decoded(optimal = FALSE, status = "SATISFIABLE")
   improved <- finish(rwbo_prepared_entry(), state)
   expect_true(improved$optimization$applied)
   expect_false(improved$optimization$optimal)
@@ -147,7 +230,8 @@ test_that("chain jobs share the budget and never send timeout zero", {
   local_mocked_bindings(
     .rwbo_elapsed = function() { value <- now[[1L]]; now <<- now[-1L]; value },
     .rwbo_run_solver = function(path, timeout) { timeout_seen <<- c(timeout_seen, timeout); "stdout" },
-    interpret_rwbo_output = function(...) rwbo_decoded(cost = 5L), .package = "Rcudd"
+    interpret_rwbo_output = function(...) rwbo_decoded(expression = "(a & !b) | (!a & b)"),
+    .package = "Rcudd"
   )
   finish <- rwbo_internal(".rwbo_finish")
   state <- list(start = 0, time_limit = 5L)
@@ -164,7 +248,8 @@ test_that("a one-second budget still allows a bounded solver call", {
   local_mocked_bindings(
     .rwbo_elapsed = function() 0.2,
     .rwbo_run_solver = function(path, timeout) { timeout_seen <<- timeout; "stdout" },
-    interpret_rwbo_output = function(...) rwbo_decoded(cost = 5L), .package = "Rcudd"
+    interpret_rwbo_output = function(...) rwbo_decoded(expression = "(a & !b) | (!a & b)"),
+    .package = "Rcudd"
   )
   rwbo_internal(".rwbo_finish")(rwbo_prepared_entry(), list(start = 0, time_limit = 1L))
   expect_identical(timeout_seen, 1L)
@@ -227,4 +312,18 @@ test_that("temporary directory creation failure retains the BDD result", {
   expect_identical(result$reduced_expression, baseline$reduced_expression)
   expect_identical(result$optimization$status, "resource_limit")
   expect_false(result$optimization$applied)
+})
+
+
+test_that("native search bounds retain equally numerous cheaper candidates", {
+  local_mocked_bindings(.rwbo_available = function() TRUE, .package = "Rcudd")
+  state <- rwbo_internal(".rwbo_setup")(2L, list(max_operators = 8L))
+  on.exit(unlink(state$directory, recursive = TRUE))
+  expression <- "(a & !b) | (!a & b)"
+  entry <- .Call(rwbo_internal("c_bdd_remaining_literals"), expression, state$config)
+  prepared <- attr(entry, "rwbo", exact = TRUE)
+  expect_identical(prepared$status, "prepared")
+  expect_equal(prepared$cost, rwbo_internal(".rwbo_operator_cost")(entry$reduced_expression))
+  expect_equal(prepared$problem$max_operators, min(8L, prepared$cost - 1L))
+  expect_gte(prepared$problem$max_operators, prepared$operator_count)
 })

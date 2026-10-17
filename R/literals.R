@@ -27,8 +27,8 @@
 #' guaranteed to be the shortest expression. Rendering can expand a compact BDD
 #' into a larger string.
 #'
-#' Optional synthesis uses one unit per binary `&`, `|`, `^` or unary `!` in
-#' a formula tree, including repeated subexpressions. It searches for strictly
+#' Optional synthesis assigns cost 1 to unary `!` and cost 2 to binary `&`, `|`
+#' and `^` in a formula tree, including repeated subexpressions. It searches for strictly
 #' cheaper formulas within the operator bound. Proven minima are skipped;
 #' without a context, other formulas without repeated variables are also
 #' skipped as a heuristic. Resource limits, missing Rwbo and solver failures
@@ -51,10 +51,13 @@
 #'   `solver_error`, `invalid_output` or `not_improved`. The R-expression
 #'   interface also returns this list with status `disabled` when RWBO is off.
 #' * `applied`: whether a solver formula replaced the BDD result.
-#' * `operator_count_before`, `operator_count_after`: Boolean operator costs
-#'   of the BDD expression and the returned formula.
+#' * `operator_count_before`, `operator_count_after`: numbers of Boolean operators
+#'   in the BDD expression and the returned formula.
+#' * `cost_before`, `cost_after`: weighted costs with unary `!` costing 1 and
+#'   binary operators costing 2.
 #' * `verified`, `optimal`: validity and minimality established by a checked
-#'   model or a direct BDD proof. A verified candidate need not be optimal.
+#'   model or a direct BDD proof. Solver minimality is within `max_operators`;
+#'   a verified candidate need not be optimal.
 #' * `solver_status`, `message`: solver status and a brief diagnostic, or `NA`.
 #'
 #' @examples

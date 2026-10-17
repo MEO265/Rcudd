@@ -13,9 +13,9 @@ WCNF file must still be available at \code{problem$wcnf_file}.}
 \item{output}{Solver stdout as a character scalar or vector of lines.}
 }
 \value{
-A list with \code{expression}, \code{operator_count}, \code{optimal}, \code{verified},
+A list with \code{expression}, \code{operator_count}, \code{cost}, \code{optimal}, \code{verified},
 \code{status}, problem metadata and \code{solver_output}. Missing expressions and
-operator counts are \code{NA}.
+operator counts and costs are \code{NA}.
 }
 \description{
 Decodes an operator formula from a complete Open-WBO stdout string and a
@@ -30,7 +30,9 @@ Solver output must preserve
 complete physical lines, as returned by the corrected Rwbo wrapper.
 
 \verb{OPTIMUM FOUND} becomes \code{optimal = TRUE} only with a validated model and
-equivalent formula. \code{SATISFIABLE} can return a verified, unproven candidate.
+equivalent formula, and proves minimum weighted cost within \code{max_operators}.
+Unary \code{!} costs 1 and each binary operator costs 2. \code{SATISFIABLE} can return
+a verified, unproven candidate.
 \code{UNSATISFIABLE}, \code{UNKNOWN} and missing models return no expression and do
 not claim verification or optimality. Invalid metadata, incomplete or
 conflicting models, bad objectives and violated hard clauses raise errors.

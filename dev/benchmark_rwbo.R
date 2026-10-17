@@ -59,17 +59,19 @@ benchmark_rwbo <- function(sizes = c(4L, 6L, 8L, 9L, 10L),
         eval(parsed, as.list(inputs[i, , drop = FALSE])), logical(1L))
       stopifnot(identical(actual, expected))
       if (opt$applied) stopifnot(opt$verified, opt$operator_count_after >= n - 1L)
-      if (opt$optimal) stopifnot(opt$operator_count_after == n - 1L)
+      if (opt$optimal) stopifnot(opt$operator_count_after == n - 1L,
+                                opt$cost_after == 2L * (n - 1L))
       # Exhaustive validation above is deliberately outside the measured call.
       row <- data.frame(variables = n, xor_pairs = n %/% 2L, run = run,
         max_operators = bound, time_limit = time_limit, bdd_seconds = bdd_seconds,
         total_seconds = total, solver_seconds = timing$seconds,
         before = opt$operator_count_before, after = opt$operator_count_after,
+        cost_before = opt$cost_before, cost_after = opt$cost_after,
         status = opt$status, verified = opt$verified, optimal = opt$optimal,
         expression = if (opt$applied) result$reduced_expression else NA_character_)
       rows[[length(rows) + 1L]] <- row
       print(row[c("variables", "run", "max_operators", "total_seconds",
-                  "solver_seconds", "after", "status", "optimal")], row.names = FALSE)
+                  "solver_seconds", "after", "cost_after", "status", "optimal")], row.names = FALSE)
       flush.console()
     }
   }

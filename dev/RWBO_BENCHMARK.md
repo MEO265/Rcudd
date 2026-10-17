@@ -1,6 +1,8 @@
 # RWBO-Laufzeiten
 
-Gemessen am 17.10.2026 auf diesem Rechner, R 4.5.3 und Rwbo 0.1.2.9000.
+Die erste Tabelle wurde vor der Kostenumstellung gemessen: Jeder Operator
+kostete eins. Messung am 17.10.2026 auf diesem Rechner, R 4.5.3 und
+Rwbo 0.1.2.9000.
 Median aus drei Aufrufen je Fall; R-Prozessstart und nachtrÃ¤gliche exhaustive
 Kontrolle sind ausgeschlossen. Die Gesamtzeit umfasst den Ã¶ffentlichen
 Rcudd-Aufruf mit BDD, WCNF, Solver, PrÃ¼fung und RÃ¼ckÃ¼bersetzung.
@@ -26,6 +28,32 @@ Die Struktur spielt ebenfalls eine Rolle: Eine reine ParitÃ¤t Ã¼ber acht
 Variablen brauchte in einem zusÃ¤tzlichen Einzelversuch nur 0,50 s, wÃ¤hrend
 vier XOR-Paare mit AND etwa eine Sekunde brauchten. Diese Werte sind Beispiele,
 keine allgemeine Laufzeitgrenze.
+
+## Vergleich nach der Kostenumstellung
+
+NOT kostet nun eins, AND, OR und XOR kosten zwei. Die WCNF verwendet weiterhin
+nur weiche Klauseln mit Gewicht eins: eine pro aktivem Operator und eine weitere
+pro binärem Operator. Die Zahl der Slots und der Wahrheitstabellenzeilen bleibt
+bei diesem Vergleich gleich.
+
+Beide Versionen wurden am selben Rechner erneut mit denselben Eingaben,
+`max_operators = 8`, zehn Sekunden Budget und drei Läufen je Fall gemessen.
+Die Werte sind Mediane der Gesamtzeit:
+
+| Variablen | Vorher: alle Kosten 1 | Jetzt: NOT 1, binär 2 | Neues Ergebnis |
+|---:|---:|---:|---|
+| 4 | 0,17 s | 0,18 s | Bewiesenes Optimum: 3 Operatoren, Kosten 6 |
+| 6 | 0,63 s | 1,56 s | Bewiesenes Optimum: 5 Operatoren, Kosten 10 |
+| 8 | 1,11 s | 10,09 s | Zeitlimit in allen drei Läufen, BDD-Fallback |
+| 9 | 6,56 s | 10,12 s | Zeitlimit in allen drei Läufen, BDD-Fallback |
+
+Ein zusätzlicher Test für OR über acht Variablen mit acht Slots erreichte das
+Solverlimit von 60 Sekunden. Die kleinen Zusatzkosten in der WCNF sagen somit
+wenig über den Aufwand des Optimalitätsnachweises aus. Die Gewichtung kann die
+Laufzeit deutlich erhöhen; die bestehenden Zeitlimits bleiben wichtig.
+
+`optimal` bezeichnet das bewiesene Kostenminimum innerhalb der Operatorschranke.
+Die Grenze zählt weiterhin Operatoren, unabhängig von deren Kosten.
 
 ## Wiederholen
 

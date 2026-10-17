@@ -16,7 +16,9 @@
 #' complete physical lines, as returned by the corrected Rwbo wrapper.
 #'
 #' `OPTIMUM FOUND` becomes `optimal = TRUE` only with a validated model and
-#' equivalent formula. `SATISFIABLE` can return a verified, unproven candidate.
+#' equivalent formula, and proves minimum weighted cost within `max_operators`.
+#' Unary `!` costs 1 and each binary operator costs 2. `SATISFIABLE` can return
+#' a verified, unproven candidate.
 #' `UNSATISFIABLE`, `UNKNOWN` and missing models return no expression and do
 #' not claim verification or optimality. Invalid metadata, incomplete or
 #' conflicting models, bad objectives and violated hard clauses raise errors.
@@ -26,9 +28,9 @@
 #' `rcudd/bdd_wcnf.hpp`; native verification uses the BDD-derived target vector
 #' and does not require an expression or another BDD.
 #'
-#' @return A list with `expression`, `operator_count`, `optimal`, `verified`,
+#' @return A list with `expression`, `operator_count`, `cost`, `optimal`, `verified`,
 #'   `status`, problem metadata and `solver_output`. Missing expressions and
-#'   operator counts are `NA`.
+#'   operator counts and costs are `NA`.
 #'
 #' @examples
 #' path <- tempfile(fileext = ".wcnf")

@@ -49,7 +49,8 @@ struct WcnfProblem {
 // Essential names must be unique Rcudd tokens: nonempty, no whitespace or
 // ! & | ^ ( ), and not true/false (case insensitive).
 // Only essential variables are used, sorted by name. All 2^n assignments are
-// constrained. Each &, |, ^, ! costs one, including repeated subexpressions.
+// constrained. Each ! costs one and each &, |, ^ costs two, including repeated
+// subexpressions. max_operators still bounds the actual number of operators.
 // Throws std::invalid_argument/runtime_error before large allocations when
 // bounds are invalid/exceeded. A hard safety cap of 20 essential variables
 // applies even when max_variables is raised. The caller keeps root/manager
@@ -72,6 +73,7 @@ struct WcnfSolution {
     bool has_expression = false;
     std::string expression;
     int operator_count = -1;
+    int cost = -1; // ! = 1; &, |, ^ = 2, independently of operator_count
     bool optimal = false;
     bool verified = false;
     std::string status = "UNKNOWN";
@@ -82,7 +84,7 @@ struct WcnfSolution {
 // and target equality on care rows. Throws on invalid metadata/model/objective/clauses. UNKNOWN,
 // UNSAT and missing models return an unverified result without an expression.
 // Expects complete output lines, as returned by the corrected Rwbo wrapper.
-// OPTIMUM FOUND yields optimal=true only after all validation succeeds;
+// OPTIMUM FOUND yields optimal=true within max_operators after validation;
 // validated zero-cost BDD shortcuts are directly proven without solver output.
 WcnfSolution interpret_rwbo_output(const WcnfProblem &problem,
                                     const std::string &output);

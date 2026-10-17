@@ -1,8 +1,10 @@
 #include "../inst/include/rcudd/bdd_wcnf.hpp"
 #include "cuddObj.hh"
+#include "bdd_truth.h"
 #include <algorithm>
 #include <climits>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <fstream>
 #include <initializer_list>
@@ -25,26 +27,6 @@ Count mul(Count a, Count b) {
 Count pairs(Count n) { return n < 2 ? 0 : mul(n, n - 1) / 2; }
 void check_clauses(Count count, Count limit) {
     if (count > limit) throw std::runtime_error("Clause limit exceeded; reduce the search bounds.");
-}
-
-// Read the CUDD graph directly. Its index is stable across variable reordering;
-// levels are deliberately never used as truth-table columns. Complement bits
-// on both the root and internal edges contribute to the terminal polarity.
-bool evaluate(const BDD &root, std::size_t row,
-              const std::vector<unsigned int> &indices) {
-    DdNode *node = root.getNode();
-    bool negated = Cudd_IsComplement(node);
-    node = Cudd_Regular(node);
-    while (!Cudd_IsConstant(node)) {
-        const unsigned int index = Cudd_NodeReadIndex(node);
-        const auto found = std::find(indices.begin(), indices.end(), index);
-        if (found == indices.end()) throw std::runtime_error("BDD support/index mismatch.");
-        const std::size_t column = static_cast<std::size_t>(found - indices.begin());
-        DdNode *next = ((row >> column) & 1u) ? Cudd_T(node) : Cudd_E(node);
-        negated = negated != static_cast<bool>(Cudd_IsComplement(next));
-        node = Cudd_Regular(next);
-    }
-    return !negated; // CUDD BDDs have one regular terminal, logical one.
 }
 
 class Writer {
@@ -88,10 +70,13 @@ private:
 };
 } // namespace
 
-WcnfProblem write_bdd_wcnf(const BDD &root,
+static WcnfProblem write_problem(const BDD &root, const BDD *care,
                            const std::vector<std::string> &names_by_index,
                            const std::string &path, const WcnfOptions &options) {
     if (!root.getNode() || !root.manager()) throw std::invalid_argument("BDD root/manager is null.");
+    if (care && (!care->getNode() || care->manager() != root.manager()))
+        throw std::invalid_argument("Root and care BDDs must share a manager.");
+    const bool contextual = care && !care->IsOne();
     if (path.empty() || path.find('\0') != std::string::npos)
         throw std::invalid_argument("WCNF file path is empty or contains NUL.");
     if (options.max_operators > sat_limit - 1 || options.max_clauses < 1 ||
@@ -101,6 +86,11 @@ WcnfProblem write_bdd_wcnf(const BDD &root,
     p.wcnf_file = path;
     p.max_operators = options.max_operators;
     p.variable_indices = root.SupportIndices();
+    if (contextual) {
+        for (unsigned int index : care->SupportIndices())
+            if (std::find(p.variable_indices.begin(), p.variable_indices.end(), index) == p.variable_indices.end())
+                p.variable_indices.push_back(index);
+    }
     if (p.variable_indices.size() > std::min(options.max_variables, 20u))
         throw std::runtime_error("BDD support exceeds truth-table limit; the encoding has 2^n rows.");
     for (unsigned int index : p.variable_indices) {
@@ -126,10 +116,31 @@ WcnfProblem write_bdd_wcnf(const BDD &root,
     const Count n = p.variables.size(), k = options.max_operators;
     const Count rows = Count(1) << n, inputs = n + 2;
     const bool constant = root.IsOne() || root.IsZero();
-    const bool positive_variable = n == 1 && !evaluate(root, 0, p.variable_indices) &&
-                                  evaluate(root, 1, p.variable_indices);
+    const bool positive_variable = n == 1 && !bdd_value(root, 0, p.variable_indices) &&
+                                  bdd_value(root, 1, p.variable_indices);
     p.has_shortcut = constant || positive_variable;
-    p.lower_bound = p.has_shortcut ? 0 : static_cast<unsigned int>(std::max(Count(1), n - 1));
+    if (p.has_shortcut) p.shortcut = constant ? (root.IsOne() ? "true" : "false") : p.variables[0];
+    Count cared_rows = rows;
+    if (contextual) {
+        // Count and detect zero-cost equivalents on the BDDs before any 2^n
+        // enumeration. In particular, huge operator bounds fail preflight
+        // without scanning a large context truth table first.
+        const double count = care->CountMinterm(static_cast<int>(n));
+        if (!std::isfinite(count) || count < 0 || count > rows || count != std::floor(count))
+            throw std::runtime_error("Cannot count context truth rows.");
+        cared_rows = static_cast<Count>(count);
+        const bool all_false = care->Leq(!root), all_true = care->Leq(root);
+        p.has_shortcut = all_false || all_true;
+        if (p.has_shortcut) p.shortcut = all_false ? "false" : "true";
+        else for (std::size_t column = 0; column < n; ++column) {
+            // Cudd_EquivDC compares where DC=0 without creating BDD nodes.
+            DdNode *variable = Cudd_bddIthVar(root.manager(), p.variable_indices[column]);
+            if (Cudd_EquivDC(root.manager(), root.getNode(), variable, Cudd_Not(care->getNode()))) {
+                p.has_shortcut = true; p.shortcut = p.variables[column]; break;
+            }
+        }
+    }
+    p.lower_bound = p.has_shortcut ? 0 : contextual ? 1 : static_cast<unsigned int>(std::max(Count(1), n - 1));
     const bool insufficient = !p.has_shortcut && k < p.lower_bound;
     Count clauses = 0, variables = 1;
     if (p.has_shortcut || insufficient) {
@@ -139,10 +150,10 @@ WcnfProblem write_bdd_wcnf(const BDD &root,
         // A cheap lower bound rejects huge k before a gate-count loop/allocation.
         const Count per_rows = add(mul(12, k), add(mul(mul(2, inputs), k),
                                                 mul(mul(2, k), k - 1)));
-        check_clauses(add(mul(rows, add(per_rows, 1)), k), options.max_clauses);
+        check_clauses(add(add(mul(rows, per_rows), cared_rows), k), options.max_clauses);
         variables = add(mul(k, add(5 + 2 * inputs, mul(3, rows))), mul(k, k - 1));
         if (variables > sat_limit) throw std::runtime_error("SAT variable limit exceeded.");
-        clauses = add(add(rows, k), p.lower_bound); // root, soft, lower bound
+        clauses = add(add(cared_rows, k), p.lower_bound); // root, soft, lower bound
         for (Count i = 0; i < k; ++i) {
             const Count sources = inputs + i, remaining = k - i - 1;
             clauses = add(clauses, add(15 + 3 * sources, mul(3, pairs(sources))));
@@ -154,11 +165,14 @@ WcnfProblem write_bdd_wcnf(const BDD &root,
     // No exponentially sized storage, SAT ids, or file writes before preflight.
     p.target.reserve(static_cast<std::size_t>(rows));
     for (Count row = 0; row < rows; ++row)
-        p.target.push_back(evaluate(root, static_cast<std::size_t>(row), p.variable_indices));
+        p.target.push_back(bdd_value(root, static_cast<std::size_t>(row), p.variable_indices));
+    if (contextual) {
+        p.care.reserve(static_cast<std::size_t>(rows));
+        for (Count row = 0; row < rows; ++row) p.care.push_back(bdd_value(*care, row, p.variable_indices));
+    }
     p.nvars = static_cast<int>(variables);
     p.nclauses = static_cast<std::size_t>(clauses);
     if (p.has_shortcut || insufficient) {
-        if (p.has_shortcut) p.shortcut = constant ? (root.IsOne() ? "true" : "false") : p.variables[0];
         // A soft clause avoids an Open-WBO 0.1.2 crash on hard-only inputs.
         Writer out(path, 1, clauses, 2);
         out.hard({1});
@@ -237,9 +251,19 @@ WcnfProblem write_bdd_wcnf(const BDD &root,
     for (std::size_t i = p.gates.size() - p.lower_bound; i < p.gates.size(); ++i)
         out.hard({-p.gates[i].kind[0]});
     const std::vector<int> &root_out = p.gates.back().out;
-    for (std::size_t row = 0; row < rows; ++row) out.hard({p.target[row] ? root_out[row] : -root_out[row]});
+    for (std::size_t row = 0; row < rows; ++row)
+        if (p.care.empty() || p.care[row]) out.hard({p.target[row] ? root_out[row] : -root_out[row]});
     for (const WcnfGate &g : p.gates) out.soft(g.kind[0]);
     out.finish(clauses);
     return p;
+}
+
+WcnfProblem write_bdd_wcnf(const BDD &root, const std::vector<std::string> &names,
+                           const std::string &path, const WcnfOptions &options) {
+    return write_problem(root, nullptr, names, path, options);
+}
+WcnfProblem write_bdd_wcnf(const BDD &root, const BDD &care, const std::vector<std::string> &names,
+                           const std::string &path, const WcnfOptions &options) {
+    return write_problem(root, &care, names, path, options);
 }
 } // namespace rcudd

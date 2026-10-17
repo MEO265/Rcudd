@@ -4,20 +4,49 @@
 \alias{bdd_literals}
 \title{Simplify a Boolean expression with a BDD}
 \usage{
-bdd_literals(expr)
+bdd_literals(expr, use_rwbo = 0L, rwbo_control = list())
 }
 \arguments{
 \item{expr}{A character vector of length 1 containing a boolean expression in C++ syntax.}
+
+\item{use_rwbo}{Numeric variable limit for optional MaxSAT optimization.
+\code{0} disables it, a positive whole number limits the native variable pool,
+and \code{Inf} removes this filter. Logical values are rejected. Independent
+resource limits, including the native cap of 20 variables, still apply.}
+
+\item{rwbo_control}{Named list overriding \code{max_operators = 8L},
+\code{max_clauses = 2000000L} or \code{time_limit = 5L} (whole seconds shared across
+the call). The budget is checked between jobs; an active export and model
+validation finish. Solver timeouts round up to whole seconds. Operator
+bounds may be zero; clause and time limits must be positive whole numbers.
+The optional Rwbo package is required only for solver calls.}
 }
 \value{
-A list with four elements:
-* `constant`: logical scalar. `TRUE` or `FALSE` when the expression reduces to
-  a constant, otherwise `NA`.
-* `variables`: sorted remaining variable names (empty when
-  `constant` is set).
-* `initial_variables`: sorted variable names from the original expression.
-* `reduced_expression`: character scalar representing the reduced BDD using
-  `!`, `&` and `|`, or `true`/`false` for constants.
+A list with these elements:
+\itemize{
+\item \code{constant}: logical scalar. \code{TRUE} or \code{FALSE} when the expression reduces to
+a constant, otherwise \code{NA}.
+\item \code{variables}: sorted remaining variable names (empty when
+\code{constant} is set).
+\item \code{initial_variables}: sorted variable names from the original expression.
+\item \code{reduced_expression}: character scalar representing the reduced BDD using
+\code{!}, \code{&} and \code{|}, or \code{true}/\code{false} for constants.
+}
+
+With \code{use_rwbo > 0}, a verified improvement may also contain \code{^}. An
+\code{optimization} list is added with:
+\itemize{
+\item \code{status}: \code{improved}, \code{minimal}, \code{not_candidate}, \code{variable_limit},
+\code{resource_limit}, \code{package_unavailable}, \code{time_limit}, \code{no_solution},
+\code{solver_error}, \code{invalid_output} or \code{not_improved}. The R-expression
+interface also returns this list with status \code{disabled} when RWBO is off.
+\item \code{applied}: whether a solver formula replaced the BDD result.
+\item \code{operator_count_before}, \code{operator_count_after}: Boolean operator costs
+of the BDD expression and the returned formula.
+\item \code{verified}, \code{optimal}: validity and minimality established by a checked
+model or a direct BDD proof. A verified candidate need not be optimal.
+\item \code{solver_status}, \code{message}: solver status and a brief diagnostic, or \code{NA}.
+}
 }
 \description{
 Builds a reduced ordered binary decision diagram (ROBDD) via CUDD from the
@@ -25,16 +54,22 @@ provided expression and reports which variables remain in the diagram after
 reduction, together with a factored expression for the reduced diagram.
 }
 \details{
-Allowed operators are `!` (negation), `&` (and), `|` (or) and `^` (XOR).
+Allowed operators are \code{!} (negation), \code{&} (and), \code{|} (or) and \code{^} (XOR).
 Parentheses can be used for grouping. Variable names are any non-empty
-tokens without whitespace or operator characters. `true` and `false`
-(case insensitive) are reserved constants. Precedence is `!`, `&`, `^`, `|`.
-
+tokens without whitespace or operator characters. \code{true} and \code{false}
+(case insensitive) are reserved constants. Precedence is \code{!}, \code{&}, \code{^}, \code{|}.
 
 The reduced expression uses the original variable names and the same C++
 syntax as the input. It represents the same boolean function, but is not
 guaranteed to be the shortest expression. Rendering can expand a compact BDD
 into a larger string.
+
+Optional synthesis uses one unit per binary \code{&}, \code{|}, \code{^} or unary \code{!} in
+a formula tree, including repeated subexpressions. It searches for strictly
+cheaper formulas within the operator bound. Proven minima are skipped;
+without a context, other formulas without repeated variables are also
+skipped as a heuristic. Resource limits, missing Rwbo and solver failures
+retain the BDD expression. Heuristic and resource skips do not claim a minimum.
 }
 \examples{
 bdd_literals("x & !x")

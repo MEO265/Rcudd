@@ -1,4 +1,5 @@
 #include "rcudd.h"
+#include "bdd_prepare.h"
 #include <algorithm>
 #include <cctype>
 #include <stdexcept>
@@ -218,23 +219,26 @@ std::string bdd_expression(const BDD &bdd,
 
 } // namespace rcudd
 
-extern "C" SEXP bdd_remaining_literals(SEXP expr_in) {
+extern "C" SEXP bdd_remaining_literals(SEXP expr_in, SEXP config) {
     // R interface: parse the expression, build the ROBDD and return either the
     // constant value or the remaining literal names.
-    if (!Rf_isString(expr_in) || Rf_length(expr_in) != 1) {
+    if (!Rf_isString(expr_in) || Rf_length(expr_in) != 1 || STRING_ELT(expr_in, 0) == NA_STRING) {
         Rf_error("'expr' must be a single string.");
     }
-    const char *expr_c = CHAR(STRING_ELT(expr_in, 0));
+    const char *expr_c = Rf_translateCharUTF8(STRING_ELT(expr_in, 0));
     std::string expr(expr_c ? expr_c : "");
 
     try {
+        rcudd::RwboPreparation preparation(config);
         std::unordered_map<std::string, unsigned int> var_idx;
         std::vector<std::string> idx_to_name;
         Cudd mgr;
 
         BDD root = rcudd::parse_bdd_expression(expr, mgr, var_idx, idx_to_name);
 
-        SEXP result = rcudd::bdd_summary(root, idx_to_name, idx_to_name);
+        SEXP result = PROTECT(rcudd::bdd_summary(root, idx_to_name, idx_to_name));
+        preparation.attach(result, root, mgr.bddOne(), idx_to_name, expr, "true");
+        UNPROTECT(1);
         return result;
     } catch (const std::exception &ex) {
         Rf_error("Failed to build the ROBDD: %s", ex.what());

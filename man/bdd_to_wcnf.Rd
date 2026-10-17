@@ -9,11 +9,12 @@ bdd_to_wcnf(
   wcnf_file = "formula.wcnf",
   max_operators = 8L,
   max_variables = 10L,
-  max_clauses = 2000000L
+  max_clauses = 2000000L,
+  care = "true"
 )
 }
 \arguments{
-\item{expr}{Single Boolean expression in Rcudd syntax. Here `^` means XOR.}
+\item{expr}{Single Boolean expression in Rcudd syntax. Here \code{^} means XOR.}
 
 \item{wcnf_file}{Output filename, overwritten on success.}
 
@@ -22,37 +23,42 @@ bdd_to_wcnf(
 \item{max_variables}{Maximum essential BDD variables (default ten; hard cap 20).}
 
 \item{max_clauses}{Maximum WCNF clauses including soft clauses (default two million).}
+
+\item{care}{Boolean context in Rcudd syntax. The candidate must match \code{expr}
+only where this expression is true (default \code{"true"}).}
 }
 \value{
-An `rwbo_formula_problem` list with the original expression,
-essential `variables`, their zero-based CUDD `variable_indices`, logical
-`inputs` data frame and `target`, search bounds, `shortcut`, objective,
-lower bound, `gates` SAT-id metadata, `nvars`, `nclauses` and normalized
-`wcnf_file`. Input column one changes fastest. `bdd_expression` is `NULL`
+An \code{rwbo_formula_problem} list with the original expression,
+available \code{variables}, their zero-based CUDD \code{variable_indices}, logical
+\code{inputs} data frame, \code{target} and \code{care} (empty means all rows), search bounds, \code{shortcut}, objective,
+lower bound, \code{gates} SAT-id metadata, \code{nvars}, \code{nclauses} and normalized
+\code{wcnf_file}. Input column one changes fastest. \code{bdd_expression} is \code{NULL}
 to avoid rendering a potentially very large expression.
 }
 \description{
 Builds a BDD once and delegates to the native exporter, which evaluates the
 existing CUDD graph directly. It writes a weighted CNF problem minimizing the
-number of binary AND (`&`), OR (`|`), XOR (`^`) and unary NOT (`!`) operators
+number of binary AND (\code{&}), OR (\code{|}), XOR (\code{^}) and unary NOT (\code{!}) operators
 in a formula tree. This function exports the problem; it does not run Rwbo.
 }
 \details{
-The encoding has `2^n` rows for `n` essential variables even when the BDD is
+The encoding has \code{2^n} rows for the union of expression and context variables,
+even when the BDD is
 compact. Exact clause and SAT-variable bounds are checked before large
 allocations or file writes. Clauses are streamed to disk. Each active
 non-root gate has exactly one consumer, so shared subexpressions incur their
 complete printed cost. Once an optimum within the bound is proved by a
 MaxSAT solver, every cheaper formula also fits: the optimum is global for
-this operator set and cost. UNSAT only excludes formulas within the bound.
+this operator set, cost and variable pool, with equivalence restricted to
+\code{care}. UNSAT only excludes formulas within the bound.
 
 Constants and positive variables have zero-cost shortcuts. A tiny WCNF still
 includes a soft clause for compatibility with Open-WBO 0.1.2. A bound below
 the essential-support lower bound writes a contradictory WCNF.
 
-Native callers with an existing `BDD` use `rcudd::write_bdd_wcnf()` declared
-in `inst/include/rcudd/bdd_wcnf.hpp`; no parsing or string conversion is needed.
-See the installed `scripts/README.md` for an example.
+Native callers with an existing \code{BDD} use \code{rcudd::write_bdd_wcnf()} declared
+in \code{inst/include/rcudd/bdd_wcnf.hpp}; no parsing or string conversion is needed.
+See the installed \code{scripts/README.md} for an example.
 }
 \examples{
 path <- tempfile(fileext = ".wcnf")

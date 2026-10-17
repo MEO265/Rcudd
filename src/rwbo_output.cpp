@@ -28,7 +28,8 @@ void validate_problem(const WcnfProblem &p) {
     const std::size_t n = p.variables.size();
     if (n > 20 || p.variable_indices.size() != n || p.target.size() != (std::size_t(1) << n) ||
         p.nvars < 1 || p.nvars > INT_MAX - 1 || p.nclauses < 2 || p.nclauses > INT_MAX - 1 ||
-        p.max_operators > INT_MAX - 2 || p.wcnf_file.empty())
+        p.max_operators > INT_MAX - 2 || p.wcnf_file.empty() ||
+        (!p.care.empty() && p.care.size() != p.target.size()))
         invalid("Invalid problem metadata dimensions or bounds.");
     std::unordered_set<unsigned int> indices;
     for (std::size_t column = 0; column < n; ++column) {
@@ -42,25 +43,41 @@ void validate_problem(const WcnfProblem &p) {
             })) invalid("Invalid essential variable metadata.");
         bool essential = false;
         for (std::size_t row = 0; row < p.target.size(); ++row)
-            if (!p.input(row, column) && p.target[row] != p.target[row | (std::size_t(1) << column)]) {
+            if (!p.input(row, column) &&
+                (p.target[row] != p.target[row | (std::size_t(1) << column)] ||
+                 (!p.care.empty() && p.care[row] != p.care[row | (std::size_t(1) << column)]))) {
                 essential = true; break;
             }
         if (!essential) invalid("Problem metadata includes an inessential variable.");
     }
-    const unsigned int lower = p.has_shortcut ? 0 : static_cast<unsigned int>(n > 1 ? n - 1 : 1);
+    const unsigned int lower = p.has_shortcut ? 0 : !p.care.empty() ? 1 : static_cast<unsigned int>(n > 1 ? n - 1 : 1);
     if (p.lower_bound != lower) invalid("Invalid support lower-bound metadata.");
     if (p.has_shortcut) {
         if (!p.gates.empty() || p.nvars != 1 || p.nclauses != 2)
             invalid("Invalid shortcut metadata.");
-        if (n == 0) {
-            if (p.shortcut != (p.target[0] ? "true" : "false")) invalid("Shortcut does not match target.");
-        } else if (n != 1 || p.shortcut != p.variables[0] || p.target[0] || !p.target[1]) {
+        const auto found = std::find(p.variables.begin(), p.variables.end(), p.shortcut);
+        if (p.shortcut != "true" && p.shortcut != "false" && found == p.variables.end())
             invalid("Shortcut does not match target.");
+        for (std::size_t row = 0; row < p.target.size(); ++row) {
+            const bool value = p.shortcut == "true" ||
+                (found != p.variables.end() && p.input(row, found - p.variables.begin()));
+            if ((p.care.empty() || p.care[row]) && value != p.target[row])
+                invalid("Shortcut does not match target.");
         }
         return;
     }
     if (n == 0 || (n == 1 && !p.target[0] && p.target[1]))
         invalid("Missing zero-cost shortcut metadata.");
+    if (!p.care.empty()) {
+        for (std::size_t source = 0; source < n + 2; ++source) {
+            bool matches = true;
+            for (std::size_t row = 0; row < p.target.size(); ++row)
+                if (p.care[row] && p.target[row] != (source == 1 || (source >= 2 && p.input(row, source - 2)))) {
+                    matches = false; break;
+                }
+            if (matches) invalid("Missing zero-cost shortcut metadata.");
+        }
+    }
     if (p.gates.empty()) {
         if (p.max_operators >= lower || p.nvars != 1 || p.nclauses != 3)
             invalid("Invalid bounded-UNSAT metadata.");
@@ -81,7 +98,8 @@ void validate_problem(const WcnfProblem &p) {
     }
     if (next != p.nvars) invalid("SAT-variable count does not match gate metadata.");
     const std::uint64_t k = p.gates.size(), rows = p.target.size(), inputs = n + 2;
-    std::uint64_t clauses = rows + k + p.lower_bound;
+    const auto cared_rows = p.care.empty() ? rows : std::count(p.care.begin(), p.care.end(), true);
+    std::uint64_t clauses = cared_rows + k + p.lower_bound;
     auto pairs = [](std::uint64_t count) { return count < 2 ? 0 : count * (count - 1) / 2; };
     for (std::uint64_t i = 0; i < k; ++i) {
         const std::uint64_t sources = inputs + i, remaining = k - i - 1;
@@ -242,7 +260,8 @@ void verify_truth(const WcnfProblem &problem, const std::vector<DecodedGate> &ga
                 invalid("Solver model violates decoded operator semantics.");
             gate_values[i] = result;
         }
-        if (gate_values.back() != problem.target[row]) invalid("Decoded formula failed the truth-table equivalence check.");
+        if ((problem.care.empty() || problem.care[row]) && gate_values.back() != problem.target[row])
+            invalid("Decoded formula failed the truth-table equivalence check.");
     }
 }
 std::string render(const WcnfProblem &problem, const std::vector<DecodedGate> &gates) {

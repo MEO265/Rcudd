@@ -7,36 +7,37 @@
 interpret_rwbo_output(problem, output)
 }
 \arguments{
-\item{problem}{An `rwbo_formula_problem` returned by [bdd_to_wcnf()]. Its
-WCNF file must still be available at `problem$wcnf_file`.}
+\item{problem}{An \code{rwbo_formula_problem} returned by \code{\link[=bdd_to_wcnf]{bdd_to_wcnf()}}. Its
+WCNF file must still be available at \code{problem$wcnf_file}.}
 
 \item{output}{Solver stdout as a character scalar or vector of lines.}
 }
 \value{
-A list with `expression`, `operator_count`, `optimal`, `verified`,
-  `status`, problem metadata and `solver_output`. Missing expressions and
-  operator counts are `NA`.
+A list with \code{expression}, \code{operator_count}, \code{optimal}, \code{verified},
+\code{status}, problem metadata and \code{solver_output}. Missing expressions and
+operator counts are \code{NA}.
 }
 \description{
 Decodes an operator formula from a complete Open-WBO stdout string and a
-problem from [bdd_to_wcnf()]. Uses the shared native C++ interpreter.
+problem from \code{\link[=bdd_to_wcnf]{bdd_to_wcnf()}}. Uses the shared native C++ interpreter.
 }
 \details{
 The interpreter checks problem metadata, every signed model assignment,
 every hard WCNF clause, the objective cost, formula-tree structure and
-operator semantics on all target rows. This R wrapper additionally checks
-BDD equivalence with the original expression. Solver output must preserve
+operator semantics on all target rows. The native R bridge binds target and
+care metadata to the original expressions with a separate BDD check.
+Solver output must preserve
 complete physical lines, as returned by the corrected Rwbo wrapper.
 
-`OPTIMUM FOUND` becomes `optimal = TRUE` only with a validated model and
-equivalent formula. `SATISFIABLE` can return a verified, unproven candidate.
-`UNSATISFIABLE`, `UNKNOWN` and missing models return no expression and do
+\verb{OPTIMUM FOUND} becomes \code{optimal = TRUE} only with a validated model and
+equivalent formula. \code{SATISFIABLE} can return a verified, unproven candidate.
+\code{UNSATISFIABLE}, \code{UNKNOWN} and missing models return no expression and do
 not claim verification or optimality. Invalid metadata, incomplete or
 conflicting models, bad objectives and violated hard clauses raise errors.
 Valid zero-cost BDD shortcuts are proven directly without solver output.
 
-Native callers use `rcudd::interpret_rwbo_output(problem, output)` in
-`rcudd/bdd_wcnf.hpp`; native verification uses the BDD-derived target vector
+Native callers use \code{rcudd::interpret_rwbo_output(problem, output)} in
+\code{rcudd/bdd_wcnf.hpp}; native verification uses the BDD-derived target vector
 and does not require an expression or another BDD.
 }
 \examples{

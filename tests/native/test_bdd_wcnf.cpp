@@ -94,6 +94,53 @@ int main(int argc, char **argv) {
     must_throw([&] { rcudd::interpret_rwbo_output(corrupt, ""); });
     auto trivial = rcudd::interpret_rwbo_output(constant, "");
     assert(trivial.verified && trivial.optimal && trivial.expression == "false");
+
+    // A context variable can be a cheaper equivalent proxy for the root.
+    const BDD proxy_care = !(c ^ (a & b));
+    auto proxy = rcudd::write_bdd_wcnf(a & b, proxy_care, names,
+                                      directory + "/native-proxy.wcnf", options);
+    assert(proxy.variables == std::vector<std::string>({"a", "b", "c"}));
+    assert(proxy.has_shortcut && proxy.shortcut == "c" && proxy.care.size() == 8);
+    const auto proxy_solution = rcudd::interpret_rwbo_output(proxy, "");
+    assert(proxy_solution.verified && proxy_solution.optimal && proxy_solution.expression == "c");
+    assert((proxy_care & ((a & b) ^ c)).IsZero());
+    assert(!((a & b) ^ c).IsZero()); // equivalence is deliberately contextual
+    auto empty = rcudd::write_bdd_wcnf(a ^ b, manager.bddZero(), names,
+                                      directory + "/native-empty-care.wcnf", options);
+    assert(empty.has_shortcut && empty.shortcut == "false");
+    assert(rcudd::interpret_rwbo_output(empty, "").verified);
+
+    // Context support is available to synthesis but does not imply n-1 gates.
+    auto contextual = rcudd::write_bdd_wcnf(a ^ b, c, names,
+                                           directory + "/native-contextual.wcnf", options);
+    assert(contextual.lower_bound == 1 && contextual.variables.size() == 3);
+    same_truth(a ^ b, contextual, manager.ReadSize());
+    std::vector<int> assignment(manager.ReadSize(), 0);
+    for (std::size_t row = 0; row < contextual.target.size(); ++row) {
+        for (std::size_t column = 0; column < contextual.variable_indices.size(); ++column)
+            assignment[contextual.variable_indices[column]] = contextual.input(row, column);
+        assert(c.Eval(assignment.data()).IsOne() == contextual.care[row]);
+    }
+    const auto &xor_gate = contextual.gates[0];
+    std::vector<bool> xor_selected(contextual.nvars + 1, false);
+    for (int id : {xor_gate.kind[3], xor_gate.left[2], xor_gate.right[3]}) xor_selected[id] = true;
+    for (std::size_t row = 0; row < contextual.target.size(); ++row) {
+        xor_selected[xor_gate.left_value[row]] = contextual.input(row, 0);
+        xor_selected[xor_gate.right_value[row]] = contextual.input(row, 1);
+        xor_selected[xor_gate.out[row]] = contextual.input(row, 0) != contextual.input(row, 1);
+    }
+    std::string xor_output = "s OPTIMUM FOUND\no 1\nv";
+    for (int id = 1; id <= contextual.nvars; ++id)
+        xor_output += " " + std::to_string(xor_selected[id] ? id : -id);
+    xor_output += " 0\n";
+    const auto xor_solution = rcudd::interpret_rwbo_output(contextual, xor_output);
+    assert(xor_solution.verified && xor_solution.optimal && xor_solution.expression == "a ^ b");
+    auto invalid_care = contextual; invalid_care.care.pop_back();
+    must_throw([&] { rcudd::interpret_rwbo_output(invalid_care, xor_output); });
+    Cudd other_manager;
+    must_throw([&] { rcudd::write_bdd_wcnf(a, other_manager.bddOne(), names, fixture, options); });
+    options.max_variables = 2;
+    must_throw([&] { rcudd::write_bdd_wcnf(a & b, proxy_care, names, fixture, options); });
     std::cout << "Native existing-BDD/reordering/complement/resource checks passed.\n";
     return 0;
 }

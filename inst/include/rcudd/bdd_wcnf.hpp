@@ -24,9 +24,10 @@ struct WcnfGate {
 };
 
 struct WcnfProblem {
-    std::vector<std::string> variables;
+    std::vector<std::string> variables; // sorted union of root/care support
     std::vector<unsigned int> variable_indices; // original CUDD indices
     std::vector<bool> target;
+    std::vector<bool> care; // empty: every row; otherwise only true rows constrain the root
     std::vector<WcnfGate> gates;
     unsigned int max_operators = 0;
     unsigned int lower_bound = 0;
@@ -59,6 +60,14 @@ WcnfProblem write_bdd_wcnf(const BDD &root,
                            const std::string &wcnf_file,
                            const WcnfOptions &options = WcnfOptions());
 
+// Contextual variant: matches root only where care is true. Uses the union of
+// root/care support, so the variable limit includes context variables. The
+// optimum is over this variable pool; care/root must share a manager.
+WcnfProblem write_bdd_wcnf(const BDD &root, const BDD &care,
+                           const std::vector<std::string> &names_by_index,
+                           const std::string &wcnf_file,
+                           const WcnfOptions &options = WcnfOptions());
+
 struct WcnfSolution {
     bool has_expression = false;
     std::string expression;
@@ -69,8 +78,8 @@ struct WcnfSolution {
 };
 
 // Interpret the solver's complete stdout (not a filename). Validates metadata,
-// complete signed model, WCNF hard clauses/objective and the decoded tree on
-// all target rows. Throws on invalid metadata/model/objective/clauses. UNKNOWN,
+// complete signed model, WCNF hard clauses/objective, all-row operator semantics
+// and target equality on care rows. Throws on invalid metadata/model/objective/clauses. UNKNOWN,
 // UNSAT and missing models return an unverified result without an expression.
 // Expects complete output lines, as returned by the corrected Rwbo wrapper.
 // OPTIMUM FOUND yields optimal=true only after all validation succeeds;

@@ -77,5 +77,74 @@ test_that("metadata is validated before native indexing or claims of optimality"
   expect_error(interpret_rwbo_output(bad, ""), "Shortcut does not match")
   bad <- shortcut; bad$expression <- "!x"
   expect_error(interpret_rwbo_output(bad, ""), "BDD equivalence")
+  bad <- case$problem; bad$care_expression <- "false"
+  expect_error(interpret_rwbo_output(bad, case$output), "Care metadata failed the BDD equivalence")
+  bad <- case$problem; bad$care_expression <- "x"
+  expect_error(interpret_rwbo_output(bad, case$output), "Care metadata failed the BDD equivalence")
+  bad <- case$problem; bad$care_expression <- "z"
+  expect_error(interpret_rwbo_output(bad, case$output), "Care expression has support outside")
+  bad <- case$problem; bad$expression <- "!z"
+  expect_error(interpret_rwbo_output(bad, case$output), "Original expression under care has support outside")
   expect_error(interpret_rwbo_output(case$problem, NA_character_), "non-missing")
+})
+
+test_that("contextual shortcuts are verified against original conditions and context", {
+  file <- tempfile(fileext = ".wcnf")
+  on.exit(unlink(file))
+  problem <- bdd_to_wcnf("a & b", file, care = "!(c ^ (a & b))")
+  expect_identical(problem$shortcut, "c")
+  result <- interpret_rwbo_output(problem, "")
+  expect_identical(result$expression, "c")
+  expect_true(result$verified)
+  expect_true(result$optimal)
+  expect_identical(result$operator_count, 0L)
+  bad <- problem; bad$care_expression <- "true"
+  expect_error(interpret_rwbo_output(bad, ""), "BDD equivalence")
+  bad <- problem; bad$care[[1L]] <- NA
+  expect_error(interpret_rwbo_output(bad, ""), "Care metadata cannot contain NA")
+  bad <- problem; bad$care <- logical(2)
+  expect_error(interpret_rwbo_output(bad, ""), "care metadata dimensions")
+  empty <- bdd_to_wcnf("a ^ b", file, care = "false")
+  empty_result <- interpret_rwbo_output(empty, "")
+  expect_identical(empty_result$expression, "false")
+  expect_true(empty_result$verified)
+  expect_true(empty_result$optimal)
+})
+
+test_that("metadata binding permits eliminated variables outside care", {
+  file <- tempfile(fileext = ".wcnf")
+  on.exit(unlink(file))
+  problem <- bdd_to_wcnf("a", file, care = "!b")
+  # Mirrors chain preparation: target comes from the restricted root while
+  # expression is the original condition, with another variable outside care.
+  problem$expression <- "a ^ (b & c)"
+  expect_false("c" %in% problem$variables)
+  result <- interpret_rwbo_output(problem, "")
+  expect_identical(result$expression, "a")
+  expect_true(result$verified)
+  expect_true(result$optimal)
+  problem <- bdd_to_wcnf("!x", file, max_operators = 1L, care = "z | !z")
+  expect_identical(problem$care, logical())
+  expect_false("z" %in% problem$variables)
+  expect_identical(problem$care_expression, "z | !z")
+})
+
+test_that("context leaves all gate semantics constrained outside its root rows", {
+  file <- tempfile(fileext = ".wcnf")
+  on.exit(unlink(file))
+  problem <- bdd_to_wcnf("a ^ b", file, max_operators = 1L, care = "c")
+  gate <- problem$gates[[1L]]
+  model <- -seq_len(problem$nvars)
+  positive <- c(gate$kind[["xor"]], gate$left[[3L]], gate$right[[4L]],
+                gate$left_value[problem$inputs$a], gate$right_value[problem$inputs$b],
+                gate$out[problem$target])
+  model[positive] <- positive
+  output <- function(model) paste("s OPTIMUM FOUND\no 1\nv", paste(model, collapse = " "), "0")
+  result <- interpret_rwbo_output(problem, output(model))
+  expect_identical(result$expression, "a ^ b")
+  expect_true(result$optimal)
+  outside <- which(!problem$care)[[1L]]
+  id <- gate$out[[outside]]
+  model[[id]] <- -model[[id]]
+  expect_error(interpret_rwbo_output(problem, output(model)), "hard clause")
 })

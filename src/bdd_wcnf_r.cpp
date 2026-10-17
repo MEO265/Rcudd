@@ -1,8 +1,10 @@
 #include "rcudd.h"
+#include "bdd_truth.h"
 #include "../inst/include/rcudd/bdd_wcnf.hpp"
 #include <cmath>
 #include <climits>
 #include <cstdint>
+#include <numeric>
 #include <stdexcept>
 
 namespace {
@@ -39,11 +41,14 @@ void name_list(SEXP list, const std::vector<std::string> &names) {
     Rf_setAttrib(list, R_NamesSymbol, out);
     UNPROTECT(1);
 }
-SEXP as_r_problem(const rcudd::WcnfProblem &p, SEXP expression) {
-    SEXP result = PROTECT(Rf_allocVector(VECSXP, 16));
+} // namespace
+namespace rcudd {
+SEXP as_r_problem(const WcnfProblem &p, SEXP expression, SEXP care_expression) {
+    SEXP result = PROTECT(Rf_allocVector(VECSXP, 18));
     name_list(result, {"expression", "bdd_expression", "variables", "inputs", "target",
                        "max_operators", "shortcut", "objective", "lower_bound", "nvars",
-                       "nclauses", "gates", "wcnf_file", "variable_indices", "encoding", "truth_table_rows"});
+                       "nclauses", "gates", "wcnf_file", "variable_indices", "encoding", "truth_table_rows",
+                       "care", "care_expression"});
     SET_VECTOR_ELT(result, 0, expression);
     SET_VECTOR_ELT(result, 1, R_NilValue); // avoid potentially exponential factored rendering
     SET_VECTOR_ELT(result, 2, strings(p.variables));
@@ -92,15 +97,19 @@ SEXP as_r_problem(const rcudd::WcnfProblem &p, SEXP expression) {
     SET_VECTOR_ELT(result, 13, integers(p.variable_indices));
     SET_VECTOR_ELT(result, 14, Rf_mkString("native CUDD formula-tree WCNF"));
     SET_VECTOR_ELT(result, 15, Rf_ScalarInteger(static_cast<int>(p.target.size())));
+    SEXP care = PROTECT(Rf_allocVector(LGLSXP, p.care.size()));
+    for (std::size_t row = 0; row < p.care.size(); ++row) LOGICAL(care)[row] = p.care[row];
+    SET_VECTOR_ELT(result, 16, care);
+    SET_VECTOR_ELT(result, 17, care_expression);
     SEXP klass = PROTECT(Rf_mkString("rwbo_formula_problem"));
     Rf_classgets(result, klass);
-    UNPROTECT(7);
+    UNPROTECT(8);
     return result;
 }
 } // namespace
 
 extern "C" SEXP bdd_wcnf_expression(SEXP expr_in, SEXP file_in, SEXP operators_in,
-                                     SEXP variables_in, SEXP clauses_in) {
+                                     SEXP variables_in, SEXP clauses_in, SEXP care_in) {
     try {
         const std::string expression = scalar_string(expr_in, "expr");
         scalar_string(file_in, "wcnf_file");
@@ -114,8 +123,9 @@ extern "C" SEXP bdd_wcnf_expression(SEXP expr_in, SEXP file_in, SEXP operators_i
         std::unordered_map<std::string, unsigned int> indices;
         std::vector<std::string> names;
         const BDD root = rcudd::parse_bdd_expression(expression, manager, indices, names);
-        const rcudd::WcnfProblem problem = rcudd::write_bdd_wcnf(root, names, path, options);
-        return as_r_problem(problem, expr_in);
+        const BDD care = rcudd::parse_bdd_expression(scalar_string(care_in, "care"), manager, indices, names);
+        const rcudd::WcnfProblem problem = rcudd::write_bdd_wcnf(root, care, names, path, options);
+        return rcudd::as_r_problem(problem, expr_in, care_in);
     } catch (const std::exception &error) {
         Rf_error("Failed to export BDD WCNF: %s", error.what());
     }
@@ -182,6 +192,13 @@ rcudd::WcnfProblem from_r_problem(SEXP input) {
         if (LOGICAL(target)[i] == NA_LOGICAL) throw std::invalid_argument("Target metadata cannot contain NA.");
         p.target.push_back(LOGICAL(target)[i] != 0);
     }
+    SEXP care = field(input, "care");
+    if (TYPEOF(care) != LGLSXP || (XLENGTH(care) != 0 && XLENGTH(care) != static_cast<R_xlen_t>(rows)))
+        throw std::invalid_argument("Invalid care metadata dimensions/type.");
+    for (R_xlen_t i = 0; i < XLENGTH(care); ++i) {
+        if (LOGICAL(care)[i] == NA_LOGICAL) throw std::invalid_argument("Care metadata cannot contain NA.");
+        p.care.push_back(LOGICAL(care)[i] != 0);
+    }
     SEXP file = field(input, "wcnf_file");
     scalar_string(file, "wcnf_file");
     p.wcnf_file = Rf_translateChar(STRING_ELT(file, 0));
@@ -220,6 +237,39 @@ rcudd::WcnfProblem from_r_problem(SEXP input) {
     }
     return p;
 }
+
+// Bind the truth metadata used for a minimum proof to the advertised original
+// expression and context. Merely checking the final candidate would allow a
+// broader forged care vector to overstate contextual optimality.
+void verify_expression_metadata(SEXP input, const rcudd::WcnfProblem &problem) {
+    Cudd manager;
+    std::unordered_map<std::string, unsigned int> indices;
+    std::vector<std::string> names = problem.variables;
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        indices.emplace(names[i], static_cast<unsigned int>(i));
+        manager.bddVar(static_cast<int>(i));
+    }
+    const BDD original = rcudd::parse_bdd_expression(
+        scalar_string(field(input, "expression"), "expression"), manager, indices, names);
+    const BDD care = rcudd::parse_bdd_expression(
+        scalar_string(field(input, "care_expression"), "care_expression"), manager, indices, names);
+    const BDD masked = original & care;
+    for (unsigned int index : care.SupportIndices())
+        if (index >= problem.variables.size())
+            throw std::invalid_argument("Care expression has support outside the declared variable pool.");
+    for (unsigned int index : masked.SupportIndices())
+        if (index >= problem.variables.size())
+            throw std::invalid_argument("Original expression under care has support outside the declared variable pool.");
+    std::vector<unsigned int> pool(problem.variables.size());
+    std::iota(pool.begin(), pool.end(), 0u);
+    for (std::size_t row = 0; row < problem.target.size(); ++row) {
+        const bool expected_care = problem.care.empty() || problem.care[row];
+        if (rcudd::bdd_value(care, row, pool) != expected_care)
+            throw std::invalid_argument("Care metadata failed the BDD equivalence check.");
+        if (expected_care && rcudd::bdd_value(masked, row, pool) != problem.target[row])
+            throw std::invalid_argument("Target metadata failed the BDD equivalence check.");
+    }
+}
 } // namespace
 
 extern "C" SEXP interpret_rwbo_expression(SEXP problem_in, SEXP output_in) {
@@ -229,6 +279,7 @@ extern "C" SEXP interpret_rwbo_expression(SEXP problem_in, SEXP output_in) {
             throw std::invalid_argument("Solver output must be a non-missing character scalar.");
         const std::string output(Rf_translateCharUTF8(STRING_ELT(output_in, 0)));
         const rcudd::WcnfSolution solution = rcudd::interpret_rwbo_output(problem, output);
+        verify_expression_metadata(problem_in, problem);
         SEXP result = PROTECT(Rf_allocVector(VECSXP, 6));
         name_list(result, {"expression", "operator_count", "optimal", "verified", "status", "wcnf_file"});
         if (solution.has_expression) SET_VECTOR_ELT(result, 0, strings({solution.expression}));

@@ -10,8 +10,9 @@
 #' @details
 #' The interpreter checks problem metadata, every signed model assignment,
 #' every hard WCNF clause, the objective cost, formula-tree structure and
-#' operator semantics on all target rows. This R wrapper additionally checks
-#' BDD equivalence with the original expression. Solver output must preserve
+#' operator semantics on all target rows. The native R bridge binds target and
+#' care metadata to the original expressions with a separate BDD check.
+#' Solver output must preserve
 #' complete physical lines, as returned by the corrected Rwbo wrapper.
 #'
 #' `OPTIMUM FOUND` becomes `optimal = TRUE` only with a validated model and
@@ -47,13 +48,11 @@ interpret_rwbo_output <- function(problem, output) {
       is.na(problem$expression) || !nzchar(problem$expression)) {
     stop("Invalid original expression metadata.", call. = FALSE)
   }
-  result <- .Call(c_interpret_rwbo_output, problem, paste(output, collapse = "\n"))
-  if (result$verified) {
-    difference <- paste0("(", problem$expression, ") ^ (", result$expression, ")")
-    if (!identical(bdd_literals(difference)$constant, FALSE)) {
-      stop("Decoded formula failed the BDD equivalence check.", call. = FALSE)
-    }
+  if (!is.character(problem$care_expression) || length(problem$care_expression) != 1L ||
+      is.na(problem$care_expression) || !nzchar(problem$care_expression)) {
+    stop("Invalid care expression metadata.", call. = FALSE)
   }
+  result <- .Call(c_interpret_rwbo_output, problem, paste(output, collapse = "\n"))
   result$bdd_expression <- problem$bdd_expression
   result$variables <- problem$variables
   result$max_operators <- problem$max_operators

@@ -48,3 +48,27 @@ test_that("resource checks precede allocations and output changes", {
   expect_error(bdd_to_wcnf("a &", file), "Unexpected end")
   expect_error(bdd_to_wcnf("a", file.path(tempfile(), "missing.wcnf")), "Cannot open")
 })
+
+test_that("context variables and root variables share one bounded synthesis pool", {
+  file <- tempfile(fileext = ".wcnf")
+  on.exit(unlink(file))
+  problem <- bdd_to_wcnf("a ^ b", file, max_operators = 1L, care = "c")
+  expect_identical(problem$variables, c("a", "b", "c"))
+  expect_identical(problem$target, xor(problem$inputs$a, problem$inputs$b))
+  expect_identical(problem$care, problem$inputs$c)
+  expect_identical(problem$care_expression, "c")
+  expect_identical(problem$lower_bound, 1L)
+  expect_error(bdd_to_wcnf("a ^ b", file, max_variables = 2L, care = "c"), "truth-table limit")
+  expect_error(bdd_to_wcnf("a", file, care = NA_character_), "non-missing string")
+  expect_error(bdd_to_wcnf("a", file, care = "b &"), "Unexpected end")
+  unconditional <- bdd_to_wcnf("a ^ b", file, care = "c | !c")
+  expect_identical(unconditional$care, logical())
+  expect_identical(unconditional$variables, c("a", "b"))
+  # Compact BDD with the maximum pool: reject by clause preflight before
+  # constructing any truth table or replacing the existing output file.
+  writeLines("sentinel", file)
+  parity <- paste0("x", seq_len(20L), collapse = " ^ ")
+  expect_error(bdd_to_wcnf(parity, file, max_operators = 1000000L,
+                           max_variables = 20L, care = "x1"), "Clause limit")
+  expect_identical(readLines(file), "sentinel")
+})

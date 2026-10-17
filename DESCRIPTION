@@ -8,13 +8,15 @@ Authors@R: c(
 Description:
     Simplifies Boolean expressions and conditional chains using the CUDD
     binary decision diagram library. Converts quoted R expressions to and from
-    Boolean formulas and exports bounded formula synthesis problems for MaxSAT.
+    Boolean formulas, with optional resource-bounded MaxSAT formula synthesis
+    through 'Rwbo'.
 License: GPL (>= 3)
 Encoding: UTF-8
 Depends:
     R (>= 4.0)
 Suggests:
     Rwbo,
-    testthat (>= 3.0.0)
+    testthat (>= 3.2.0)
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
+Roxygen: list(markdown = TRUE)

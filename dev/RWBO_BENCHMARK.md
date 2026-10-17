@@ -1,5 +1,10 @@
 # RWBO-Laufzeiten
 
+Ein [weiterer Vergleich](BINARY_BOUND_BENCHMARK.md) misst die inzwischen
+ergänzte binäre Untergrenze bei unveränderten gewichteten Kosten.
+Zusätzliche [Nicht-XOR-Beispiele](NONXOR_BENCHMARK.md) vergleichen die beiden
+hier beschriebenen Kostenmodelle.
+
 Erneut gemessen am 17.10.2026 unter Windows 11 mit R 4.5.3 und Rwbo
 0.1.2.9000. Verglichen werden zwei getrennt installierte Rcudd-Stände:
 

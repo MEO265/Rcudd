@@ -1,6 +1,17 @@
-# Compare the old and new costs through the same public Rcudd interface.
+# Compare operator costs or equivalent encodings in isolated R processes.
 # Rscript --vanilla dev/compare_rwbo_costs.R UNIT_LIBRARY WEIGHTED_LIBRARY OUTPUT_DIR
-# Libraries must contain commits 654c526 (unit) and 9465ada (weighted), respectively.
+# CLI defaults: commits 654c526 (unit) and 9465ada (weighted).
+# For weighted before/after comparisons see benchmark_binary_bound.R.
+
+# Exact extra counters/clauses for the unrestricted binary lower-bound encoder.
+.rwbo_bound_counts <- function(n, k, model) {
+  r <- max(0L, n - 1L)
+  if (model != "bounded" || r == 0L) return(c(auxiliary = 0, clauses = 0))
+  if (k == r) return(c(auxiliary = 0, clauses = k))
+  if (r == 1L) return(c(auxiliary = 0, clauses = 1))
+  d <- k - r + 1L
+  c(auxiliary = r * d, clauses = (2L * r - 1L) * d + 1L)
+}
 
 .rwbo_compare_worker <- function(job_file, result_file) {
   job <- readRDS(job_file)
@@ -17,14 +28,16 @@
   on.exit(unlink(probe_path), add = TRUE)
   probe <- Rcudd::bdd_to_wcnf("a ^ b", probe_path, max_operators = 1L)
   header <- as.integer(strsplit(readLines(probe_path, n = 1L), " ")[[1L]][3:5])
-  expected <- if (job$model == "unit") c(25L, 131L, 2L) else c(25L, 132L, 3L)
+  expected <- switch(job$model, unit = c(25L, 131L, 2L),
+    weighted = c(25L, 132L, 3L), bounded = c(25L, 133L, 3L))
   stopifnot(identical(header, expected))
   probe_output <- Rwbo::run_open_wbo(
     c("-algorithm=1", "-print-model", "-verbosity=0", probe_path), timeout = 2L)
   probe_result <- Rcudd::interpret_rwbo_output(probe, probe_output)
   stopifnot(probe_result$verified, probe_result$optimal,
             probe_result$operator_count == 1L)
-  if (job$model == "weighted") stopifnot(probe_result$cost == 2L)
+  if (job$model != "unit") stopifnot(probe_result$cost == 2L)
+  if (job$model == "bounded") stopifnot(probe$binary_lower_bound == 1L)
 
   clock <- function() unname(proc.time()[["elapsed"]])
   timing <- new.env(parent = emptyenv())
@@ -116,23 +129,29 @@
   if (length(timing$header)) {
     observed_header <- as.integer(strsplit(timing$header, " ")[[1L]][3:5])
     linear <- 4 + 2 * (job$variables + 2) + 3 * 2^job$variables
-    slots <- as.integer(round((sqrt(linear^2 + 4 * observed_header[[1L]]) - linear) / 2))
-    stopifnot(observed_header[[1L]] == slots^2 + linear * slots,
-              slots <= job$max_operators, timing$timeout == job$time_limit)
+    possible <- seq_len(job$max_operators)
+    sizes <- vapply(possible, function(k) k^2 + linear * k +
+      .rwbo_bound_counts(job$variables, k, job$model)[["auxiliary"]], numeric(1L))
+    slots <- possible[sizes == observed_header[[1L]]]
+    stopifnot(length(slots) == 1L, slots <= job$max_operators,
+              timing$timeout == job$time_limit)
     if (route == "direct" || isTRUE(job$matching_slots)) stopifnot(slots == job$max_operators)
   } else stopifnot(route == "automatic", opt$status %in% c("minimal", "not_candidate"))
   expected_ops <- job$expected_operators
   if (is.null(expected_ops) && is.null(job$route)) expected_ops <- job$variables - 1L
   if (opt$optimal && !is.null(expected_ops))
     stopifnot(opt$verified, opt$operator_count_after == expected_ops)
-  if (opt$optimal && job$model == "weighted" && !is.null(job$expected_cost))
+  if (opt$optimal && job$model != "unit" && !is.null(job$expected_cost))
     stopifnot(weighted_cost(candidate_cpp) == job$expected_cost)
   stopifnot(opt$status %in% c("improved", "not_improved", "time_limit",
                              "minimal", "not_candidate", "optimal", "candidate"))
   dll <- list.files(file.path(package_path, "libs"), "Rcudd[.]dll$",
                     recursive = TRUE, full.names = TRUE)
   row <- data.frame(phase = job$phase, case = job$case, model = job$model,
-    route = route, input_optimal = job$input_optimal,
+    route = route, input_optimal = if (is.null(job$input_optimal)) NA else job$input_optimal,
+    binary_lower_bound = if (job$model == "bounded") job$variables - 1L else 0L,
+    binary_auxiliaries = if (is.na(slots)) NA_real_ else
+      .rwbo_bound_counts(job$variables, slots, job$model)[["auxiliary"]],
     input_operator_count = count_ops(cpp_input),
     configured_max_operators = job$max_operators,
     solver_called = length(timing$header) == 1L,
@@ -160,17 +179,23 @@ compare_rwbo_costs <- function(unit_library, weighted_library,
                                repeats = 5L, time_limit = 10L,
                                extended_time_limit = 30L,
                                script = "dev/compare_rwbo_costs.R", cases = NULL,
-                               route = "automatic", matching_slots = TRUE) {
+                               route = "automatic", matching_slots = TRUE,
+                               models = c("unit", "weighted"),
+                               source_commits = c("654c526", "9465ada")) {
   stopifnot(repeats >= 1L, repeats == floor(repeats), time_limit >= 1L,
             time_limit == floor(time_limit), (is.null(extended_time_limit) || extended_time_limit >= time_limit),
-            route %in% c("automatic", "direct"))
+            route %in% c("automatic", "direct"), length(models) == 2L,
+            !anyDuplicated(models), all(models %in% c("unit", "weighted", "bounded")),
+            length(source_commits) == 2L)
   script <- normalizePath(script, winslash = "/", mustWork = TRUE)
-  libraries <- c(unit = normalizePath(unit_library, winslash = "/", mustWork = TRUE),
-    weighted = normalizePath(weighted_library, winslash = "/", mustWork = TRUE))
+  libraries <- stats::setNames(c(
+    normalizePath(unit_library, winslash = "/", mustWork = TRUE),
+    normalizePath(weighted_library, winslash = "/", mustWork = TRUE)), models)
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
   output_dir <- normalizePath(output_dir, winslash = "/", mustWork = TRUE)
   source(file.path(dirname(script), "benchmark_rwbo.R"), local = TRUE)
-  if (is.null(cases)) {
+  default_cases <- is.null(cases)
+  if (default_cases) {
   cases <- list(list(name = "parity3", n = 3L, bound = 4L,
     expression = paste("(a && !b && !c)", "(!a && b && !c)",
                        "(!a && !b && c)", "(a && b && c)", sep = " || ")))
@@ -179,6 +204,10 @@ compare_rwbo_costs <- function(unit_library, weighted_library,
   }
   for (i in seq_along(cases)) {
     case <- cases[[i]]
+    if (default_cases) {
+      case$expected_operators <- case$n - 1L
+      case$expected_cost <- 2L * (case$n - 1L)
+    }
     case$inputs <- do.call(expand.grid,
       stats::setNames(rep(list(c(FALSE, TRUE)), case$n), letters[seq_len(case$n)]))
     parsed <- str2lang(case$expression)
@@ -186,12 +215,12 @@ compare_rwbo_costs <- function(unit_library, weighted_library,
       eval(parsed, as.list(case$inputs[j, , drop = FALSE])), logical(1L))
     cases[[i]] <- case
   }
-  commits <- c(unit = "654c526", weighted = "9465ada")
+  commits <- stats::setNames(source_commits, models)
   schedule <- list()
   add_pair <- function(case, phase, run, limit, case_index) {
-    models <- if ((run + case_index) %% 2L) c("weighted", "unit") else c("unit", "weighted")
-    for (position in seq_along(models)) {
-      model <- models[[position]]
+    pair_models <- if ((run + case_index) %% 2L) rev(models) else models
+    for (position in seq_along(pair_models)) {
+      model <- pair_models[[position]]
       schedule[[length(schedule) + 1L]] <<- list(phase = phase, case = case$name,
         model = model, run = run, position = position, library = libraries[[model]],
         commit = commits[[model]], expression = case$expression, variables = case$n,
@@ -240,16 +269,24 @@ compare_rwbo_costs <- function(unit_library, weighted_library,
     for (run in unique(group$run)) {
       pair <- group[group$run == run, , drop = FALSE]
       if (!nrow(pair)) next
-      a <- pair[pair$model == "unit", , drop = FALSE]
-      b <- pair[pair$model == "weighted", , drop = FALSE]
+      a <- pair[pair$model == models[[1L]], , drop = FALSE]
+      b <- pair[pair$model == models[[2L]], , drop = FALSE]
       stopifnot(nrow(a) == 1L, nrow(b) == 1L,
         a$baseline_cpp == b$baseline_cpp, a$rwbo_version == b$rwbo_version,
         a$solver_called == b$solver_called)
+      if (all(models %in% c("weighted", "bounded")) && a$optimal && b$optimal)
+        stopifnot(a$weighted_cost == b$weighted_cost)
       if (a$solver_called && (matching_slots || route == "direct"))
-        stopifnot(a$nvars == b$nvars, a$max_operators == b$max_operators,
-                  b$nclauses - a$nclauses == a$max_operators)
-      if (a$solver_called && !is.na(a$max_operators) && a$max_operators == b$max_operators)
-        stopifnot(a$nvars == b$nvars, b$nclauses - a$nclauses == a$max_operators)
+        stopifnot(a$max_operators == b$max_operators)
+      if (a$solver_called && !is.na(a$max_operators) && a$max_operators == b$max_operators) {
+        k <- a$max_operators
+        extra_a <- .rwbo_bound_counts(a$variables, k, a$model)
+        extra_b <- .rwbo_bound_counts(b$variables, k, b$model)
+        soft_a <- k * if (a$model == "unit") 1L else 2L
+        soft_b <- k * if (b$model == "unit") 1L else 2L
+        stopifnot(b$nvars - a$nvars == extra_b[["auxiliary"]] - extra_a[["auxiliary"]],
+          b$nclauses - a$nclauses == soft_b - soft_a + extra_b[["clauses"]] - extra_a[["clauses"]])
+      }
     }
   }
   groups <- split(result, interaction(result$phase, result$case, result$model, drop = TRUE))

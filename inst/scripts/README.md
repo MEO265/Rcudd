@@ -132,7 +132,11 @@ Rscript inst/scripts/test_lintr_rwbo.R
 The integration checks use real Rwbo, including all 16 two-variable functions
 in both cost modes, the eight-term example, and inputs without XOR that reduce
 to two XORs.
-The regular testthat suite exercises export and interpretation without Rwbo.
+The regular testthat suite uses complete signed models of known formulas as
+mocked solver replies, including the expensive eight- and nine-variable cases.
+Export, native model/cost/equivalence checks, adoption, branch contexts and R
+restoration run without a solver. Known optimal witnesses attain a mathematical
+lower bound; feasible candidates retain their unproven status.
 `tests/native/test_bdd_wcnf.cpp` independently checks existing roots, reordered
 variables and complemented edges against CUDD's `Eval()`. Compile it with the
 two implementation files above and the bundled CUDD archive. Its optional output

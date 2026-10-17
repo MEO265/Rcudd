@@ -4,6 +4,4 @@ test_that("one vectorized reverse converter handles single and multiple expressi
   expect_identical(result, c("a > b", "a <= b"))
   expect_identical(cpp_logic_to_r("true"), "TRUE")
   expect_identical(cpp_logic_to_r(character()), character())
-  expect_identical(cpp_logic_to_expressions("true"), cpp_logic_to_r("true"))
-  expect_identical(cpp_logic_to_expression("true"), cpp_logic_to_r("true"))
 })

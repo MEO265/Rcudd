@@ -2,7 +2,7 @@ test_that("all comparison operators round-trip to readable R syntax", {
   for (op in c("<", ">", "<=", ">=", "==", "!=")) {
     expr <- paste("a", op, "b")
     converted <- expression_to_cpp_logic(expr)
-    restored <- cpp_logic_to_expression(
+    restored <- cpp_logic_to_r(
       converted$expression, converted$placeholders, converted$order_variables
     )
     expect_identical(restored, expr)
@@ -17,7 +17,7 @@ test_that("negated and combined ordering outcomes become single comparisons", {
     "L_n1_n2 & G_n1_n2", "L_n1_n2 | E_n1_n2 | G_n1_n2",
     "G_n2_n1 | E_n1_n2", "E_n1_n1", "L_n1_n1"
   )
-  restored <- cpp_logic_to_expressions(expressions, order_variables = c(n1 = "a", n2 = "b"))
+  restored <- cpp_logic_to_r(expressions, order_variables = c(n1 = "a", n2 = "b"))
   expect_identical(restored, c(
     "a >= b", "a <= b", "a != b", "a > b", "a > b", "a >= b",
     "FALSE", "TRUE", "a <= b", "TRUE", "FALSE"
@@ -27,39 +27,39 @@ test_that("negated and combined ordering outcomes become single comparisons", {
 test_that("ordering simplification respects boolean grouping and unrelated terms", {
   variables <- c(n1 = "a", n2 = "b", n3 = "c")
   expect_identical(
-    cpp_logic_to_expression("!L_n1_n2 & p1 & !E_n1_n2", c(p1 = "ready"), variables),
+    cpp_logic_to_r("!L_n1_n2 & p1 & !E_n1_n2", c(p1 = "ready"), variables),
     "a > b && ready"
   )
   expect_identical(
-    cpp_logic_to_expression("L_n1_n2 | E_n1_n3", order_variables = variables),
+    cpp_logic_to_r("L_n1_n2 | E_n1_n3", order_variables = variables),
     "a < b || a == c"
   )
   expect_identical(
-    cpp_logic_to_expression("L_n1_n2 & (E_n1_n2 | p1)", c(p1 = "ready"), variables),
+    cpp_logic_to_r("L_n1_n2 & (E_n1_n2 | p1)", c(p1 = "ready"), variables),
     "a < b && (a == b || ready)"
   )
 })
 
 test_that("original fragments are restored structurally without evaluating them", {
   placeholders <- c(p1 = "a || b", p10 = "p1", p2 = "stop('never evaluate')")
-  restored <- cpp_logic_to_expression("p1 & (!p10 | p2)", placeholders)
+  restored <- cpp_logic_to_r("p1 & (!p10 | p2)", placeholders)
   inputs <- expand.grid(a = c(FALSE, TRUE), b = c(FALSE, TRUE), p1 = c(FALSE, TRUE))
   # Replace only the deliberately unevaluated call for the evaluation below.
   parsed <- str2lang(restored)
   expect_identical(parsed[[2L]][[2L]], quote(a || b))
   expect_identical(parsed[[3L]][[2L]][[3L]], quote(stop("never evaluate")))
-  safe <- cpp_logic_to_expression("p1 & !p10", placeholders)
+  safe <- cpp_logic_to_r("p1 & !p10", placeholders)
   for (i in seq_len(nrow(inputs))) {
     input <- as.list(inputs[i, ])
     expect_identical(eval(str2lang(safe), input), (input$a || input$b) && !input$p1)
   }
-  expect_identical(cpp_logic_to_expression("p1", c(p1 = "`a b`")), "`a b`")
-  expect_identical(cpp_logic_to_expression("p1", c(p1 = "NA")), "NA")
+  expect_identical(cpp_logic_to_r("p1", c(p1 = "`a b`")), "`a b`")
+  expect_identical(cpp_logic_to_r("p1", c(p1 = "NA")), "NA")
 })
 
 test_that("comparison operands preserve calls and grouping", {
   converted <- expression_to_cpp_logic(quote((a + b) >= f(c)))
-  restored <- cpp_logic_to_expression(
+  restored <- cpp_logic_to_r(
     converted$expression, converted$placeholders, converted$order_variables
   )
   inputs <- list(a = 2L, b = 3L, c = 4L, f = identity)
@@ -76,20 +76,20 @@ test_that("reverse translation follows native XOR and negation precedence", {
   for (expr in expressions) {
     # CUDD's renderer removes XOR, providing an independent precedence oracle.
     rendered_cpp <- bdd_literals(expr)$reduced_expression
-    restored <- cpp_logic_to_expression(expr)
+    restored <- cpp_logic_to_r(expr)
     for (i in seq_len(nrow(inputs))) {
       input <- c(as.list(inputs[i, ]), list(true = TRUE, false = FALSE))
       expect_identical(eval(str2lang(restored), input), eval(str2lang(rendered_cpp), input), info = expr)
     }
   }
-  expect_identical(cpp_logic_to_expression("a ^ b & c"), "xor(a, b && c)")
+  expect_identical(cpp_logic_to_r("a ^ b & c"), "xor(a, b && c)")
 })
 
 test_that("reverse translation handles late operands and token numbers above nine", {
   converted <- expressions_to_cpp_logic(
     quote(b < c), quote(a < b), quote(d < e), quote(f < g), quote(h < i), quote(b >= i)
   )
-  restored <- cpp_logic_to_expressions(
+  restored <- cpp_logic_to_r(
     converted$expressions, converted$placeholders, converted$order_variables
   )
   inputs <- list(a = 1L, b = 2L, c = 3L, d = 4L, e = 5L, f = 6L, g = 7L, h = 8L, i = 9L)
@@ -97,7 +97,7 @@ test_that("reverse translation handles late operands and token numbers above nin
   evaluated <- vapply(restored, function(expr) eval(str2lang(expr), inputs), logical(1L), USE.NAMES = FALSE)
   expect_identical(evaluated, expected)
   expect_identical(
-    cpp_logic_to_expression("G_n10_n2", order_variables = c(n10 = "j", n2 = "b")), "j > b"
+    cpp_logic_to_r("G_n10_n2", order_variables = c(n10 = "j", n2 = "b")), "j > b"
   )
 })
 
@@ -144,14 +144,14 @@ test_that("independent relation combinations agree with concrete ordered values"
 
 test_that("reverse translation rejects malformed syntax and ambiguous mappings", {
   for (expr in c("", " ", "a b", "a &", "& a", "a || b", "()", "(a", "a)", "a(b)", "!")) {
-    expect_error(cpp_logic_to_expression(expr), "Invalid C\\+\\+ logical expression", info = expr)
+    expect_error(cpp_logic_to_r(expr), "Invalid C\\+\\+ logical expression", info = expr)
   }
-  expect_error(cpp_logic_to_expression(NA_character_), "character scalar")
-  expect_error(cpp_logic_to_expression(c("a", "b")), "character scalar")
-  expect_error(cpp_logic_to_expressions(c("a", NA_character_)), "without missing values")
-  expect_error(cpp_logic_to_expression("p1", "x"), "unique, non-empty names")
+  expect_error(cpp_logic_to_r(NA_character_), "without missing values")
+  expect_identical(cpp_logic_to_r(c("a", "b")), c("a", "b"))
+  expect_error(cpp_logic_to_r(c("a", NA_character_)), "without missing values")
+  expect_error(cpp_logic_to_r("p1", "x"), "unique, non-empty names")
   duplicated_names <- setNames(c("x", "y"), c("p1", "p1"))
-  expect_error(cpp_logic_to_expression("p1", duplicated_names), "unique, non-empty names")
-  expect_error(cpp_logic_to_expression("G_n1_n2", order_variables = c(n1 = "x")), "Missing.*mapping")
-  expect_identical(cpp_logic_to_expressions(character()), character())
+  expect_error(cpp_logic_to_r("p1", duplicated_names), "unique, non-empty names")
+  expect_error(cpp_logic_to_r("G_n1_n2", order_variables = c(n1 = "x")), "Missing.*mapping")
+  expect_identical(cpp_logic_to_r(character()), character())
 })

@@ -27,8 +27,6 @@
 #'
 #' @return A character vector of parseable R expressions, in input order.
 #'   `cpp_logic_to_r()` handles both a single expression and a vector.
-#'   `cpp_logic_to_expression()` and `cpp_logic_to_expressions()` are retained
-#'   as compatibility wrappers; the former requires a single string.
 #'
 #' @examples
 #' converted <- expression_to_cpp_logic(quote(a >= b && ready))
@@ -57,22 +55,6 @@ cpp_logic_to_r <- function(exprs, placeholders = character(), order_variables = 
     node <- parse_cpp_logic(expr, placeholders, order_variables)
     return(deparse1(cpp_logic_as_language(node, order_variables), width.cutoff = 500L, backtick = TRUE))
   }, character(1L), USE.NAMES = FALSE))
-}
-
-#' @rdname cpp_logic_to_r
-#' @param expr A single C++ style logical string (compatibility wrapper).
-#' @export
-cpp_logic_to_expression <- function(expr, placeholders = character(), order_variables = character()) {
-  if (!is.character(expr) || length(expr) != 1L || is.na(expr)) {
-    stop("`expr` must be a non-missing character scalar.")
-  }
-  cpp_logic_to_r(expr, placeholders, order_variables)
-}
-
-#' @rdname cpp_logic_to_r
-#' @export
-cpp_logic_to_expressions <- function(exprs, placeholders = character(), order_variables = character()) {
-  cpp_logic_to_r(exprs, placeholders, order_variables)
 }
 
 # Comparisons carry a subset of the three possible ordering outcomes. Keeping

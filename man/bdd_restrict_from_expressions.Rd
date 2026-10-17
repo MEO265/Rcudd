@@ -2,36 +2,70 @@
 % Please edit documentation in R/bdd_restrict_from_expressions.R
 \name{bdd_restrict_from_expressions}
 \alias{bdd_restrict_from_expressions}
-\title{Build a BDD restriction chain from R expressions with ordering constraints}
+\title{Simplify R conditions and if/else chains}
 \usage{
-bdd_restrict_from_expressions(exprs)
+bdd_restrict_from_expressions(exprs, use_rwbo = 0L, rwbo_control = list())
 }
 \arguments{
-\item{exprs}{List of quoted R expressions or character scalars that can be
-parsed with [str2lang()].}
+\item{exprs}{A quoted R condition, or a nonempty list, expression vector or
+character vector of conditions in source order. Strings are parsed with
+\code{\link[=str2lang]{str2lang()}}; expressions are never evaluated. Append \code{TRUE} for a final
+\verb{else} branch.}
+
+\item{use_rwbo}{Numeric variable limit for optional MaxSAT optimization.
+\code{0} disables it, a positive whole number limits the native variable pool,
+and \code{Inf} removes this filter. Logical values are rejected. Independent
+resource limits, including the native cap of 20 variables, still apply.}
+
+\item{rwbo_control}{Named list overriding \code{max_operators = 8L},
+\code{max_clauses = 2000000L} or \code{time_limit = 5L} (whole seconds shared across
+the call). The budget is checked between jobs; an active export and model
+validation finish. Solver timeouts round up to whole seconds. Operator
+bounds may be zero; clause and time limits must be positive whole numbers.
+The optional Rwbo package is required only for solver calls.}
 }
 \value{
 A list with elements:
-* `expressions`: logical expressions translated to C++ syntax.
-* `placeholders`: mapping of placeholder names to original expression strings.
-* `order_variables`: mapping of comparison variable tokens to their names.
-* `chain`: result of [bdd_restrict_chain()] with ordering constraints applied.
-  Each `reduced_expression` is translated back to readable R syntax with
-  [cpp_logic_to_r()], including the original operands and comparison
-  operators such as `>`, `>=` and `<=`. The corresponding
-  `reduced_cpp_expression` retains the raw string with C++ placeholders.
-  The reduced expressions are equivalent to their inputs within the ordering
-  constraints and the negations of all earlier expressions in the chain.
+\itemize{
+\item \code{expressions}: logical expressions translated to C++ syntax.
+\item \code{placeholders}: mapping of placeholder names to original expression strings.
+\item \code{order_variables}: mapping of comparison variable tokens to their names.
+\item \code{chain}: result of \code{\link[=bdd_restrict_chain]{bdd_restrict_chain()}} with ordering constraints applied.
+Each \code{reduced_expression} is translated back to readable R syntax with
+\code{\link[=cpp_logic_to_r]{cpp_logic_to_r()}}, including the original operands and comparison
+operators such as \code{>}, \code{>=} and \code{<=}. The corresponding
+\code{reduced_cpp_expression} retains the raw string with C++ placeholders.
+The reduced expressions are equivalent to their inputs within the ordering
+constraints and the negations of all earlier expressions in the chain.
+\code{context_reachable} reports whether the context is satisfiable;
+\code{reachable} reports whether context AND condition is satisfiable. Thus a
+reachable context with a false condition differs from an unreachable
+context. Each entry has an \code{optimization} diagnostic, including when RWBO
+is disabled; see \code{\link[=bdd_literals]{bdd_literals()}} for its fields. Operator costs count
+the Boolean formula before conversion back to R comparisons.
+}
 }
 \description{
-Converts one or more R expressions to C++ style logical strings using
-[expressions_to_cpp_logic()] and evaluates them with [bdd_restrict_chain()],
-automatically supplying ordering constraints derived from placeholders for
-comparison operators.
+Shared entry point for callers such as lintr. Converts R conditions to BDDs,
+applies ordering constraints and earlier false conditions, and returns
+readable R replacements. Optional Rwbo synthesis searches for cheaper
+formulas with AND, OR, XOR and NOT.
+}
+\details{
+A single condition uses only the ordering constraints. For branch \code{i}, the
+context also requires all preceding original conditions to be false. A
+replacement is equivalent only within its context. Solver replacements do
+not alter the contexts used for later branches.
+
+Comparisons assume a total order and conditions use classical Boolean logic.
+The caller decides whether this model applies to the R code, including
+missing values, scalar conditions, and side effects. No code eligibility
+analysis is performed here.
 }
 \examples{
-bdd_restrict_from_expressions(list(quote(x || y < z || y >= z)))
-bdd_restrict_from_expressions(list(quote(b < c && a < b && a >= c)))
-bdd_restrict_from_expressions(list(quote(a > b), quote(a >= b)))$chain
+bdd_restrict_from_expressions(quote((x && y) || (x && !y)))$chain
+bdd_restrict_from_expressions(list(quote(a > b), quote(a >= b), TRUE))$chain
+# Optional synthesis (requires Rwbo):
+# bdd_restrict_from_expressions("(a && !b) || (!a && b)", use_rwbo = 6L)
 
 }

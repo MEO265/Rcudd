@@ -2,23 +2,9 @@
 % Please edit documentation in R/cpp_logic_to_r.R
 \name{cpp_logic_to_r}
 \alias{cpp_logic_to_r}
-\alias{cpp_logic_to_expression}
-\alias{cpp_logic_to_expressions}
 \title{Restore readable R expressions from C++ logical strings}
 \usage{
 cpp_logic_to_r(
-  exprs,
-  placeholders = character(),
-  order_variables = character()
-)
-
-cpp_logic_to_expression(
-  expr,
-  placeholders = character(),
-  order_variables = character()
-)
-
-cpp_logic_to_expressions(
   exprs,
   placeholders = character(),
   order_variables = character()
@@ -28,31 +14,27 @@ cpp_logic_to_expressions(
 \item{exprs}{Character vector of C++ style logical strings.}
 
 \item{placeholders}{Named character vector mapping ordinary placeholders to
-original R expressions, as returned by [expressions_to_cpp_logic()].}
+original R expressions, as returned by \code{\link[=expressions_to_cpp_logic]{expressions_to_cpp_logic()}}.}
 
 \item{order_variables}{Named character vector mapping comparison operand
 tokens to original R expressions, as returned by
-[expressions_to_cpp_logic()].}
-
-\item{expr}{A single C++ style logical string (compatibility wrapper).}
+\code{\link[=expressions_to_cpp_logic]{expressions_to_cpp_logic()}}.}
 }
 \value{
 A character vector of parseable R expressions, in input order.
-  `cpp_logic_to_r()` handles both a single expression and a vector.
-  `cpp_logic_to_expression()` and `cpp_logic_to_expressions()` are retained
-  as compatibility wrappers; the former requires a single string.
+\code{cpp_logic_to_r()} handles both a single expression and a vector.
 }
 \description{
 Reverses the placeholder substitution performed by
-[expressions_to_cpp_logic()]. Ordinary placeholders are replaced by their
+\code{\link[=expressions_to_cpp_logic]{expressions_to_cpp_logic()}}. Ordinary placeholders are replaced by their
 original R expressions and comparison tokens by comparisons of the original
-operands. The result uses `&&`, `||`, `!`, `xor()`, `TRUE` and `FALSE`.
+operands. The result uses \code{&&}, \code{||}, \code{!}, \code{xor()}, \code{TRUE} and \code{FALSE}.
 }
 \details{
 Comparison combinations for the same pair of operands are combined using
-the ordering model of [order_constraints()]: exactly one of less, equal and
-greater holds. For example, `G_n1_n2 | E_n1_n2` becomes `a >= b`, and
-`!G_n1_n2` becomes `a <= b`. This uses classical Boolean logic and a total
+the ordering model of \code{\link[=order_constraints]{order_constraints()}}: exactly one of less, equal and
+greater holds. For example, \code{G_n1_n2 | E_n1_n2} becomes \code{a >= b}, and
+\code{!G_n1_n2} becomes \code{a <= b}. This uses classical Boolean logic and a total
 order; it does not reproduce R's missing-value logic.
 
 Substitutions operate on complete tokens and parsed language objects, which

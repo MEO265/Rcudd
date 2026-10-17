@@ -1,4 +1,43 @@
-# Formula synthesis examples
+# Formula synthesis with Rcudd and Rwbo
+
+## Automatic use, including lintr callers
+
+Use one entry point for a single R condition or a complete if/else-if/else chain:
+
+```r
+Rcudd::bdd_restrict_from_expressions(
+  "(a && !b) || (!a && b)", use_rwbo = 6L
+)$chain[[1]]$reduced_expression
+# "xor(a, b)" (operand order may differ)
+
+result <- Rcudd::bdd_restrict_from_expressions(
+  list(quote(a > b), quote(a >= b), TRUE),
+  use_rwbo = 6L, rwbo_control = list(time_limit = 5L)
+)
+result$chain[[2]]$reduced_expression # "a == b"
+result$chain[[2]]$optimization
+```
+
+`use_rwbo` accepts numeric `0` (disabled), a positive whole variable limit, or
+`Inf`. Logical flags are rejected. Context variables count towards the limit;
+comparison operands can introduce several Boolean variables. Defaults also
+limit synthesis to eight operators, two million clauses and a shared five-second
+budget. The native cap of 20 variables still applies with `Inf`.
+The budget is checked between jobs; an active export and validation finish,
+and solver timeouts are rounded up to whole seconds.
+
+Only verified, strictly cheaper formulas replace BDD results. The diagnostic
+distinguishes improvements, directly proven minima, skipped searches and
+failures. `verified` and `optimal` distinguish a valid formula from a proven
+minimum for the Boolean operator cost. Missing Rwbo, timeouts and invalid models
+retain the BDD result. Temporary files are managed internally.
+
+`context_reachable` means the preceding conditions can all be false;
+`reachable` additionally requires the current condition to be true. A final
+`TRUE` represents else. Inputs are never evaluated. Callers decide whether
+classical Boolean logic and total-order comparisons apply to their R code.
+
+## Manual export and solver execution
 
 Install Rcudd and a version of Rwbo whose `run_open_wbo()` preserves complete
 stdout lines and accepts an elapsed `timeout`. Rcudd strings use `&`, `|`, `^`
@@ -36,7 +75,7 @@ result <- Rcudd::interpret_rwbo_output(problem, output)
 `optimal` additionally requires a proven minimum (or a direct zero-cost BDD
 shortcut). UNSAT excludes only formulas within the operator bound. See
 `?Rcudd::bdd_to_wcnf` and `?Rcudd::interpret_rwbo_output` for the full contract.
-The example runner propagates timeouts and solver errors.
+The manual example runner propagates timeouts and solver errors.
 
 ## Native use
 
@@ -66,6 +105,7 @@ this is not a portable cross-DLL BDD interface.
 
 ```text
 Rscript inst/scripts/test_bdd_rwbo_minimize.R
+Rscript inst/scripts/test_lintr_rwbo.R
 ```
 
 The integration checks use real Rwbo, including all 16 two-variable functions,

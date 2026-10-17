@@ -8,21 +8,23 @@ expressions_to_cpp_logic(..., use_placeholders = TRUE)
 }
 \arguments{
 \item{...}{One or more quoted R expressions or character scalars that can be
-parsed with [str2lang()].}
+parsed with \code{\link[=str2lang]{str2lang()}}.}
 
 \item{use_placeholders}{Logical flag indicating whether non-operator
-sub-expressions should be replaced by placeholders. When `FALSE`, the
-original `deparse()`d expression is kept in the output string while the
+sub-expressions should be replaced by placeholders. When \code{FALSE}, the
+original \code{deparse()}d expression is kept in the output string while the
 placeholder mapping is still reported.}
 }
 \value{
 A list with elements
-* `expressions`: character vector with the C++ style logic strings for each
-  input expression, in order.
-* `placeholders`: named character vector that maps placeholder names to the
-  original expression strings, shared across all inputs.
-* `order_variables`: named character vector that maps variable tokens (`n1`,
-  `n2`, …) to the variable names used in comparisons.
+\itemize{
+\item \code{expressions}: character vector with the C++ style logic strings for each
+input expression, in order.
+\item \code{placeholders}: named character vector that maps placeholder names to the
+original expression strings, shared across all inputs.
+\item \code{order_variables}: named character vector that maps variable tokens (\code{n1},
+\code{n2}, …) to the variable names used in comparisons.
+}
 }
 \description{
 Processes several quoted expressions at once so that common subexpressions
@@ -36,4 +38,7 @@ expressions_to_cpp_logic(quote(x && y), quote(!(x && y)), quote(xor(y, z)))
 placeholders <- expressions_to_cpp_logic(quote(x && y), quote(!(x && y)))$placeholders
 placeholders
 
+}
+\seealso{
+\code{\link[=cpp_logic_to_r]{cpp_logic_to_r()}} for restoring readable R expressions.
 }

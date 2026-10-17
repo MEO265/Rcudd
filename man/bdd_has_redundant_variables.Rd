@@ -13,9 +13,9 @@ bdd_has_redundant_variables(expr)
 Logical scalar indicating whether any variable is unnecessary.
 }
 \description{
-Evaluates the given expression via `bdd_literals()` and returns `TRUE` when
-at least one variable from the original expression is not required in the
-reduced ROBDD (including the case where the expression is a constant).
+Evaluates the given expression via \code{bdd_literals()} and returns \code{TRUE} when
+at least one input variable is absent from the reduced BDD. Constant inputs
+without variables return \code{FALSE}.
 }
 \examples{
 bdd_has_redundant_variables("x & !x")

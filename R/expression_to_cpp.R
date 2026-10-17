@@ -36,6 +36,8 @@
 #'
 #' expression_to_cpp_logic("xor(x, y) || f(z) && w")
 #'
+#' @seealso [cpp_logic_to_r()] for restoring readable R expressions.
+#'
 #' @export
 expression_to_cpp_logic <- function(expr, use_placeholders = TRUE) {
   converted <- cpp_logic_from_expressions(list(expr), use_placeholders)
@@ -72,6 +74,8 @@ expression_to_cpp_logic <- function(expr, use_placeholders = TRUE) {
 #' placeholders <- expressions_to_cpp_logic(quote(x && y), quote(!(x && y)))$placeholders
 #' placeholders
 #'
+#' @seealso [cpp_logic_to_r()] for restoring readable R expressions.
+#'
 #' @export
 expressions_to_cpp_logic <- function(..., use_placeholders = TRUE) {
   exprs <- list(...)
@@ -90,9 +94,8 @@ cpp_logic_from_expressions <- function(exprs, use_placeholders = TRUE) {
   state$variable_tokens <- list()
   state$variable_counter <- 0L
 
-  # Move out of main function to avoid repeated definition (give state as argument if necessary)
   placeholder_for <- function(node) {
-    key <- deparse(node)
+    key <- deparse1(node, width.cutoff = 500L, backtick = TRUE)
 
     if (!key %in% names(state$placeholder_map)) {
       state$counter <- state$counter + 1L
@@ -152,8 +155,8 @@ cpp_logic_from_expressions <- function(exprs, use_placeholders = TRUE) {
   }
 
   comparison_placeholder <- function(lhs_node, rhs_node, op) {
-    lhs_name <- deparse(lhs_node)
-    rhs_name <- deparse(rhs_node)
+    lhs_name <- deparse1(lhs_node, width.cutoff = 500L, backtick = TRUE)
+    rhs_name <- deparse1(rhs_node, width.cutoff = 500L, backtick = TRUE)
 
     if (lhs_name == rhs_name) {
       return(switch(
@@ -208,12 +211,11 @@ cpp_logic_from_expressions <- function(exprs, use_placeholders = TRUE) {
 
   to_cpp <- function(node) {
     is_logical_scalar <- is.logical(node) && length(node) == 1L && !is.na(node)
-    is_name_logical <- is.name(node) && as.character(node) %in% c("TRUE", "FALSE")
-    if (is_logical_scalar || is_name_logical) {
-      return(if (isTRUE(node) || identical(as.character(node), "TRUE")) "true" else "false")
+    if (is_logical_scalar) {
+      return(if (isTRUE(node)) "true" else "false")
     }
 
-    if (is.call(node)) {
+    if (is.call(node) && is.name(node[[1L]])) {
       parts <- as.list(node)
       op <- as.character(parts[[1L]])
       comps <- parts[-1L]
@@ -231,6 +233,10 @@ cpp_logic_from_expressions <- function(exprs, use_placeholders = TRUE) {
       }
 
       if (op %in% c("&&", "||", "xor", "!")) {
+        expected <- if (op == "!") 1L else 2L
+        if (length(comps) != expected) {
+          stop("Logical operator '", op, "' requires ", expected, " operand(s).", call. = FALSE)
+        }
         mapped <- switch(
           EXPR = op,
           "&&" = "&",
@@ -257,12 +263,12 @@ cpp_logic_from_expressions <- function(exprs, use_placeholders = TRUE) {
       expr <- expr[[1L]]
     }
 
-    if (is.logical(expr) && length(expr) == 1L && !is.na(expr)) {
-      return(expr)
-    }
-
     if (is.character(expr)) {
       expr <- str2lang(expr)
+    }
+
+    if (is.logical(expr) && length(expr) == 1L && !is.na(expr)) {
+      return(expr)
     }
 
     if (!is.language(expr)) {

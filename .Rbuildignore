@@ -6,6 +6,7 @@
 ^src/README$
 cran-comments.md
 ^\.github$
+^\.git$
 ^\.covrignore$
 ^\.idea$
 ^_pkgdown\.yml$
@@ -17,3 +18,6 @@ cran-comments.md
 ^src/cudd_pack/aclocal\.m4$
 ^src/cudd_pack/m4/
 ^LICENSE\.md$
+^\.rwbo-test$
+^rwbo-output$
+^dev$

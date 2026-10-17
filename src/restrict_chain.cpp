@@ -1,4 +1,5 @@
 #include "rcudd.h"
+#include "bdd_prepare.h"
 #include <algorithm>
 #include <stdexcept>
 #include <string>
@@ -8,7 +9,7 @@
 #include <Rinternals.h>
 #include "cuddObj.hh"
 
-extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in) {
+extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in, SEXP config) {
     if (!Rf_isString(exprs_in)) {
         Rf_error("'exprs' must be a character vector.");
     }
@@ -25,6 +26,8 @@ extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in
     R_xlen_t n_constraints = Rf_xlength(additional_constraints_in);
 
     try {
+        rcudd::RwboPreparation preparation(config);
+        const bool prepare_rwbo = config != R_NilValue;
         std::unordered_map<std::string, unsigned int> var_idx;
         std::vector<std::string> idx_to_name;
         Cudd mgr;
@@ -36,7 +39,8 @@ extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in
         initial_names.reserve(static_cast<std::size_t>(n));
 
         for (R_xlen_t i = 0; i < n; ++i) {
-            const char *expr_c = CHAR(STRING_ELT(exprs_in, i));
+            if (STRING_ELT(exprs_in, i) == NA_STRING) throw std::invalid_argument("Expressions cannot contain NA.");
+            const char *expr_c = Rf_translateCharUTF8(STRING_ELT(exprs_in, i));
             std::string expr(expr_c ? expr_c : "");
             std::vector<std::string> encountered;
             bdds.push_back(
@@ -49,56 +53,16 @@ extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in
         }
 
         BDD shared_constraints = mgr.bddOne();
+        std::string context_expression = "true";
         for (R_xlen_t i = 0; i < n_constraints; ++i) {
-            const char *expr_c = CHAR(STRING_ELT(additional_constraints_in, i));
+            if (STRING_ELT(additional_constraints_in, i) == NA_STRING)
+                throw std::invalid_argument("Additional constraints cannot contain NA.");
+            const char *expr_c = Rf_translateCharUTF8(STRING_ELT(additional_constraints_in, i));
             std::string expr(expr_c ? expr_c : "");
             shared_constraints = shared_constraints &
                 rcudd::parse_bdd_expression(expr, mgr, var_idx, idx_to_name);
+            if (prepare_rwbo) context_expression += " & (" + expr + ")";
         }
-
-        auto bdd_summary = [&](const BDD &bdd, const std::vector<std::string> &initial_vars) {
-            SEXP entry = PROTECT(Rf_allocVector(VECSXP, 3));
-            SEXP names = PROTECT(Rf_allocVector(STRSXP, 3));
-            SET_STRING_ELT(names, 0, Rf_mkChar("constant"));
-            SET_STRING_ELT(names, 1, Rf_mkChar("variables"));
-            SET_STRING_ELT(names, 2, Rf_mkChar("initial_variables"));
-            Rf_setAttrib(entry, R_NamesSymbol, names);
-
-            SEXP constant = PROTECT(Rf_allocVector(LGLSXP, 1));
-            int const_val = NA_LOGICAL;
-            if (bdd.IsOne()) {
-                const_val = 1;
-            } else if (bdd.IsZero()) {
-                const_val = 0;
-            }
-            LOGICAL(constant)[0] = const_val;
-            SET_VECTOR_ELT(entry, 0, constant);
-
-            auto support = bdd.SupportIndices();
-            std::vector<std::string> names_out;
-            names_out.reserve(support.size());
-            for (unsigned int idx : support) {
-                if (idx < idx_to_name.size()) {
-                    names_out.push_back(idx_to_name[idx]);
-                }
-            }
-            std::sort(names_out.begin(), names_out.end());
-
-            SEXP vars = PROTECT(Rf_allocVector(STRSXP, names_out.size()));
-            for (R_xlen_t i = 0; i < static_cast<R_xlen_t>(names_out.size()); ++i) {
-                SET_STRING_ELT(vars, i, Rf_mkChar(names_out[i].c_str()));
-            }
-            SET_VECTOR_ELT(entry, 1, vars);
-
-            SEXP initial = PROTECT(Rf_allocVector(STRSXP, initial_vars.size()));
-            for (R_xlen_t i = 0; i < static_cast<R_xlen_t>(initial_vars.size()); ++i) {
-                SET_STRING_ELT(initial, i, Rf_mkChar(initial_vars[i].c_str()));
-            }
-            SET_VECTOR_ELT(entry, 2, initial);
-
-            UNPROTECT(4);
-            return entry;
-        };
 
         SEXP out = PROTECT(Rf_allocVector(VECSXP, n));
         BDD previous_constraints = mgr.bddOne();
@@ -108,9 +72,23 @@ extern "C" SEXP bdd_restrict_chain(SEXP exprs_in, SEXP additional_constraints_in
             BDD context = previous_constraints & shared_constraints;
             BDD result = original.Restrict(context);
 
-            SEXP entry = bdd_summary(result, initial_names[static_cast<std::size_t>(i)]);
+            SEXP summary = PROTECT(rcudd::bdd_summary(result, idx_to_name, initial_names[static_cast<std::size_t>(i)]));
+            SEXP entry = PROTECT(Rf_allocVector(VECSXP, 6));
+            SEXP labels = PROTECT(Rf_allocVector(STRSXP, 6));
+            const char *fields[] = {"constant", "variables", "initial_variables", "reduced_expression",
+                                    "context_reachable", "reachable"};
+            for (int field = 0; field < 6; ++field) SET_STRING_ELT(labels, field, Rf_mkChar(fields[field]));
+            Rf_setAttrib(entry, R_NamesSymbol, labels);
+            for (int field = 0; field < 4; ++field) SET_VECTOR_ELT(entry, field, VECTOR_ELT(summary, field));
+            SET_VECTOR_ELT(entry, 4, Rf_ScalarLogical(!context.IsZero()));
+            SET_VECTOR_ELT(entry, 5, Rf_ScalarLogical(!(context & original).IsZero()));
+            if (prepare_rwbo) {
+                const std::string original_expression(Rf_translateCharUTF8(STRING_ELT(exprs_in, i)));
+                preparation.attach(entry, result, context, idx_to_name, original_expression, context_expression);
+                context_expression += " & !(" + original_expression + ")";
+            }
             SET_VECTOR_ELT(out, i, entry);
-            UNPROTECT(1); // entry
+            UNPROTECT(3); // summary, entry, labels
             previous_constraints = previous_constraints & !bdds[static_cast<std::size_t>(i)];
         }
 

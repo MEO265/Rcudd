@@ -13,29 +13,34 @@
 #'   For each expression, this conjunction is combined with the negation of all
 #'   previous expressions and applied in a single restriction. This preserves
 #'   relationships through variables absent from the expression being simplified.
+#' @inheritParams bdd_literals
 #'
 #' @details
 #' The reduced diagram agrees with the input wherever the combined context is
-#' true. Its behavior outside that context is unspecified; this is a reduction
-#' operation, not a check of whether the context itself is satisfiable.
+#' true. Its behavior outside that context is unspecified. `context_reachable`
+#' reports whether the context is satisfiable; `reachable` reports whether the
+#' context and original condition can both be true. Contexts always use the
+#' original conditions, including when RWBO supplies a cheaper replacement.
 #'
-#' When the combined context is contradictory, CUDD returns a constant FALSE,
-#' including when the input expression is TRUE. A FALSE result can therefore
-#' indicate either an expression that is false throughout its context or an
-#' unreachable context.
-#'
-#' @return List with one entry per input expression. Each entry mirrors the
-#'   structure of [bdd_literals()]:
-#' * `constant`: logical scalar indicating whether the restricted BDD  collapses
-#'   to a constant (`TRUE`/`FALSE`) or `NA` when it is non-constant.
-#' * `variables`: remaining variable names in the restricted diagram (sorted).
-#' * `initial_variables`: variables that appeared in the input expressions (sorted).
+#' @return One [bdd_literals()] result per input, in input order.
+#'   `initial_variables` refers to that branch's input. `reduced_expression`
+#'   agrees with it only within the branch's context and need not be shortest.
+#'   Each entry also contains `context_reachable` and `reachable`. Positive
+#'   `use_rwbo` adds an `optimization` diagnostic. All branches share the
+#'   `rwbo_control$time_limit` budget; solver failures retain the BDD result.
+#'   `variables` describes the returned formula and can include variables from
+#'   the context that were absent from this branch's original input.
 #'
 #' @examples
 #' bdd_restrict_chain("x", c("!x | z", "!z"))
 #' bdd_restrict_chain("true", c("x", "!x"))
+#' bdd_restrict_chain(c("y | x", "(x | y | z) & w"))[[2L]]$reduced_expression
 #'
 #' @export
-bdd_restrict_chain <- function(exprs, additional_constraints = character()) {
-  .Call(c_bdd_restrict_chain, exprs, additional_constraints)
+bdd_restrict_chain <- function(exprs, additional_constraints = character(),
+                               use_rwbo = 0L, rwbo_control = list()) {
+  state <- .rwbo_setup(use_rwbo, rwbo_control)
+  on.exit(if (!is.null(state$directory)) unlink(state$directory, recursive = TRUE))
+  result <- .Call(c_bdd_restrict_chain, exprs, additional_constraints, state$config)
+  lapply(result, .rwbo_finish, state = state)
 }

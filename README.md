@@ -1,29 +1,43 @@
-# R Wrapper for CUDD: CU Decision Diagram Package
+# Rcudd
 
-<!-- badges: start -->
-
-[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/Rcudd)](https://cran.r-project.org/package=Rcudd)
 [![R-CMD-check](https://github.com/MEO265/Rcudd/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/MEO265/Rcudd/actions/workflows/R-CMD-check.yaml)
-[![codecov](https://codecov.io/gh/MEO265/Rcudd/graph/badge.svg)](https://codecov.io/gh/MEO265/Rcudd)
 
-------------------------------------------------------------------------
+Rcudd simplifies Boolean expressions and conditional chains with the bundled
+[CUDD library](https://github.com/cuddorg/cudd).
 
-<!-- badges: end -->
+```r
+Rcudd::bdd_restrict_from_expressions(quote((x && y) || (x && !y)))$chain[[1]]$reduced_expression
+# "x"
 
-`Rucdd` is an (sofar very basic) R wrapper for the [CUDD C-library](https://github.com/cuddorg/cudd), 
-for the manipulation of decision diagrams which supports binary decision diagrams (BDDs),
-algebraic decision diagrams (ADDs), and Zero-Suppressed BDDs (ZDDs).
+# if / else if / else
+result <- Rcudd::bdd_restrict_from_expressions(
+  list(quote(a > b), quote(a >= b), TRUE), use_rwbo = 6L
+)
+result$chain[[2]]$reduced_expression
+# "a == b"
+```
 
-## Capabilities
+`bdd_restrict_from_expressions()` is the single entry point needed by lintr.
+Each branch reports a readable replacement, context and branch reachability,
+and an optimization diagnostic. `TRUE` as the final input represents `else`.
 
-At this stage, the package provides functions based on the CUDD library and especially its C++ object-oriented wrapper 
-but does not grant any possibility to use the C++ classes using R objects directly.
+`use_rwbo = 0L` (default) uses BDD reduction alone. A positive whole number
+enables optional Rwbo synthesis up to that many Boolean variables, including
+context variables; `Inf` removes this filter. Logical flags are rejected.
+Independent operator, clause and time limits remain; missing Rwbo or a failed
+search retains the BDD result. NOT costs one; AND, OR and XOR cost two each.
+See [solver examples](inst/scripts/README.md).
 
-## Contribution
+For Boolean strings use `bdd_literals()` or `bdd_restrict_chain()`. Manual
+solver workflows use `bdd_to_wcnf()` and `interpret_rwbo_output()`.
+`cpp_logic_to_r()` restores either one Boolean string or a vector of strings.
+The vignette [Die WCNF-Eingabe für Rwbo](vignettes/rwbo-wcnf.Rmd) explains
+the file layout and operator encoding, with an executable example.
 
-If you are interested in contributing to this package, feel free to create an issue or a pull request.
-Especially, help with porting the C++ classes and all their methods to R would be highly appreciated.
+BDD reduction does not guarantee a shortest formula. Conversion uses classical
+Boolean logic and a total ordering for comparisons. Callers such as lintr decide
+whether these assumptions hold for the original R code, including missing
+values, scalar conditions and side effects.
 
-## Acknowledgments
-The CUDD library on which this package is based was developed at the University of Colorado and was published under the BSD license.
-No connection to the original authors is implied or should be inferred.
+CUDD was developed at the University of Colorado and is distributed under its
+BSD license. Rcudd does not expose CUDD manager objects as R objects.

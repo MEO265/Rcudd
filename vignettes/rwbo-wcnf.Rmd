@@ -1,0 +1,642 @@
+---
+title: "Die WCNF-Eingabe für Rwbo"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Die WCNF-Eingabe für Rwbo}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(Rcudd)
+```
+
+## Welche Aufgabe wird kodiert?
+
+Rcudd baut aus einer Booleschen Funktion einen BDD auf. Für die Optimierung
+erzeugt es eine **Formelsynthese-Aufgabe**: Rwbo soll eine Formel mit möglichst
+geringen Operatorenkosten finden, die auf den vorgegebenen Eingangsbelegungen
+dieselben Werte wie der BDD liefert.
+
+Dazu legt Rcudd höchstens `K = max_operators` Operatorplätze an. Der Solver
+bestimmt für jeden Platz den Operator und dessen Eingänge. Harte Klauseln
+erzwingen eine gültige, äquivalente Formel; weiche Klauseln bewerten ihre
+Operatoren. Standardmäßig gilt `prefer_negations = TRUE`: NOT (`!`) kostet
+eins, AND (`&`), OR (`|`) und XOR (`^`) kosten jeweils zwei. Mit
+`prefer_negations = FALSE` kosten alle Operatoren eins. Die Flag akzeptiert nur
+ein einzelnes, nicht fehlendes `TRUE` oder `FALSE`. Variablen, Konstanten und
+Klammern kosten nichts. `max_operators` begrenzt die Anzahl der Plätze,
+nicht deren Kosten.
+
+Der native Exporter `rcudd::write_bdd_wcnf()` arbeitet direkt auf einem bestehenden
+CUDD-BDD. `bdd_to_wcnf()` ist der R-Einstieg für einen manuellen Export.
+Die automatische Optimierung in `bdd_restrict_from_expressions()` verwendet
+denselben Encoder, während Ergebnis- und Kontext-BDD noch vorhanden sind.
+Dort wird die Gewichtung pro Aufruf über `rwbo_control` gewählt, zum Beispiel
+für einen lintr-Aufrufer mit gleichen Operatorenkosten:
+
+```r
+bdd_restrict_from_expressions(
+  "(a && !b) || (!a && b)", use_rwbo = 6L,
+  rwbo_control = list(prefer_negations = FALSE)
+)
+```
+
+Diese Vignette beschreibt das von Rcudd geschriebene **klassische WCNF-Format**
+und die dazugehörigen Metadaten. Alle ausgeführten Beispiele funktionieren
+ohne Rwbo; ein optionaler Solver-Aufruf steht am Ende.
+
+## Ein durchgängiges Beispiel
+
+Der Input enthält AND, OR und NOT. Gesucht ist eine Formel mit höchstens einem
+Operator; `a ^ b` passt in diesen Suchraum.
+
+```{r export}
+wcnf_file <- tempfile(fileext = ".wcnf")
+problem <- bdd_to_wcnf(
+  "(a & !b) | (!a & b)",
+  wcnf_file,
+  max_operators = 1L
+)
+lines <- readLines(problem$wcnf_file)
+problem[c("variables", "max_operators", "prefer_negations",
+          "binary_lower_bound", "nvars", "nclauses")]
+stopifnot(problem$nvars == 25L, problem$nclauses == 133L,
+          isTRUE(problem$prefer_negations), problem$binary_lower_bound == 1L,
+          length(problem$binary_auxiliary) == 0L,
+          "3 -5 0" %in% lines)
+```
+
+In Rcudd-Strings bedeutet `^` Boolesches XOR. Im R-Quelltext wird XOR dagegen
+als `xor(a, b)` geschrieben; R verwendet `^` für Potenzierung.
+
+### Header und Klauselzeilen
+
+```{r header}
+lines[[1L]]
+```
+
+Der Header lautet hier:
+
+```text
+p wcnf 25 133 3
+```
+
+| Feld | Bedeutung |
+|:-----|:----------|
+| `p wcnf` | Deklaration des gewichteten CNF-Problems |
+| `25` | Anzahl der SAT-Variablen; gültige IDs sind 1 bis 25 |
+| `133` | Anzahl aller Klauseln, einschließlich der weichen Klauseln |
+| `3` | `top`, das Gewicht einer harten Klausel |
+
+Eine weitere Zeile hat die Form:
+
+```text
+Gewicht Literal Literal ... 0
+```
+
+Positive IDs bedeuten eine SAT-Variable, negative IDs deren Negation.
+Die Literale einer Zeile sind mit OR verknüpft. Alle harten Klauseln müssen
+gleichzeitig gelten. Die abschließende `0` beendet die Klausel; sie ist kein
+Literal für die Boolesche Konstante FALSE.
+
+Beispielsweise bedeutet `3 -4 14 -18 22 0` bei `top = 3` die harte Klausel
+`!x4 | x14 | !x18 | x22`. Das erste `3` ist das Gewicht.
+Ein `3` an einer Literalposition wäre dagegen die SAT-Variable mit ID 3.
+
+Im regulären Encoding gibt es standardmäßig `2 * K` weiche Klauseln mit
+Gewicht eins und `top = 2 * K + 1`. Bei `prefer_negations = FALSE` sind es
+`K` weiche Klauseln und `top = K + 1`. Damit ist das Gewicht jeder harten
+Klausel größer als die Summe aller weichen Gewichte.
+
+## Eingangsvariablen und Belegungen
+
+Die Namen in `problem$variables` werden sortiert. Ohne Kontext enthält der Pool
+die wesentlichen BDD-Variablen; mit Kontext die Vereinigung von Ergebnis- und
+Kontext-Support. Für `n` Variablen werden alle `2^n` Belegungen verwendet.
+
+```{r truth-table}
+knitr::kable(data.frame(
+  row = seq_along(problem$target) - 1L,
+  problem$inputs,
+  target = problem$target
+))
+```
+
+Die erste Variable wechselt am schnellsten. Für eine nullbasierte Zeilennummer
+`r` und Spalte `j` ist ihr Wert `(r >> j) & 1`. R indiziert die entsprechenden
+Vektoren ab eins, also zum Beispiel Zeile `r` mit `problem$target[r + 1L]`.
+
+**Eingangsvariablen wie `a` und `b` erhalten keine einzelne SAT-ID für ihren
+Wahrheitswert.** Ihre Werte stehen pro Belegungszeile bereits fest.
+SAT-Variablen kodieren die Auswahl der Formel und deren innere Werte auf jeder
+Zeile. So muss eine einzige ausgewählte Struktur alle Zeilen erfüllen.
+
+`problem$variable_indices` enthält zusätzlich die ursprünglichen, nullbasierten
+CUDD-Indizes. Diese können von der sortierten Spaltenreihenfolge abweichen und
+bleiben auch bei einer Umordnung des BDD-Managers gültig.
+
+## SAT-Variablen eines Operatorplatzes
+
+Jeder Platz erhält zuerst fünf Typvariablen, dann Auswahlvariablen für beide
+Eingänge und schließlich Wertevariablen pro Belegungszeile.
+
+```{r ids}
+gate <- problem$gates[[1L]]
+gate
+stopifnot(
+  identical(unname(gate$kind), 1:5),
+  identical(gate$left, 6:9),
+  identical(gate$right, 10:13),
+  identical(gate$left_value, 14:17),
+  identical(gate$right_value, 18:21),
+  identical(gate$out, 22:25)
+)
+```
+
+### Auswahl des Operators
+
+| Name in `kind` | C++-Index | SAT-ID im Beispiel | Bedeutung bei TRUE |
+|:---------------|----------:|-------------------:|:-------------------|
+| `unused` | 0 | 1 | Platz unbenutzt |
+| `and` | 1 | 2 | AND |
+| `or` | 2 | 3 | OR |
+| `xor` | 3 | 4 | XOR |
+| `not` | 4 | 5 | NOT |
+
+Dies ist eine **One-hot-Kodierung**: Genau eine dieser fünf SAT-Variablen ist
+TRUE. Die Zahl 3 als C++-Index für XOR ist keine Zahl, die als Operatorcode in
+eine Klausel geschrieben wird. XOR wird hier durch die SAT-Variable mit ID 4
+ausgewählt. Bei späteren Plätzen sind die IDs entsprechend höher.
+
+Die Operatorbedeutung entsteht vollständig aus den Klauseln. Namen wie
+`kind[["xor"]]` gehören zu Rcudds Metadaten; die WCNF-Datei übermittelt nur
+SAT-IDs, Vorzeichen und Gewichte.
+
+Für mindestens einen Typ steht die harte Klausel:
+
+```{r type-clause}
+lines[[2L]]
+```
+
+Für jedes Paar verschiedener Typen kommt `!type_i | !type_j` hinzu. Das
+verhindert, dass zwei Typen gleichzeitig ausgewählt werden.
+
+### Auswahl der Eingänge
+
+Für einen Platz mit nullbasiertem Index `i` sind folgende Quellen erlaubt:
+
+1. FALSE;
+2. TRUE;
+3. alle Variablen aus `problem$variables`;
+4. die Ausgänge der Plätze mit Index kleiner als `i`.
+
+Die Quellen haben diese Reihenfolge sowohl in `left` als auch in `right`.
+Die SAT-IDs für die Auswahl sind jedoch verschieden.
+
+| Quelle | C++-Quellindex | R-Position | `left`-ID im Beispiel | `right`-ID |
+|:-------|---------------:|-----------:|---------------------:|-----------:|
+| FALSE | 0 | 1 | 6 | 10 |
+| TRUE | 1 | 2 | 7 | 11 |
+| `a` | 2 | 3 | 8 | 12 |
+| `b` | 3 | 4 | 9 | 13 |
+
+Für XOR mit linkem Eingang `a` und rechtem Eingang `b` werden somit die
+SAT-Variablen **4, 8 und 13** auf TRUE gesetzt.
+
+Ein aktiver Platz wählt genau einen linken Eingang. Binäre Operatoren wählen
+zusätzlich genau einen rechten Eingang. NOT wählt keinen rechten Eingang;
+ein unbenutzter Platz wählt überhaupt keine Eingänge.
+
+### Werte pro Belegungszeile
+
+Für jede Zeile existieren die drei Variablen `left_value`, `right_value` und
+`out`. Die Auswahl der Quellen gilt für **alle** Zeilen; ihre Werte hängen
+von der jeweiligen Belegung ab.
+
+Wenn Selektor `s` einen festen Eingangswert `b` an den Werteplatz `l` bindet,
+schreibt Rcudd:
+
+| Wert `b` in dieser Zeile | Harte Klausel |
+|:------------------------|:--------------|
+| FALSE | <code>!s &#124; !l</code> |
+| TRUE | <code>!s &#124; l</code> |
+
+Für die Auswahl von `a` am linken Eingang sind das in den ersten zwei Zeilen
+beispielsweise:
+
+```{r selected-input}
+selected_clauses <- c("3 -8 -14 0", "3 -8 15 0")
+stopifnot(all(selected_clauses %in% lines))
+cat(paste(selected_clauses, collapse = "\n"))
+```
+
+Bei einer früheren Gate-Quelle ist deren zeilenbezogener Ausgang `z` ebenfalls
+eine SAT-Variable. Dann kodieren zwei Klauseln `s => (l == z)`:
+
+```text
+!s | !l |  z
+!s |  l | !z
+```
+
+## Wie die Operatoren kodiert werden
+
+Die folgenden Klauseln werden **für jeden Platz und jede Belegungszeile**
+geschrieben. Dabei bezeichnet `g` die Typvariable des betreffenden Operators,
+`l` und `r` die Eingangswerte und `v` den Ausgangswert derselben Zeile.
+
+Jede Klausel beginnt mit `!g`. Bei einem anderen ausgewählten Operator ist sie
+damit bereits erfüllt. Bei `g = TRUE` erzwingen die übrigen Literale die
+Operatorsemantik. Jede Zeile der folgenden Blöcke ist eine harte Klausel;
+in der WCNF-Datei werden die Namen durch vorzeichenbehaftete SAT-IDs ersetzt,
+das Gewicht vorangestellt und `0` angehängt.
+
+### AND: `v == (l & r)`
+
+```text
+!g | !v |  l
+!g | !v |  r
+!g |  v | !l | !r
+```
+
+### OR: `v == (l | r)`
+
+```text
+!g |  v | !l
+!g |  v | !r
+!g | !v |  l | r
+```
+
+### XOR: `v == (l ^ r)`
+
+```text
+!g | !l | !r | !v
+!g |  l |  r | !v
+!g |  l | !r |  v
+!g | !l |  r |  v
+```
+
+Für die erste Zeile unseres Beispiels sind `g=4`, `l=14`, `r=18`
+und `v=22`. Die vier XOR-Klauseln lauten deshalb:
+
+```{r xor-clauses}
+xor_clauses <- c(
+  "3 -4 -14 -18 -22 0",
+  "3 -4 14 18 -22 0",
+  "3 -4 14 -18 22 0",
+  "3 -4 -14 18 22 0"
+)
+stopifnot(all(xor_clauses %in% lines))
+cat(paste(xor_clauses, collapse = "\n"))
+```
+
+### NOT: `v == !l`
+
+```text
+!g | !v | !l
+!g |  v |  l
+```
+
+NOT benötigt nur den linken Eingang. Rechte Wertevariablen werden wegen des
+einheitlichen Platzschemas trotzdem reserviert, aber nicht für NOT verwendet.
+
+## Form der gesuchten Formel
+
+Zusätzliche harte Klauseln legen die Struktur fest:
+
+- Quellen dürfen nur Variablen, Konstanten oder **frühere** Plätze sein.
+  Dadurch entstehen keine Zyklen.
+- Unbenutzte Plätze bilden einen Präfix; aktive Plätze stehen am Ende.
+  Der letzte Platz ist die Wurzel.
+- Jeder aktive Platz außer der Wurzel wird genau einmal als Eingang verwendet.
+  Ein unbenutzter Platz hat keinen Verbraucher. Das ergibt einen Formelbaum.
+- Bei AND, OR und XOR muss der linke Quellindex kleiner oder gleich dem rechten
+  sein. Das vermeidet doppelte Suchmöglichkeiten durch vertauschte Operanden.
+
+Insbesondere wird ein wiederholter Teilausdruck auch wiederholt bezahlt:
+`(a & b) | (a & b)` hätte als Formel drei Operatorvorkommen mit Kosten sechs.
+Rcudd optimiert die Kosten der gedruckten Formel, nicht die Zahl gemeinsam
+nutzbarer Schaltgatter.
+
+### Untergrenze für binäre Operatoren
+
+Ohne einschränkenden Kontext benötigt eine Funktion mit `n` wesentlichen
+Variablen mindestens `r=n-1` binäre Operatoren: Ein Formelbaum mit `B`
+binären Operatoren und beliebig vielen NOTs besitzt genau `B + 1` Blätter.
+Jede wesentliche Variable muss mindestens einmal als Blatt vorkommen.
+Für weniger als zwei wesentliche Variablen setzt Rcudd `r=0`.
+
+Nach Prüfung der Nullkostenfälle erzwingt Rcudd neben mindestens
+`max(1, n - 1)` aktiven Plätzen
+zusätzlich mindestens `r` binäre Operatoren. Diese zweite Bedingung ist
+mathematisch redundant, macht dem Solver aber die Untergrenze der gewichteten
+Kosten ausdrücklich zugänglich. Sie ändert weder die zulässigen Formeln noch
+ihre Kosten. Hilfsvariablen können bei jeder bisher gültigen Formel passend
+belegt werden.
+
+Im Beispiel ist `r=K=1`. Eine zusätzliche harte Klausel `3 -5 0` verbietet
+NOT; zusammen mit `3 -1 0` und der Typauswahl bleibt genau ein binärer Operator.
+Die Gate-IDs ändern sich nicht.
+
+Für die allgemeine Kodierung sei `b_i = and_i | or_i | xor_i`, und die Plätze
+werden hier von 1 bis `K` gezählt:
+
+- Bei `r=0` wird keine zusätzliche Bedingung geschrieben.
+- Bei `r=1 < K` genügt eine harte Klausel mit allen binären Typvariablen:
+  `b_1 | ... | b_K`.
+- Bei `r=K` verbietet je eine harte Klausel NOT auf jedem Platz. Alle Plätze
+  sind aufgrund der aktiven Untergrenze bereits als benutzt erzwungen.
+- Bei `1 < r < K` kommen Hilfsvariablen `S(i, j)` für `j = 1, ..., r` und
+  `i = j, ..., K - r + j` hinzu. Ein wahrer Zustand bezeugt mindestens `j`
+  binäre Operatoren unter den ersten `i` Plätzen.
+
+Der letzte Fall verwendet pro Zustand folgende harte Klauseln:
+
+```text
+!S(i,j) | S(i-1,j) | and_i | or_i | xor_i
+!S(i,j) | S(i-1,j) | S(i-1,j-1)
+```
+
+Ein fehlender Vorgänger mit positiver Schwelle bedeutet FALSE;
+`S(i,0)` bedeutet TRUE. Bereits dadurch erfüllte Klauseln entfallen.
+Die Einheitsklausel `S(K,r)` erzwingt die Schranke. Es genügt diese Richtung
+der Implikation: Wahre Zustände müssen einen gültigen Nachweis haben;
+es wird nicht die vollständige Äquivalenz jedes Zustands kodiert.
+Mit `d = K - r + 1` sind das `r*d` zusätzliche SAT-Variablen und
+`(2 * r - 1) * d + 1` harte Klauseln.
+
+Die Schranke wird nur bei einem konstant wahren `care`-BDD verwendet. Ein
+restriktiver Kontext kann eine einfachere Formel erlauben, auch wenn der
+Variablenpool groß ist. Dort bleibt `binary_lower_bound = 0`; nach Prüfung der
+Nullkostenfälle wird lediglich mindestens ein aktiver Platz verlangt.
+
+## Zielwerte und Operatorenkosten
+
+Die Wurzel muss auf jeder relevanten Zeile den BDD-Zielwert liefern. Bei TRUE
+steht eine positive Einheitsklausel für den Wurzelausgang, bei FALSE eine
+negative. Im Beispiel ist `problem$lower_bound = 1`: Der einzige Platz muss
+aktiv sein.
+
+```{r root-and-objective}
+tail(lines, 7L)
+stopifnot(identical(tail(lines, 7L), c(
+  "3 -1 0", "3 -22 0", "3 23 0", "3 24 0", "3 -25 0",
+  "1 1 0", "1 1 5 0"
+)))
+```
+
+Die letzten sieben Klauseln bedeuten:
+
+| Klausel | Bedeutung |
+|:--------|:----------|
+| `3 -1 0` | Platz darf nicht `unused` sein |
+| `3 -22 0` | Wurzel FALSE auf Zeile 0 |
+| `3 23 0` | Wurzel TRUE auf Zeile 1 |
+| `3 24 0` | Wurzel TRUE auf Zeile 2 |
+| `3 -25 0` | Wurzel FALSE auf Zeile 3 |
+| `1 1 0` | Weiche Klausel: `unused` soll TRUE sein |
+| `1 1 5 0` | Weiche Klausel: <code>unused &#124; not</code> soll TRUE sein |
+
+Rwbo minimiert die Summe der Gewichte **verletzter weicher Klauseln**.
+Ein unbenutzter Platz erfüllt beide Klauseln und kostet null. NOT verletzt
+nur die erste und kostet eins; ein binärer Operator verletzt beide und kostet
+zwei. Alle weichen Klauseln behalten Gewicht eins; zusätzliche SAT-Variablen
+sind dafür nicht nötig. Das Optimum sind die minimalen gewichteten Kosten
+innerhalb der Operatorgrenze, nicht unbedingt die kleinste Operatorzahl.
+
+### Alle Operatoren gleich gewichten
+
+Mit `prefer_negations = FALSE` bleibt nur die weiche Klausel `unused` pro
+Platz. Jeder aktive Operator verletzt sie genau einmal und kostet eins.
+Die zusätzliche Klausel `unused | not` entfällt. Struktur, Semantik und
+binäre Untergrenze bleiben gleich; `top` wird entsprechend kleiner.
+
+```{r equal-costs}
+uniform_file <- tempfile(fileext = ".wcnf")
+uniform_problem <- bdd_to_wcnf(
+  "(a & !b) | (!a & b)", uniform_file,
+  max_operators = 1L, prefer_negations = FALSE
+)
+uniform_lines <- readLines(uniform_file)
+uniform_problem[c("prefer_negations", "nvars", "nclauses")]
+uniform_lines[c(1L, length(uniform_lines))]
+stopifnot(
+  identical(uniform_problem$prefer_negations, FALSE),
+  uniform_problem$nvars == 25L, uniform_problem$nclauses == 132L,
+  uniform_lines[[1L]] == "p wcnf 25 132 2",
+  tail(uniform_lines, 1L) == "1 1 0",
+  !("1 1 5 0" %in% uniform_lines)
+)
+```
+
+XOR bleibt hier eine optimale Formel mit einem Operator; ihre Kosten sind
+jetzt eins statt zwei. Das Gewichtungsmodell steht in
+`uniform_problem$prefer_negations` und muss bei der späteren Interpretation erhalten
+bleiben. Mit gleichen Kosten entspricht die Zielfunktion der Operatorzahl.
+
+## Kontexte für if/else-Ketten
+
+`care` beschreibt, auf welchen Belegungen die Zielfunktion übereinstimmen muss.
+Bei einer Chain ist das die Konjunktion zusätzlicher Constraints und der
+Negationen aller vorherigen **ursprünglichen** Bedingungen.
+
+```{r care}
+context_file <- tempfile(fileext = ".wcnf")
+context_problem <- bdd_to_wcnf(
+  "a ^ b", context_file, max_operators = 1L, care = "c"
+)
+stopifnot(context_problem$binary_lower_bound == 0L,
+          length(context_problem$binary_auxiliary) == 0L)
+knitr::kable(data.frame(
+  row = seq_along(context_problem$target) - 1L,
+  context_problem$inputs,
+  target = context_problem$target,
+  care = context_problem$care
+))
+```
+
+Der Pool enthält hier `a`, `b` und `c`. Die Wurzel erhält nur auf den vier
+Zeilen mit `c = TRUE` eine Zielklausel. Eingangswahl und Operatorsemantik
+bleiben auf **allen acht** Zeilen kodiert. Außerhalb des Kontexts darf die
+zurückgegebene Formel beliebige Werte liefern.
+
+Hier ist `context_problem$binary_lower_bound = 0`; es werden keine zusätzlichen
+binären Operatoren verlangt.
+
+Ein leerer `problem$care`-Vektor bedeutet, dass alle Zeilen relevant sind.
+Bei einem widersprüchlichen Kontext ist dagegen kein Zielwert relevant;
+Rcudd kann direkt eine Nullkosten-Konstante wählen.
+
+## Vollständige Datei und Metadaten
+
+Die 133 Klauseln des Hauptbeispiels mit `prefer_negations = TRUE` setzen sich
+wie folgt zusammen:
+
+| Gruppe | Anzahl |
+|:-------|-------:|
+| Genau ein Typ | 11 |
+| Bedingte Auswahl der linken und rechten Quelle | 28 |
+| Geordnete Quellen für kommutative Operatoren | 6 |
+| Quellenbindung auf vier Belegungszeilen | 32 |
+| AND, OR, XOR und NOT: zwölf Klauseln je Zeile | 48 |
+| Mindestens ein aktiver Platz | 1 |
+| Mindestens ein binärer Operator | 1 |
+| Vier Wurzel-Zielwerte | 4 |
+| Weiche Kostenklauseln | 2 |
+| **Summe** | **133** |
+
+Bei mehreren Plätzen kommen insbesondere die Verknüpfungen zu früheren
+Ausgängen und die Klauseln für deren einmalige Verwendung hinzu.
+
+Die Klauselzeilen enthalten nur Zahlen. Variablennamen, Zielbelegungen und die Bedeutung
+der SAT-IDs stehen in der von `bdd_to_wcnf()` zurückgegebenen Liste.
+
+| Metadatum | Inhalt |
+|:----------|:-------|
+| `variables`, `variable_indices` | Namen und ursprüngliche CUDD-Indizes |
+| `inputs`, `target` | Belegungen und BDD-Zielwerte |
+| `care`, `care_expression` | Relevante Zeilen und deren Boolescher Kontext |
+| `gates` | SAT-IDs für Typ, Eingangswahl und Zeilenwerte jedes Platzes |
+| `prefer_negations` | TRUE: NOT kostet eins, binäre Operatoren zwei; FALSE: alle kosten eins |
+| `max_operators`, `lower_bound` | Obere Operatorschranke und Mindestzahl aktiver Plätze |
+| `binary_lower_bound`, `binary_auxiliary` | Mindestzahl binärer Operatoren und SAT-IDs der Zähler-Hilfsvariablen |
+| `nvars`, `nclauses`, `wcnf_file` | Headerangaben und Dateipfad |
+| `expression`, `shortcut` | Ursprünglicher Input und gegebenenfalls Nullkostenformel |
+
+Für eine spätere Interpretation muss die Datei zusammen mit diesen Metadaten
+erhalten bleiben. Nach einem Verschieben der Datei ist `problem$wcnf_file`
+anzupassen. `saveRDS(problem, "problem.rds")` kann die Metadaten sichern.
+
+<details>
+<summary>Vollständige WCNF-Datei des XOR-Beispiels anzeigen</summary>
+
+```{r full-wcnf, echo=FALSE, results='asis'}
+stopifnot(length(lines) - 1L == problem$nclauses)
+cat("~~~text\n", paste(lines, collapse = "\n"), "\n~~~\n", sep = "")
+```
+
+</details>
+
+### Größe des Encodings
+
+Im regulären Encoding mit `n` Variablen, `R = 2^n` Belegungszeilen und `K`
+Operatorplätzen ist die Anzahl der SAT-Variablen ohne Zähler-Hilfsvariablen:
+
+```text
+V_base = K * (5 + 2 * (n + 2) + 3 * R) + K * (K - 1)
+```
+
+Pro Platz sind das fünf Typvariablen, zwei Auswahlen aus `n + 2` Grundquellen,
+drei Werte pro Zeile und zusätzliche Auswahlvariablen für frühere Plätze.
+Im Beispiel ergibt das `1 * (5 + 2 * 4 + 3 * 4) = 25`.
+
+Nur im Zählerfall `1 < r < K` kommt `r*(K - r + 1)` hinzu.
+Die Hilfsvariablen stehen in `problem$binary_auxiliary` und werden nach allen
+Gate-Variablen vergeben; die bisherigen Gate-IDs bleiben gleich. Der Vektor
+ordnet zuerst nach `j` und innerhalb jeder Schwelle nach aufsteigendem `i`.
+
+Die Wahrheitstabelle wächst exponentiell. Auch bei einem kompakten BDD
+werden alle Zeilen kodiert. Rcudd prüft deshalb Variablen-, SAT-Variablen-
+und Klauselgrenzen vor großen Allokationen und dem Schreiben der Datei.
+Standardmäßig erlaubt `bdd_to_wcnf()` zehn Variablen und zwei Millionen
+Klauseln; der native Variablen-Hardcap ist 20.
+
+### Nullkostenfälle und zu kleine Schranken
+
+Für Konstanten, positive Variablen oder unter `care` gleichwertige
+Nullkostenformeln schreibt Rcudd eine kleine Ersatzdatei:
+
+```{r shortcut}
+trivial_file <- tempfile(fileext = ".wcnf")
+trivial <- bdd_to_wcnf("a", trivial_file, max_operators = 0L)
+readLines(trivial_file)
+```
+
+Die harte Klausel erzwingt die einzige SAT-Variable auf TRUE, die weiche
+Klausel ist ebenfalls erfüllt: Kosten null. Die eigentliche Formel steht
+in `trivial$shortcut`; es gibt keine Gate-Metadaten.
+Die weiche Klausel wird für die Kompatibilität mit dem hier verwendeten
+Open-WBO-Backend auch in dieser kleinen Datei beibehalten.
+
+Wenn die Operatorschranke schon unter der sicheren unteren Schranke liegt,
+schreibt Rcudd eine widersprüchliche Datei:
+
+```{r bounded-unsat}
+impossible_file <- tempfile(fileext = ".wcnf")
+impossible <- bdd_to_wcnf("!a", impossible_file, max_operators = 0L)
+readLines(impossible_file)
+```
+
+Hier erzwingen die harten Klauseln gleichzeitig `x1` und `!x1`.
+UNSAT bedeutet dann, dass keine Formel **innerhalb der Schranke** existiert.
+Ein allgemeines Ressourcenlimit führt dagegen zu einem Exportfehler, nicht
+zu einer solchen UNSAT-Datei.
+
+## Von der Solverbelegung zurück zur Formel
+
+Zum Nachvollziehen kann man für unser XOR-Beispiel eine vollständige gültige
+SAT-Belegung von Hand konstruieren. Sie wählt den XOR-Typ, links `a` und
+rechts `b` und setzt die Werte der vier Zeilen entsprechend.
+
+```{r manual-model}
+model <- -seq_len(problem$nvars)
+positive <- c(
+  gate$kind[["xor"]], gate$left[[3L]], gate$right[[4L]],
+  gate$left_value[problem$inputs$a],
+  gate$right_value[problem$inputs$b],
+  gate$out[problem$target]
+)
+model[positive] <- positive
+output <- c("s SATISFIABLE", "o 2",
+            paste("v", paste(model, collapse = " "), "0"))
+result <- interpret_rwbo_output(problem, output)
+result[c("expression", "operator_count", "cost", "verified", "optimal")]
+stopifnot(
+  identical(result$expression, "a ^ b"),
+  result$operator_count == 1L,
+  result$cost == 2L,
+  result$verified,
+  !result$optimal
+)
+```
+
+Die Vorzeichen im `v`-Modell geben den Wert jeder SAT-Variable an.
+Der Interpreter prüft die vollständige Belegung, harte Klauseln, Kosten,
+Baumstruktur und Operatorsemantik. Der R-Einstieg bindet Ziel- und
+Kontextmetadaten zusätzlich über BDDs an die ursprünglichen Ausdrücke.
+
+Dieses selbst konstruierte Modell meldet nur `SATISFIABLE`: Es liefert eine
+verifizierte Formel, aber keinen Solver-Nachweis der Minimalität. Ein echter
+Aufruf sieht so aus; er wird beim Bauen der Vignette nicht ausgeführt:
+
+```{r run-solver, eval=FALSE}
+output <- Rwbo::run_open_wbo(
+  c("-algorithm=1", "-print-model", "-verbosity=0", problem$wcnf_file),
+  timeout = 10L
+)
+result <- interpret_rwbo_output(problem, output)
+result[c("expression", "operator_count", "cost", "verified", "optimal", "status")]
+```
+
+Ein validiertes `OPTIMUM FOUND` bestätigt das Kostenminimum innerhalb der
+`K` Operatorplätze. Bei gleichen Operatorenkosten ist dieses Minimum auch
+global: Jede billigere Formel hätte weniger Operatoren und würde ebenfalls
+in die Schranke passen. Bei unterschiedlichen Kosten kann eine billigere
+Formel mehr Plätze benötigen. Ein globaler Nachweis ist dann nur unter
+weiteren Bedingungen möglich. Beispielsweise reicht `result$cost <= K + 1`:
+Jeder
+Operator kostet mindestens eins, also passen dann alle strikt billigeren
+Formeln in die Schranke. Die Äquivalenz gilt gegebenenfalls nur auf `care`.
+Nullkosten-Abkürzungen werden direkt aus dem BDD bewiesen.
+
+Die automatische Rcudd-Schnittstelle übernimmt nur verifizierte,
+**strikt billigere** Ergebnisse und verwaltet die temporären Dateien selbst.
+Beim manuellen Ablauf bleiben Datei und Metadaten bis zur Interpretation
+in der Verantwortung des Aufrufers.
+
+```{r cleanup, include=FALSE}
+unlink(c(wcnf_file, uniform_file, context_file, trivial_file, impossible_file))
+```

@@ -4,25 +4,47 @@
 \alias{bdd_restrict_chain}
 \title{ROBDD restriction chain}
 \usage{
-bdd_restrict_chain(exprs, additional_constraints = character())
+bdd_restrict_chain(
+  exprs,
+  additional_constraints = character(),
+  use_rwbo = 0L,
+  rwbo_control = list()
+)
 }
 \arguments{
 \item{exprs}{Character vector with at least one logical expression written in
-C++ syntax (operators `!`, `&`, `|`, `^`).}
+C++ syntax (operators \code{!}, \code{&}, \code{|}, \code{^}).}
 
 \item{additional_constraints}{Optional character vector of logical
 expressions in C++ syntax. All additional constraints are conjoined once.
 For each expression, this conjunction is combined with the negation of all
 previous expressions and applied in a single restriction. This preserves
 relationships through variables absent from the expression being simplified.}
+
+\item{use_rwbo}{Numeric variable limit for optional MaxSAT optimization.
+\code{0} disables it, a positive whole number limits the native variable pool,
+and \code{Inf} removes this filter. Logical values are rejected. Independent
+resource limits, including the native cap of 20 variables, still apply.}
+
+\item{rwbo_control}{Named list overriding \code{max_operators = 8L},
+\code{max_clauses = 2000000L}, \code{time_limit = 5L} (whole seconds shared across
+the call), or \code{prefer_negations = TRUE}. The latter must be a single
+non-missing logical: \code{TRUE} gives \code{!} half the cost of binary operators;
+\code{FALSE} gives every operator the same cost. The budget is checked between
+jobs; an active export and model validation finish. Solver timeouts round
+up to whole seconds. Operator bounds may be zero; clause and time limits
+must be positive whole numbers. The optional Rwbo package is required only
+for solver calls.}
 }
 \value{
-List with one entry per input expression. Each entry mirrors the
-  structure of [bdd_literals()]:
-* `constant`: logical scalar indicating whether the restricted BDD  collapses
-  to a constant (`TRUE`/`FALSE`) or `NA` when it is non-constant.
-* `variables`: remaining variable names in the restricted diagram (sorted).
-* `initial_variables`: variables that appeared in the input expressions (sorted).
+One \code{\link[=bdd_literals]{bdd_literals()}} result per input, in input order.
+\code{initial_variables} refers to that branch's input. \code{reduced_expression}
+agrees with it only within the branch's context and need not be shortest.
+Each entry also contains \code{context_reachable} and \code{reachable}. Positive
+\code{use_rwbo} adds an \code{optimization} diagnostic. All branches share the
+\code{rwbo_control$time_limit} budget; solver failures retain the BDD result.
+\code{variables} describes the returned formula and can include variables from
+the context that were absent from this branch's original input.
 }
 \description{
 Builds reduced ordered binary decision diagrams (ROBDDs) for a sequence of
@@ -33,16 +55,14 @@ the assumption that the earlier conditions were false.
 }
 \details{
 The reduced diagram agrees with the input wherever the combined context is
-true. Its behavior outside that context is unspecified; this is a reduction
-operation, not a check of whether the context itself is satisfiable.
-
-When the combined context is contradictory, CUDD returns a constant FALSE,
-including when the input expression is TRUE. A FALSE result can therefore
-indicate either an expression that is false throughout its context or an
-unreachable context.
+true. Its behavior outside that context is unspecified. \code{context_reachable}
+reports whether the context is satisfiable; \code{reachable} reports whether the
+context and original condition can both be true. Contexts always use the
+original conditions, including when RWBO supplies a cheaper replacement.
 }
 \examples{
 bdd_restrict_chain("x", c("!x | z", "!z"))
 bdd_restrict_chain("true", c("x", "!x"))
+bdd_restrict_chain(c("y | x", "(x | y | z) & w"))[[2L]]$reduced_expression
 
 }

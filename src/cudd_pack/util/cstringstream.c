@@ -139,10 +139,11 @@ int appendCharStringStream(cstringstream ss, char c) {
 int appendStringStringStream(cstringstream ss, char const * s) {
   if (!ss) return -1;
   size_t len = strlen(s);
-  if (resizeStringStream(ss, ss->inUse + len + 1)) return -1;
+  size_t start = ss->inUse;
+  if (resizeStringStream(ss, start + len + 1)) return -1;
   /* Now we have space. */
-  memcpy(ss->data + ss->inUse, s, len + 1);
-  ss->inUse += len;
+  memcpy(ss->data + start, s, len + 1);
+  ss->inUse = start + len;
   return 0;
 }
 

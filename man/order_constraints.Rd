@@ -7,20 +7,20 @@
 order_constraints(tokens)
 }
 \arguments{
-\item{tokens}{Character vector of placeholder tokens such as `"n1"`,
-`"n2"`, ... representing the variables that are compared.}
+\item{tokens}{Character vector of placeholder tokens such as \code{"n1"},
+\code{"n2"}, ... representing the variables that are compared.}
 }
 \value{
 Character vector with boolean expressions in C++ syntax (operators
-  `!`, `&`, `|`). The expressions can be passed to downstream routines as
-  additional constraints.
+\code{!}, \code{&}, \code{|}). The expressions can be passed to downstream routines as
+additional constraints.
 }
 \description{
-Constructs logical constraints for placeholders of the form `L_n1_n2`,
-`E_n1_n2` and `G_n1_n2` that encode the outcome of pairwise comparisons.
+Constructs logical constraints for placeholders of the form \code{L_n1_n2},
+\code{E_n1_n2} and \code{G_n1_n2} that encode the outcome of pairwise comparisons.
 The constraints ensure that exactly one relation holds for each unordered
 pair of tokens, add transitivity rules and enforce reflexive equality
-(`E_x_x`).
+(\code{E_x_x}).
 }
 \examples{
 order_constraints(c("n1", "n2", "n3"))

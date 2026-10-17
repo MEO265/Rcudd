@@ -36,8 +36,8 @@ test_that("weighted operator costs use only unit-weight soft clauses", {
   on.exit(unlink(file))
   problem <- bdd_to_wcnf("a ^ b", file, max_operators = 1L)
   lines <- readLines(file)
-  expect_identical(lines[[1L]], "p wcnf 25 132 3")
-  expect_identical(problem$nclauses, 132L)
+  expect_identical(lines[[1L]], "p wcnf 25 133 3")
+  expect_identical(problem$nclauses, 133L)
   expect_identical(problem$objective, "weighted operator cost: ! = 1; &, | and ^ = 2")
   gate <- problem$gates[[1L]]
   expect_identical(tail(lines, 2L), c(
@@ -48,7 +48,7 @@ test_that("weighted operator costs use only unit-weight soft clauses", {
 
   problem <- bdd_to_wcnf("a ^ b", file, max_operators = 3L)
   lines <- readLines(file)
-  expect_identical(problem$nclauses, 499L)
+  expect_identical(problem$nclauses, 500L)
   weights <- as.integer(sub(" .*", "", lines[-1L]))
   expect_true(all(weights %in% c(1L, 7L)))
   expect_identical(sum(weights == 1L), 6L)
@@ -58,8 +58,8 @@ test_that("resource checks precede allocations and output changes", {
   file <- tempfile()
   on.exit(unlink(file))
   writeLines("sentinel", file)
-  # Exact count is 499; coarse lower bound is smaller than this requested limit.
-  expect_error(bdd_to_wcnf("a ^ b", file, 3L, max_clauses = 498L), "Clause limit")
+  # Exact count is 500; coarse lower bound is smaller than this requested limit.
+  expect_error(bdd_to_wcnf("a ^ b", file, 3L, max_clauses = 499L), "Clause limit")
   expect_identical(readLines(file), "sentinel")
   expect_error(bdd_to_wcnf("a ^ b", file, 1000000L), "Clause limit")
   expect_identical(readLines(file), "sentinel")
@@ -94,4 +94,48 @@ test_that("context variables and root variables share one bounded synthesis pool
   expect_error(bdd_to_wcnf(parity, file, max_operators = 1000000L,
                            max_variables = 20L, care = "x1"), "Clause limit")
   expect_identical(readLines(file), "sentinel")
+})
+
+
+test_that("essential support adds a binary bound without changing gate SAT ids", {
+  file <- tempfile(fileext = ".wcnf")
+  on.exit(unlink(file))
+  # r=1 and K=r both avoid auxiliary variables.
+  one <- bdd_to_wcnf("a | b", file, max_operators = 1L)
+  expect_identical(one$binary_lower_bound, 1L)
+  expect_identical(one$binary_auxiliary, integer())
+  expect_true(paste(3L, -one$gates[[1L]]$kind[["not"]], 0L) %in% readLines(file))
+  many <- bdd_to_wcnf("a | b", file, max_operators = 3L)
+  expect_identical(many$binary_lower_bound, 1L)
+  expect_identical(many$binary_auxiliary, integer())
+  binary_ids <- unlist(lapply(many$gates, function(g) g$kind[c("and", "or", "xor")]), use.names = FALSE)
+  expect_true(paste(c(7L, binary_ids, 0L), collapse = " ") %in% readLines(file))
+
+  # A trimmed prefix counter: r=2, K=4, width=3 -> six auxiliary IDs,
+  # ten clauses. The original gate layout ends at the last output ID.
+  problem <- bdd_to_wcnf("a & b & c", file, max_operators = 4L)
+  expect_identical(problem$binary_lower_bound, 2L)
+  expect_identical(problem$binary_auxiliary,
+                   seq.int(tail(problem$gates[[4L]]$out, 1L) + 1L, problem$nvars))
+  expect_length(problem$binary_auxiliary, 6L)
+  expect_identical(length(readLines(file)) - 1L, problem$nclauses)
+  exact_clauses <- problem$nclauses
+  writeLines("sentinel", file)
+  expect_error(bdd_to_wcnf("a & b & c", file, max_operators = 4L,
+                           max_clauses = exact_clauses - 1L), "Clause limit")
+  expect_identical(readLines(file), "sentinel")
+  expect_identical(bdd_to_wcnf("a & b & c", file, max_operators = 4L,
+                              max_clauses = exact_clauses)$nclauses, exact_clauses)
+
+  # Restricting contexts can reduce the number of necessary inputs. A
+  # tautological context is normalized to the unrestricted case instead.
+  contextual <- bdd_to_wcnf("a ^ b", file, max_operators = 1L, care = "c")
+  expect_identical(contextual$binary_lower_bound, 0L)
+  expect_identical(contextual$binary_auxiliary, integer())
+  tautology <- bdd_to_wcnf("a ^ b", file, max_operators = 1L, care = "c | !c")
+  expect_identical(tautology$binary_lower_bound, 1L)
+  insufficient <- bdd_to_wcnf("a & b & c", file, max_operators = 1L)
+  expect_identical(insufficient$binary_lower_bound, 2L)
+  expect_identical(insufficient$binary_auxiliary, integer())
+  expect_identical(readLines(file), c("p wcnf 1 3 2", "2 1 0", "2 -1 0", "1 1 0"))
 })

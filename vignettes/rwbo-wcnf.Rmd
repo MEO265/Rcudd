@@ -50,8 +50,10 @@ problem <- bdd_to_wcnf(
   max_operators = 1L
 )
 lines <- readLines(problem$wcnf_file)
-problem[c("variables", "max_operators", "nvars", "nclauses")]
-stopifnot(problem$nvars == 25L, problem$nclauses == 132L)
+problem[c("variables", "max_operators", "binary_lower_bound", "nvars", "nclauses")]
+stopifnot(problem$nvars == 25L, problem$nclauses == 133L,
+          problem$binary_lower_bound == 1L, length(problem$binary_auxiliary) == 0L,
+          "3 -5 0" %in% lines)
 ```
 
 In Rcudd-Strings bedeutet `^` Boolesches XOR. Im R-Quelltext wird XOR dagegen
@@ -66,14 +68,14 @@ lines[[1L]]
 Der Header lautet hier:
 
 ```text
-p wcnf 25 132 3
+p wcnf 25 133 3
 ```
 
 | Feld | Bedeutung |
 |:-----|:----------|
 | `p wcnf` | Deklaration des gewichteten CNF-Problems |
 | `25` | Anzahl der SAT-Variablen; gültige IDs sind 1 bis 25 |
-| `132` | Anzahl aller Klauseln, einschließlich der weichen Klauseln |
+| `133` | Anzahl aller Klauseln, einschließlich der weichen Klauseln |
 | `3` | `top`, das Gewicht einer harten Klausel |
 
 Eine weitere Zeile hat die Form:
@@ -304,12 +306,57 @@ Insbesondere wird ein wiederholter Teilausdruck auch wiederholt bezahlt:
 Rcudd optimiert die Kosten der gedruckten Formel, nicht die Zahl gemeinsam
 nutzbarer Schaltgatter.
 
-Wenn eine Funktion ohne Kontext von `n` wesentlichen Variablen abhängt,
-benötigt ein Formelbaum mindestens `n - 1` binäre Operatoren. Ohne
-Nullkosten-Abkürzung erzwingt Rcudd mindestens `max(1, n - 1)` aktive Plätze.
-Für kontextabhängige Probleme wird nach Prüfung der Nullkostenfälle nur die
-sichere Schranke eins verwendet: Der Kontext kann eine viel einfachere Formel
-erlauben, auch wenn der verfügbare Variablenpool groß ist.
+### Untergrenze für binäre Operatoren
+
+Ohne einschränkenden Kontext benötigt eine Funktion mit `n` wesentlichen
+Variablen mindestens `r=n-1` binäre Operatoren: Ein Formelbaum mit `B`
+binären Operatoren und beliebig vielen NOTs besitzt genau `B + 1` Blätter.
+Jede wesentliche Variable muss mindestens einmal als Blatt vorkommen.
+Für weniger als zwei wesentliche Variablen setzt Rcudd `r=0`.
+
+Nach Prüfung der Nullkostenfälle erzwingt Rcudd neben mindestens
+`max(1, n - 1)` aktiven Plätzen
+zusätzlich mindestens `r` binäre Operatoren. Diese zweite Bedingung ist
+mathematisch redundant, macht dem Solver aber die Untergrenze der gewichteten
+Kosten ausdrücklich zugänglich. Sie ändert weder die zulässigen Formeln noch
+ihre Kosten. Hilfsvariablen können bei jeder bisher gültigen Formel passend
+belegt werden.
+
+Im Beispiel ist `r=K=1`. Eine zusätzliche harte Klausel `3 -5 0` verbietet
+NOT; zusammen mit `3 -1 0` und der Typauswahl bleibt genau ein binärer Operator.
+Die Gate-IDs ändern sich nicht.
+
+Für die allgemeine Kodierung sei `b_i = and_i | or_i | xor_i`, und die Plätze
+werden hier von 1 bis `K` gezählt:
+
+- Bei `r=0` wird keine zusätzliche Bedingung geschrieben.
+- Bei `r=1 < K` genügt eine harte Klausel mit allen binären Typvariablen:
+  `b_1 | ... | b_K`.
+- Bei `r=K` verbietet je eine harte Klausel NOT auf jedem Platz. Alle Plätze
+  sind aufgrund der aktiven Untergrenze bereits als benutzt erzwungen.
+- Bei `1 < r < K` kommen Hilfsvariablen `S(i, j)` für `j = 1, ..., r` und
+  `i = j, ..., K - r + j` hinzu. Ein wahrer Zustand bezeugt mindestens `j`
+  binäre Operatoren unter den ersten `i` Plätzen.
+
+Der letzte Fall verwendet pro Zustand folgende harte Klauseln:
+
+```text
+!S(i,j) | S(i-1,j) | and_i | or_i | xor_i
+!S(i,j) | S(i-1,j) | S(i-1,j-1)
+```
+
+Ein fehlender Vorgänger mit positiver Schwelle bedeutet FALSE;
+`S(i,0)` bedeutet TRUE. Bereits dadurch erfüllte Klauseln entfallen.
+Die Einheitsklausel `S(K,r)` erzwingt die Schranke. Es genügt diese Richtung
+der Implikation: Wahre Zustände müssen einen gültigen Nachweis haben;
+es wird nicht die vollständige Äquivalenz jedes Zustands kodiert.
+Mit `d = K - r + 1` sind das `r*d` zusätzliche SAT-Variablen und
+`(2 * r - 1) * d + 1` harte Klauseln.
+
+Die Schranke wird nur bei einem konstant wahren `care`-BDD verwendet. Ein
+restriktiver Kontext kann eine einfachere Formel erlauben, auch wenn der
+Variablenpool groß ist. Dort bleibt `binary_lower_bound = 0`; nach Prüfung der
+Nullkostenfälle wird lediglich mindestens ein aktiver Platz verlangt.
 
 ## Zielwerte und Operatorenkosten
 
@@ -356,6 +403,8 @@ context_file <- tempfile(fileext = ".wcnf")
 context_problem <- bdd_to_wcnf(
   "a ^ b", context_file, max_operators = 1L, care = "c"
 )
+stopifnot(context_problem$binary_lower_bound == 0L,
+          length(context_problem$binary_auxiliary) == 0L)
 knitr::kable(data.frame(
   row = seq_along(context_problem$target) - 1L,
   context_problem$inputs,
@@ -369,13 +418,16 @@ Zeilen mit `c = TRUE` eine Zielklausel. Eingangswahl und Operatorsemantik
 bleiben auf **allen acht** Zeilen kodiert. Außerhalb des Kontexts darf die
 zurückgegebene Formel beliebige Werte liefern.
 
+Hier ist `context_problem$binary_lower_bound = 0`; es werden keine zusätzlichen
+binären Operatoren verlangt.
+
 Ein leerer `problem$care`-Vektor bedeutet, dass alle Zeilen relevant sind.
 Bei einem widersprüchlichen Kontext ist dagegen kein Zielwert relevant;
 Rcudd kann direkt eine Nullkosten-Konstante wählen.
 
 ## Vollständige Datei und Metadaten
 
-Die 132 Klauseln des Beispiels setzen sich wie folgt zusammen:
+Die 133 Klauseln des Beispiels setzen sich wie folgt zusammen:
 
 | Gruppe | Anzahl |
 |:-------|-------:|
@@ -385,9 +437,10 @@ Die 132 Klauseln des Beispiels setzen sich wie folgt zusammen:
 | Quellenbindung auf vier Belegungszeilen | 32 |
 | AND, OR, XOR und NOT: zwölf Klauseln je Zeile | 48 |
 | Mindestens ein aktiver Platz | 1 |
+| Mindestens ein binärer Operator | 1 |
 | Vier Wurzel-Zielwerte | 4 |
 | Weiche Kostenklauseln | 2 |
-| **Summe** | **132** |
+| **Summe** | **133** |
 
 Bei mehreren Plätzen kommen insbesondere die Verknüpfungen zu früheren
 Ausgängen und die Klauseln für deren einmalige Verwendung hinzu.
@@ -401,7 +454,8 @@ der SAT-IDs stehen in der von `bdd_to_wcnf()` zurückgegebenen Liste.
 | `inputs`, `target` | Belegungen und BDD-Zielwerte |
 | `care`, `care_expression` | Relevante Zeilen und deren Boolescher Kontext |
 | `gates` | SAT-IDs für Typ, Eingangswahl und Zeilenwerte jedes Platzes |
-| `max_operators`, `lower_bound` | Obere und sichere untere Operatorschranke |
+| `max_operators`, `lower_bound` | Obere Operatorschranke und Mindestzahl aktiver Plätze |
+| `binary_lower_bound`, `binary_auxiliary` | Mindestzahl binärer Operatoren und SAT-IDs der Zähler-Hilfsvariablen |
 | `nvars`, `nclauses`, `wcnf_file` | Headerangaben und Dateipfad |
 | `expression`, `shortcut` | Ursprünglicher Input und gegebenenfalls Nullkostenformel |
 
@@ -422,15 +476,20 @@ cat("~~~text\n", paste(lines, collapse = "\n"), "\n~~~\n", sep = "")
 ### Größe des Encodings
 
 Im regulären Encoding mit `n` Variablen, `R = 2^n` Belegungszeilen und `K`
-Operatorplätzen ist die Anzahl der SAT-Variablen:
+Operatorplätzen ist die Anzahl der SAT-Variablen ohne Zähler-Hilfsvariablen:
 
 ```text
-V = K * (5 + 2 * (n + 2) + 3 * R) + K * (K - 1)
+V_base = K * (5 + 2 * (n + 2) + 3 * R) + K * (K - 1)
 ```
 
 Pro Platz sind das fünf Typvariablen, zwei Auswahlen aus `n + 2` Grundquellen,
 drei Werte pro Zeile und zusätzliche Auswahlvariablen für frühere Plätze.
 Im Beispiel ergibt das `1 * (5 + 2 * 4 + 3 * 4) = 25`.
+
+Nur im Zählerfall `1 < r < K` kommt `r*(K - r + 1)` hinzu.
+Die Hilfsvariablen stehen in `problem$binary_auxiliary` und werden nach allen
+Gate-Variablen vergeben; die bisherigen Gate-IDs bleiben gleich. Der Vektor
+ordnet zuerst nach `j` und innerhalb jeder Schwelle nach aufsteigendem `i`.
 
 Die Wahrheitstabelle wächst exponentiell. Auch bei einem kompakten BDD
 werden alle Zeilen kodiert. Rcudd prüft deshalb Variablen-, SAT-Variablen-

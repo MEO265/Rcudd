@@ -1,6 +1,10 @@
 all: $(SHLIB)
 $(SHLIB): cudd_pack/cudd/.libs/libcudd.a
 
+# Header changes must rebuild all Rcudd objects with a consistent C++ layout.
+RCUDD_HEADERS = rcudd.h bdd_prepare.h bdd_truth.h binary_lower_bound.h ../inst/include/rcudd/bdd_wcnf.hpp
+$(OBJECTS): $(RCUDD_HEADERS)
+
 # Changes in the bundled library must invalidate a previously built archive.
 CUDD_SOURCES = cudd_pack/*/*.c cudd_pack/*/*.h cudd_pack/*/*.cc cudd_pack/*/*.hh
 CUDD_BUILD_INPUTS = cudd_pack/configure cudd_pack/Makefile.in cudd_pack/config.h.in

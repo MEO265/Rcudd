@@ -1,6 +1,7 @@
 #include "../inst/include/rcudd/bdd_wcnf.hpp"
 #include "cuddObj.hh"
 #include "bdd_truth.h"
+#include "binary_lower_bound.h"
 #include <algorithm>
 #include <climits>
 #include <cctype>
@@ -147,6 +148,7 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
         }
     }
     p.lower_bound = p.has_shortcut ? 0 : contextual ? 1 : static_cast<unsigned int>(std::max(Count(1), n - 1));
+    p.binary_lower_bound = !p.has_shortcut && !contextual && n > 1 ? static_cast<unsigned int>(n - 1) : 0;
     const bool insufficient = !p.has_shortcut && k < p.lower_bound;
     Count clauses = 0, variables = 1;
     if (p.has_shortcut || insufficient) {
@@ -157,9 +159,12 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
         const Count per_rows = add(mul(12, k), add(mul(mul(2, inputs), k),
                                                 mul(mul(2, k), k - 1)));
         check_clauses(add(add(mul(rows, per_rows), cared_rows), mul(2, k)), options.max_clauses);
-        variables = add(mul(k, add(5 + 2 * inputs, mul(3, rows))), mul(k, k - 1));
+        const BinaryLowerBound binary_bound(k, p.binary_lower_bound);
+        variables = add(add(mul(k, add(5 + 2 * inputs, mul(3, rows))), mul(k, k - 1)),
+                        binary_bound.auxiliary_count());
         if (variables > sat_limit) throw std::runtime_error("SAT variable limit exceeded.");
-        clauses = add(add(cared_rows, mul(2, k)), p.lower_bound); // root, soft, lower bound
+        clauses = add(add(add(cared_rows, mul(2, k)), p.lower_bound),
+                      binary_bound.clause_count()); // root, soft, lower bounds
         for (Count i = 0; i < k; ++i) {
             const Count sources = inputs + i, remaining = k - i - 1;
             clauses = add(clauses, add(15 + 3 * sources, mul(3, pairs(sources))));
@@ -200,6 +205,8 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
         g.left = fresh(inputs + i); g.right = fresh(inputs + i);
         g.left_value = fresh(rows); g.right_value = fresh(rows); g.out = fresh(rows);
     }
+    const BinaryLowerBound binary_bound(k, p.binary_lower_bound);
+    p.binary_auxiliary = fresh(static_cast<std::size_t>(binary_bound.auxiliary_count()));
     if (next_id != p.nvars) throw std::runtime_error("Internal SAT variable-count mismatch.");
     Writer out(path, p.nvars, clauses, 2 * k + 1);
     for (std::size_t i = 0; i < p.gates.size(); ++i) {
@@ -254,6 +261,8 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
             out.hard({-op, -value, -a}); out.hard({-op, value, a});
         }
     }
+    binary_bound.clauses(p.gates, p.binary_auxiliary,
+                         [&](const std::vector<int> &clause) { out.hard(clause); });
     for (std::size_t i = p.gates.size() - p.lower_bound; i < p.gates.size(); ++i)
         out.hard({-p.gates[i].kind[0]});
     const std::vector<int> &root_out = p.gates.back().out;

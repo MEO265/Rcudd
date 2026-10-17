@@ -48,6 +48,10 @@ stdout lines and accepts an elapsed `timeout`. Rcudd strings use `&`, `|`, `^`
 (Boolean XOR), and `!`. NOT costs one; each binary operator costs two.
 Repeated subexpressions are counted each time they appear in the formula tree.
 `max_operators` limits the number of operator slots, independently of cost.
+Without a restrictive context, a redundant hard bound explicitly requires at
+least `n - 1` binary operators for `n` essential variables. This preserves all
+feasible formulas and their costs. Metadata exposes `binary_lower_bound` and,
+where needed, appended SAT IDs in `binary_auxiliary`; gate IDs stay unchanged.
 
 ```r
 source("inst/scripts/bdd_rwbo_minimize.R")

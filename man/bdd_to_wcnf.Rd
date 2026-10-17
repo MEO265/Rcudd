@@ -30,8 +30,10 @@ only where this expression is true (default \code{"true"}).}
 \value{
 An \code{rwbo_formula_problem} list with the original expression,
 available \code{variables}, their zero-based CUDD \code{variable_indices}, logical
-\code{inputs} data frame, \code{target} and \code{care} (empty means all rows), search bounds, \code{shortcut}, objective,
-lower bound, \code{gates} SAT-id metadata, \code{nvars}, \code{nclauses} and normalized
+\code{inputs} data frame, \code{target} and \code{care} (empty means all rows), search bounds,
+\code{shortcut}, objective, active-gate \code{lower_bound}, \code{binary_lower_bound},
+\code{binary_auxiliary} SAT IDs (empty when no counter is needed), \code{gates} SAT-id
+metadata, \code{nvars}, \code{nclauses} and normalized
 \code{wcnf_file}. Input column one changes fastest. \code{bdd_expression} is \code{NULL}
 to avoid rendering a potentially very large expression.
 }
@@ -53,6 +55,11 @@ cost. A proved MaxSAT optimum is optimal within this bound. It is also global
 when its cost is at most \code{max_operators + 1}: every strictly cheaper formula
 then fits, since each operator costs at least one. Equivalence is restricted
 to \code{care}. UNSAT only excludes formulas within the bound.
+
+Without a restrictive context, an additional hard constraint requires at least
+\code{n - 1} binary operators for \code{n} essential variables. This redundant bound
+leaves feasible formulas and costs unchanged and can assist the solver's
+optimality proof. Counter auxiliaries, when needed, follow all gate SAT IDs.
 
 Constants and positive variables have zero-cost shortcuts. A tiny WCNF still
 includes a soft clause for compatibility with Open-WBO 0.1.2. A bound below

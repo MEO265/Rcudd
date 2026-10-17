@@ -1,4 +1,5 @@
 #include "../inst/include/rcudd/bdd_wcnf.hpp"
+#include "binary_lower_bound.h"
 #include <algorithm>
 #include <cctype>
 #include <climits>
@@ -52,8 +53,11 @@ void validate_problem(const WcnfProblem &p) {
     }
     const unsigned int lower = p.has_shortcut ? 0 : !p.care.empty() ? 1 : static_cast<unsigned int>(n > 1 ? n - 1 : 1);
     if (p.lower_bound != lower) invalid("Invalid support lower-bound metadata.");
+    const unsigned int binary_lower = !p.has_shortcut && p.care.empty() && n > 1 ?
+        static_cast<unsigned int>(n - 1) : 0;
+    if (p.binary_lower_bound != binary_lower) invalid("Invalid binary lower-bound metadata.");
     if (p.has_shortcut) {
-        if (!p.gates.empty() || p.nvars != 1 || p.nclauses != 2)
+        if (!p.gates.empty() || !p.binary_auxiliary.empty() || p.nvars != 1 || p.nclauses != 2)
             invalid("Invalid shortcut metadata.");
         const auto found = std::find(p.variables.begin(), p.variables.end(), p.shortcut);
         if (p.shortcut != "true" && p.shortcut != "false" && found == p.variables.end())
@@ -79,7 +83,7 @@ void validate_problem(const WcnfProblem &p) {
         }
     }
     if (p.gates.empty()) {
-        if (p.max_operators >= lower || p.nvars != 1 || p.nclauses != 3)
+        if (p.max_operators >= lower || !p.binary_auxiliary.empty() || p.nvars != 1 || p.nclauses != 3)
             invalid("Invalid bounded-UNSAT metadata.");
         return;
     }
@@ -96,10 +100,12 @@ void validate_problem(const WcnfProblem &p) {
         ids(gate.kind, 5); ids(gate.left, n + 2 + i); ids(gate.right, n + 2 + i);
         ids(gate.left_value, p.target.size()); ids(gate.right_value, p.target.size()); ids(gate.out, p.target.size());
     }
+    const BinaryLowerBound binary_bound(p.gates.size(), p.binary_lower_bound);
+    ids(p.binary_auxiliary, static_cast<std::size_t>(binary_bound.auxiliary_count()));
     if (next != p.nvars) invalid("SAT-variable count does not match gate metadata.");
     const std::uint64_t k = p.gates.size(), rows = p.target.size(), inputs = n + 2;
     const auto cared_rows = p.care.empty() ? rows : std::count(p.care.begin(), p.care.end(), true);
-    std::uint64_t clauses = cared_rows + 2 * k + p.lower_bound;
+    std::uint64_t clauses = cared_rows + 2 * k + p.lower_bound + binary_bound.clause_count();
     auto pairs = [](std::uint64_t count) { return count < 2 ? 0 : count * (count - 1) / 2; };
     for (std::uint64_t i = 0; i < k; ++i) {
         const std::uint64_t sources = inputs + i, remaining = k - i - 1;

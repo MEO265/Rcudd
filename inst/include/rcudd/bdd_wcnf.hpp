@@ -31,6 +31,8 @@ struct WcnfProblem {
     std::vector<WcnfGate> gates;
     unsigned int max_operators = 0;
     unsigned int lower_bound = 0;
+    unsigned int binary_lower_bound = 0; // n-1 for unrestricted essential support
+    std::vector<int> binary_auxiliary; // contiguous counter SAT ids after gates
     bool has_shortcut = false;
     std::string shortcut;
     int nvars = 0;

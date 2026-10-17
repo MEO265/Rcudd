@@ -176,3 +176,56 @@ test_that("the interpreter rejects weights or costs inconsistent with the object
   expect_error(interpret_rwbo_output(case$problem, sub("o 1", "o 0", case$output)),
                "cost does not match the decoded formula")
 })
+
+
+test_that("binary-counter metadata is validated before solver models", {
+  file <- tempfile(fileext = ".wcnf")
+  on.exit(unlink(file))
+  problem <- bdd_to_wcnf("a & b & c", file, max_operators = 4L)
+  expect_false(interpret_rwbo_output(problem, "s UNKNOWN")$verified)
+  bad <- problem; bad$binary_lower_bound <- 1L
+  expect_error(interpret_rwbo_output(bad, "s UNKNOWN"), "count does not match|lower-bound")
+  bad <- problem; bad$binary_lower_bound <- 5L
+  expect_error(interpret_rwbo_output(bad, "s UNKNOWN"), "exceeds gate count")
+  bad <- problem; bad$binary_auxiliary <- integer()
+  expect_error(interpret_rwbo_output(bad, "s UNKNOWN"), "metadata")
+  bad <- problem; bad$binary_auxiliary[[1L]] <- bad$gates[[1L]]$kind[[1L]]
+  expect_error(interpret_rwbo_output(bad, "s UNKNOWN"), "SAT-id metadata")
+  bad <- problem; bad$binary_auxiliary[[1L]] <- NA_integer_
+  expect_error(interpret_rwbo_output(bad, "s UNKNOWN"), "SAT-id metadata")
+  bad <- problem; bad$nvars <- bad$nvars + 1L
+  expect_error(interpret_rwbo_output(bad, "s UNKNOWN"), "count does not match")
+  bad <- problem; bad$nclauses <- bad$nclauses + 1L
+  expect_error(interpret_rwbo_output(bad, "s UNKNOWN"), "Clause count")
+  shortcut <- bdd_to_wcnf("a", file)
+  bad <- shortcut; bad$binary_lower_bound <- 1L
+  expect_error(interpret_rwbo_output(bad, ""), "binary lower-bound")
+})
+
+
+test_that("complete counter models preserve decoded costs and equivalence", {
+  file <- tempfile(fileext = ".wcnf")
+  on.exit(unlink(file))
+  problem <- bdd_to_wcnf("a & b & c", file, max_operators = 4L)
+  model <- -seq_len(problem$nvars)
+  first <- problem$gates[[3L]]
+  root <- problem$gates[[4L]]
+  ab <- problem$inputs$a & problem$inputs$b
+  positive <- c(problem$gates[[1L]]$kind[["unused"]],
+                problem$gates[[2L]]$kind[["unused"]],
+                first$kind[["and"]], first$left[[3L]], first$right[[4L]],
+                first$left_value[problem$inputs$a], first$right_value[problem$inputs$b],
+                first$out[ab], root$kind[["and"]], root$left[[5L]], root$right[[8L]],
+                root$left_value[problem$inputs$c], root$right_value[ab], root$out[problem$target],
+                # Actual prefix counts satisfy S(3,1) and S(4,2).
+                problem$binary_auxiliary[c(3L, 6L)])
+  model[positive] <- positive
+  output <- function(model) paste("s OPTIMUM FOUND\no 4\nv", paste(model, collapse = " "), "0")
+  result <- interpret_rwbo_output(problem, output(model))
+  expect_true(result$verified)
+  expect_true(result$optimal)
+  expect_identical(result$operator_count, 2L)
+  expect_identical(result$cost, 4L)
+  model[[tail(problem$binary_auxiliary, 1L)]] <- -tail(problem$binary_auxiliary, 1L)
+  expect_error(interpret_rwbo_output(problem, output(model)), "hard clause")
+})

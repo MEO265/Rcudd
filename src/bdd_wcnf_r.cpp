@@ -1,5 +1,6 @@
 #include "rcudd.h"
 #include "bdd_truth.h"
+#include "binary_lower_bound.h"
 #include "../inst/include/rcudd/bdd_wcnf.hpp"
 #include <cmath>
 #include <climits>
@@ -44,11 +45,11 @@ void name_list(SEXP list, const std::vector<std::string> &names) {
 } // namespace
 namespace rcudd {
 SEXP as_r_problem(const WcnfProblem &p, SEXP expression, SEXP care_expression) {
-    SEXP result = PROTECT(Rf_allocVector(VECSXP, 18));
+    SEXP result = PROTECT(Rf_allocVector(VECSXP, 20));
     name_list(result, {"expression", "bdd_expression", "variables", "inputs", "target",
                        "max_operators", "shortcut", "objective", "lower_bound", "nvars",
                        "nclauses", "gates", "wcnf_file", "variable_indices", "encoding", "truth_table_rows",
-                       "care", "care_expression"});
+                       "care", "care_expression", "binary_lower_bound", "binary_auxiliary"});
     SET_VECTOR_ELT(result, 0, expression);
     SET_VECTOR_ELT(result, 1, R_NilValue); // avoid potentially exponential factored rendering
     SET_VECTOR_ELT(result, 2, strings(p.variables));
@@ -101,6 +102,8 @@ SEXP as_r_problem(const WcnfProblem &p, SEXP expression, SEXP care_expression) {
     for (std::size_t row = 0; row < p.care.size(); ++row) LOGICAL(care)[row] = p.care[row];
     SET_VECTOR_ELT(result, 16, care);
     SET_VECTOR_ELT(result, 17, care_expression);
+    SET_VECTOR_ELT(result, 18, Rf_ScalarInteger(p.binary_lower_bound));
+    SET_VECTOR_ELT(result, 19, integers(p.binary_auxiliary));
     SEXP klass = PROTECT(Rf_mkString("rwbo_formula_problem"));
     Rf_classgets(result, klass);
     UNPROTECT(8);
@@ -165,6 +168,7 @@ rcudd::WcnfProblem from_r_problem(SEXP input) {
     rcudd::WcnfProblem p;
     p.max_operators = scalar_bound(field(input, "max_operators"), "max_operators", 0);
     p.lower_bound = scalar_bound(field(input, "lower_bound"), "lower_bound", 0);
+    p.binary_lower_bound = scalar_bound(field(input, "binary_lower_bound"), "binary_lower_bound", 0);
     p.nvars = static_cast<int>(scalar_bound(field(input, "nvars"), "nvars", 1));
     p.nclauses = scalar_bound(field(input, "nclauses"), "nclauses", 1);
     SEXP names = field(input, "variables");
@@ -210,7 +214,9 @@ rcudd::WcnfProblem from_r_problem(SEXP input) {
         throw std::invalid_argument("Invalid gate-count metadata.");
     if (XLENGTH(gates)) {
         const std::uint64_t k = static_cast<std::uint64_t>(XLENGTH(gates));
-        const std::uint64_t expected_ids = k * (5 + 2 * (n + 2) + 3 * rows) + k * (k - 1);
+        const rcudd::BinaryLowerBound binary_bound(static_cast<std::size_t>(k), p.binary_lower_bound);
+        const std::uint64_t expected_ids = k * (5 + 2 * (n + 2) + 3 * rows) + k * (k - 1) +
+            binary_bound.auxiliary_count();
         if (expected_ids != static_cast<std::uint64_t>(p.nvars))
             throw std::invalid_argument("SAT-variable count does not match gate metadata.");
     }
@@ -235,6 +241,9 @@ rcudd::WcnfProblem from_r_problem(SEXP input) {
         out.right_value = sat_ids(field(gate, "right_value"), rows, p.nvars);
         out.out = sat_ids(field(gate, "out"), rows, p.nvars);
     }
+    const std::size_t auxiliary_count = p.gates.empty() ? 0 : static_cast<std::size_t>(
+        rcudd::BinaryLowerBound(p.gates.size(), p.binary_lower_bound).auxiliary_count());
+    p.binary_auxiliary = sat_ids(field(input, "binary_auxiliary"), auxiliary_count, p.nvars);
     return p;
 }
 

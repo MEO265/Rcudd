@@ -26,6 +26,11 @@
 #' then fits, since each operator costs at least one. Equivalence is restricted
 #' to `care`. UNSAT only excludes formulas within the bound.
 #'
+#' Without a restrictive context, an additional hard constraint requires at least
+#' `n - 1` binary operators for `n` essential variables. This redundant bound
+#' leaves feasible formulas and costs unchanged and can assist the solver's
+#' optimality proof. Counter auxiliaries, when needed, follow all gate SAT IDs.
+#'
 #' Constants and positive variables have zero-cost shortcuts. A tiny WCNF still
 #' includes a soft clause for compatibility with Open-WBO 0.1.2. A bound below
 #' the essential-support lower bound writes a contradictory WCNF.
@@ -36,8 +41,10 @@
 #'
 #' @return An `rwbo_formula_problem` list with the original expression,
 #' available `variables`, their zero-based CUDD `variable_indices`, logical
-#' `inputs` data frame, `target` and `care` (empty means all rows), search bounds, `shortcut`, objective,
-#' lower bound, `gates` SAT-id metadata, `nvars`, `nclauses` and normalized
+#' `inputs` data frame, `target` and `care` (empty means all rows), search bounds,
+#' `shortcut`, objective, active-gate `lower_bound`, `binary_lower_bound`,
+#' `binary_auxiliary` SAT IDs (empty when no counter is needed), `gates` SAT-id
+#' metadata, `nvars`, `nclauses` and normalized
 #' `wcnf_file`. Input column one changes fastest. `bdd_expression` is `NULL`
 #' to avoid rendering a potentially very large expression.
 #'

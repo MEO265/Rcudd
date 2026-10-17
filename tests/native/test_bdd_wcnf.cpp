@@ -1,6 +1,7 @@
 // Standalone native API regression test; see inst/scripts/README.md for build.
 #include "cuddObj.hh"
 #include "rcudd/bdd_wcnf.hpp"
+#include "../../src/binary_lower_bound.h"
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -23,7 +24,59 @@ template <typename Function> static void must_throw(Function function) {
     assert(thrown);
 }
 
+// Exhaustively project away every counter assignment for small gate counts.
+// Each fixed gate is unused, NOT, or binary (cycle through all binary kinds).
+// The old active-slot units are included because K=r uses them to rule out
+// unused slots. The new clauses must accept exactly the old assignments with
+// at least r binary gates, irrespective of witness values.
+static void check_binary_projection() {
+    for (std::size_t k = 1; k <= 5; ++k) {
+        for (unsigned int r = 0; r <= k; ++r) {
+            rcudd::BinaryLowerBound bound(k, r);
+            std::vector<rcudd::WcnfGate> gates(k);
+            int last_id = 0;
+            for (auto &gate : gates) for (int &id : gate.kind) id = ++last_id;
+            std::vector<int> auxiliary(static_cast<std::size_t>(bound.auxiliary_count()));
+            for (int &id : auxiliary) id = ++last_id;
+            std::vector<std::vector<int>> clauses;
+            bound.clauses(gates, auxiliary, [&](const std::vector<int> &clause) { clauses.push_back(clause); });
+            assert(clauses.size() == bound.clause_count());
+            for (std::size_t i = k - r; i < k; ++i) clauses.push_back({-gates[i].kind[0]});
+            std::size_t choices = 1;
+            for (std::size_t i = 0; i < k; ++i) choices *= 3;
+            for (std::size_t choice = 0; choice < choices; ++choice) {
+                std::vector<bool> model(last_id + 1, false);
+                std::size_t remaining = choice, binaries = 0;
+                bool active_bound = true;
+                for (std::size_t i = 0; i < k; ++i) {
+                    const unsigned int category = remaining % 3; remaining /= 3;
+                    const unsigned int op = category == 0 ? 0 : category == 1 ? 4 : 1 + i % 3;
+                    model[gates[i].kind[op]] = true;
+                    binaries += category == 2;
+                    if (i >= k - r && category == 0) active_bound = false;
+                }
+                bool extension = false;
+                for (std::size_t assignment = 0; assignment < (std::size_t(1) << auxiliary.size()); ++assignment) {
+                    for (std::size_t i = 0; i < auxiliary.size(); ++i)
+                        model[auxiliary[i]] = ((assignment >> i) & 1) != 0;
+                    bool satisfied = true;
+                    for (const auto &clause : clauses) {
+                        bool value = false;
+                        for (int literal : clause)
+                            value = value || (literal > 0 ? model[literal] : !model[-literal]);
+                        if (!value) { satisfied = false; break; }
+                    }
+                    if (satisfied) { extension = true; break; }
+                }
+                assert(extension == (active_bound && binaries >= r));
+            }
+        }
+    }
+    must_throw([] { rcudd::BinaryLowerBound invalid(2, 3); });
+}
+
 int main(int argc, char **argv) {
+    check_binary_projection();
     if (argc != 2) { std::cerr << "Supply a fixture output directory.\n"; return 2; }
     const std::string directory = argv[1];
     const std::string fixture = directory + "/native-reordered.wcnf";
@@ -53,6 +106,7 @@ int main(int argc, char **argv) {
     auto complemented = rcudd::write_bdd_wcnf(mixed, names, directory + "/native-complemented.wcnf", options);
     same_truth(mixed, complemented, manager.ReadSize());
     assert(!complemented.has_shortcut && complemented.target.size() == 8);
+    assert(complemented.binary_lower_bound == 2 && complemented.binary_auxiliary.size() == 4);
     auto constant = rcudd::write_bdd_wcnf(manager.bddZero(), {}, directory + "/native-constant.wcnf");
     assert(constant.has_shortcut && constant.shortcut == "false" && constant.nclauses == 2);
     auto positive = rcudd::write_bdd_wcnf(a, names, directory + "/native-variable.wcnf");
@@ -115,6 +169,7 @@ int main(int argc, char **argv) {
     auto contextual = rcudd::write_bdd_wcnf(a ^ b, c, names,
                                            directory + "/native-contextual.wcnf", options);
     assert(contextual.lower_bound == 1 && contextual.variables.size() == 3);
+    assert(contextual.binary_lower_bound == 0 && contextual.binary_auxiliary.empty());
     same_truth(a ^ b, contextual, manager.ReadSize());
     std::vector<int> assignment(manager.ReadSize(), 0);
     for (std::size_t row = 0; row < contextual.target.size(); ++row) {

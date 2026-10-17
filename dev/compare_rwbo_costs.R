@@ -48,50 +48,110 @@
     lockBinding(".rwbo_run_solver", ns)
   }, add = TRUE)
 
+  route <- if (is.null(job$route)) "automatic" else job$route
+  cpp_input <- gsub("||", "|", gsub("&&", "&", job$expression, fixed = TRUE), fixed = TRUE)
+  count_ops <- function(expr) lengths(regmatches(expr, gregexpr("[!&|^]", expr)))
+  weighted_cost <- function(expr) {
+    ops <- regmatches(expr, gregexpr("[!&|^]", expr))[[1L]]
+    sum(ifelse(ops == "!", 1L, 2L))
+  }
   baseline <- NULL
   bdd_seconds <- unname(system.time({
-    baseline <- Rcudd::bdd_restrict_from_expressions(job$expression, use_rwbo = 0L)$chain[[1L]]
+    baseline <- if (route == "automatic") {
+      Rcudd::bdd_restrict_from_expressions(job$expression, use_rwbo = 0L)$chain[[1L]]
+    } else Rcudd::bdd_literals(cpp_input)
   })[["elapsed"]])
-  entry <- NULL
-  total_seconds <- unname(system.time({
-    entry <- Rcudd::bdd_restrict_from_expressions(job$expression, use_rwbo = Inf,
-      rwbo_control = list(max_operators = job$max_operators,
-                          max_clauses = 2000000L, time_limit = job$time_limit))$chain[[1L]]
-  })[["elapsed"]])
+  entry <- problem <- output <- NULL
+  if (route == "automatic") {
+    total_seconds <- unname(system.time({
+      entry <- Rcudd::bdd_restrict_from_expressions(job$expression, use_rwbo = Inf,
+        rwbo_control = list(max_operators = job$max_operators,
+                            max_clauses = 2000000L, time_limit = job$time_limit))$chain[[1L]]
+    })[["elapsed"]])
+    opt <- entry$optimization
+    candidate_cpp <- entry$reduced_cpp_expression
+    expression <- entry$reduced_expression
+    baseline_cpp <- baseline$reduced_cpp_expression
+    parsed <- str2lang(expression)
+    actual <- vapply(seq_len(nrow(job$inputs)), function(i)
+      eval(parsed, as.list(job$inputs[i, , drop = FALSE])), logical(1L))
+    stopifnot(identical(actual, job$target))
+  } else {
+    problem_path <- tempfile(fileext = ".wcnf")
+    on.exit(unlink(problem_path), add = TRUE)
+    result <- NULL
+    total_seconds <- unname(system.time({
+      problem <- Rcudd::bdd_to_wcnf(cpp_input, problem_path,
+        max_operators = job$max_operators, max_clauses = 2000000L)
+      output <- tryCatch(instrumented(problem_path, job$time_limit), error = identity)
+      if (!inherits(output, "error")) result <- Rcudd::interpret_rwbo_output(problem, output)
+    })[["elapsed"]])
+    stopifnot(identical(problem$variables, letters[seq_len(job$variables)]),
+              identical(problem$target, job$target))
+    if (inherits(output, "error")) {
+      if (!grepl("timed out|timeout", conditionMessage(output), ignore.case = TRUE)) stop(output)
+      opt <- list(status = "time_limit", verified = FALSE, optimal = FALSE,
+                  operator_count_after = count_ops(cpp_input))
+      candidate_cpp <- cpp_input
+    } else {
+      stopifnot(result$verified)
+      opt <- list(status = if (result$optimal) "optimal" else "candidate",
+        verified = result$verified, optimal = result$optimal,
+        operator_count_after = result$operator_count)
+      candidate_cpp <- result$expression
+      # Independent BDD reconstruction after timing; K=0 keeps this check tiny.
+      verify_path <- tempfile(fileext = ".wcnf")
+      on.exit(unlink(verify_path), add = TRUE)
+      independent <- Rcudd::bdd_to_wcnf(candidate_cpp, verify_path, max_operators = 0L)
+      stopifnot(identical(independent$variables, problem$variables),
+                identical(independent$target, job$target))
+    }
+    expression <- candidate_cpp
+    baseline_cpp <- baseline$reduced_expression
+    entry <- result
+  }
 
-  # Exhaustive validation and all bookkeeping are outside the measured interval.
-  parsed <- str2lang(entry$reduced_expression)
-  actual <- vapply(seq_len(nrow(job$inputs)), function(i)
-    eval(parsed, as.list(job$inputs[i, , drop = FALSE])), logical(1L))
-  stopifnot(identical(actual, job$target), length(timing$header) == 1L)
-  observed_header <- as.integer(strsplit(timing$header, " ")[[1L]][3:5])
-  # nvars = K^2 + K * (4 + 2*(n+2) + 3*2^n); recover the actual slot count.
-  linear <- 4 + 2 * (job$variables + 2) + 3 * 2^job$variables
-  slots <- as.integer(round((sqrt(linear^2 + 4 * observed_header[[1L]]) - linear) / 2))
-  stopifnot(observed_header[[1L]] == slots^2 + linear * slots,
-            slots == job$max_operators, timing$timeout == job$time_limit)
-  opt <- entry$optimization
-  stopifnot(opt$status %in% c("improved", "not_improved", "time_limit"))
-  if (opt$optimal) stopifnot(opt$verified,
-    opt$operator_count_after == job$variables - 1L)
-  if (opt$optimal && job$model == "weighted")
-    stopifnot(opt$cost_after == 2L * (job$variables - 1L))
+  slots <- NA_integer_
+  observed_header <- rep(NA_integer_, 3L)
+  if (length(timing$header)) {
+    observed_header <- as.integer(strsplit(timing$header, " ")[[1L]][3:5])
+    linear <- 4 + 2 * (job$variables + 2) + 3 * 2^job$variables
+    slots <- as.integer(round((sqrt(linear^2 + 4 * observed_header[[1L]]) - linear) / 2))
+    stopifnot(observed_header[[1L]] == slots^2 + linear * slots,
+              slots <= job$max_operators, timing$timeout == job$time_limit)
+    if (route == "direct" || isTRUE(job$matching_slots)) stopifnot(slots == job$max_operators)
+  } else stopifnot(route == "automatic", opt$status %in% c("minimal", "not_candidate"))
+  expected_ops <- job$expected_operators
+  if (is.null(expected_ops) && is.null(job$route)) expected_ops <- job$variables - 1L
+  if (opt$optimal && !is.null(expected_ops))
+    stopifnot(opt$verified, opt$operator_count_after == expected_ops)
+  if (opt$optimal && job$model == "weighted" && !is.null(job$expected_cost))
+    stopifnot(weighted_cost(candidate_cpp) == job$expected_cost)
+  stopifnot(opt$status %in% c("improved", "not_improved", "time_limit",
+                             "minimal", "not_candidate", "optimal", "candidate"))
   dll <- list.files(file.path(package_path, "libs"), "Rcudd[.]dll$",
                     recursive = TRUE, full.names = TRUE)
   row <- data.frame(phase = job$phase, case = job$case, model = job$model,
+    route = route, input_optimal = job$input_optimal,
+    input_operator_count = count_ops(cpp_input),
+    configured_max_operators = job$max_operators,
+    solver_called = length(timing$header) == 1L,
+    xor_count = lengths(regmatches(candidate_cpp, gregexpr("^", candidate_cpp, fixed = TRUE))),
+    weighted_cost = weighted_cost(candidate_cpp),
     run = job$run, position = job$position, variables = job$variables,
     max_operators = slots, time_limit = job$time_limit,
     total_seconds = total_seconds, solver_seconds = timing$solver_seconds,
     bdd_seconds = bdd_seconds, status = opt$status, verified = opt$verified,
     optimal = opt$optimal, operator_count = opt$operator_count_after,
     nvars = observed_header[[1L]], nclauses = observed_header[[2L]],
-    baseline_cpp = baseline$reduced_cpp_expression,
-    expression = entry$reduced_expression,
+    baseline_cpp = baseline_cpp,
+    expression = expression,
     source_commit = job$commit, rcudd_path = package_path,
     rcudd_dll_md5 = unname(tools::md5sum(dll)[[1L]]),
     r_version = as.character(getRversion()),
     rwbo_version = as.character(utils::packageVersion("Rwbo")))
-  saveRDS(list(row = row, entry = entry, probe_header = header), result_file)
+  saveRDS(list(row = row, entry = entry, probe_header = header, problem = problem,
+               output = output), result_file)
   invisible(row)
 }
 
@@ -99,20 +159,24 @@ compare_rwbo_costs <- function(unit_library, weighted_library,
                                output_dir = ".rwbo-test/cost-comparison",
                                repeats = 5L, time_limit = 10L,
                                extended_time_limit = 30L,
-                               script = "dev/compare_rwbo_costs.R") {
+                               script = "dev/compare_rwbo_costs.R", cases = NULL,
+                               route = "automatic", matching_slots = TRUE) {
   stopifnot(repeats >= 1L, repeats == floor(repeats), time_limit >= 1L,
-            time_limit == floor(time_limit), extended_time_limit >= time_limit)
+            time_limit == floor(time_limit), (is.null(extended_time_limit) || extended_time_limit >= time_limit),
+            route %in% c("automatic", "direct"))
   script <- normalizePath(script, winslash = "/", mustWork = TRUE)
   libraries <- c(unit = normalizePath(unit_library, winslash = "/", mustWork = TRUE),
     weighted = normalizePath(weighted_library, winslash = "/", mustWork = TRUE))
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
   output_dir <- normalizePath(output_dir, winslash = "/", mustWork = TRUE)
   source(file.path(dirname(script), "benchmark_rwbo.R"), local = TRUE)
+  if (is.null(cases)) {
   cases <- list(list(name = "parity3", n = 3L, bound = 4L,
     expression = paste("(a && !b && !c)", "(!a && b && !c)",
                        "(!a && !b && c)", "(a && b && c)", sep = " || ")))
   for (n in c(4L, 6L, 8L, 9L)) cases[[length(cases) + 1L]] <- list(
     name = paste0("pairs", n), n = n, bound = 8L, expression = rwbo_pair_example(n))
+  }
   for (i in seq_along(cases)) {
     case <- cases[[i]]
     case$inputs <- do.call(expand.grid,
@@ -132,7 +196,10 @@ compare_rwbo_costs <- function(unit_library, weighted_library,
         model = model, run = run, position = position, library = libraries[[model]],
         commit = commits[[model]], expression = case$expression, variables = case$n,
         inputs = case$inputs, target = case$target, max_operators = case$bound,
-        time_limit = as.integer(limit))
+        time_limit = as.integer(limit), route = route, matching_slots = matching_slots,
+        input_optimal = if (is.null(case$input_optimal)) NA else case$input_optimal,
+        expected_operators = case$expected_operators,
+        expected_cost = case$expected_cost)
     }
   }
   # Alternate AB/BA for each case; reverse case order in every second round.
@@ -140,7 +207,8 @@ compare_rwbo_costs <- function(unit_library, weighted_library,
     order <- if (run %% 2L) seq_along(cases) else rev(seq_along(cases))
     for (i in order) add_pair(cases[[i]], "primary", run, time_limit, i)
   }
-  for (i in 4:5) add_pair(cases[[i]], "extended", 1L, extended_time_limit, i)
+  if (!is.null(extended_time_limit))
+    for (i in 4:5) add_pair(cases[[i]], "extended", 1L, extended_time_limit, i)
   saveRDS(schedule, file.path(output_dir, "schedule.rds"))
   rows <- list()
   rscript <- file.path(R.home("bin"), "Rscript.exe")
@@ -175,9 +243,13 @@ compare_rwbo_costs <- function(unit_library, weighted_library,
       a <- pair[pair$model == "unit", , drop = FALSE]
       b <- pair[pair$model == "weighted", , drop = FALSE]
       stopifnot(nrow(a) == 1L, nrow(b) == 1L,
-        a$nvars == b$nvars, a$max_operators == b$max_operators,
-        b$nclauses - a$nclauses == a$max_operators,
-        a$baseline_cpp == b$baseline_cpp, a$rwbo_version == b$rwbo_version)
+        a$baseline_cpp == b$baseline_cpp, a$rwbo_version == b$rwbo_version,
+        a$solver_called == b$solver_called)
+      if (a$solver_called && (matching_slots || route == "direct"))
+        stopifnot(a$nvars == b$nvars, a$max_operators == b$max_operators,
+                  b$nclauses - a$nclauses == a$max_operators)
+      if (a$solver_called && !is.na(a$max_operators) && a$max_operators == b$max_operators)
+        stopifnot(a$nvars == b$nvars, b$nclauses - a$nclauses == a$max_operators)
     }
   }
   groups <- split(result, interaction(result$phase, result$case, result$model, drop = TRUE))
@@ -185,6 +257,8 @@ compare_rwbo_costs <- function(unit_library, weighted_library,
     phase = group$phase[[1L]], case = group$case[[1L]], model = group$model[[1L]],
     variables = group$variables[[1L]], max_operators = group$max_operators[[1L]],
     time_limit = group$time_limit[[1L]], runs = nrow(group),
+    solver_calls = sum(group$solver_called),
+    statuses = paste(sort(unique(group$status)), collapse = "/"),
     median_total = stats::median(group$total_seconds),
     min_total = min(group$total_seconds), max_total = max(group$total_seconds),
     median_solver = stats::median(group$solver_seconds),

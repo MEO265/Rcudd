@@ -67,3 +67,7 @@ problem[c("variables", "nvars", "nclauses")]
 unlink(path)
 
 }
+\seealso{
+\code{vignette("rwbo-wcnf", package = "Rcudd")} for the file format,
+SAT variables and operator clauses.
+}

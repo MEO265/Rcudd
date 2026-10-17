@@ -30,6 +30,8 @@ search retains the BDD result. See [solver examples](inst/scripts/README.md).
 For Boolean strings use `bdd_literals()` or `bdd_restrict_chain()`. Manual
 solver workflows use `bdd_to_wcnf()` and `interpret_rwbo_output()`.
 `cpp_logic_to_r()` restores either one Boolean string or a vector of strings.
+The vignette [Die WCNF-Eingabe für Rwbo](vignettes/rwbo-wcnf.Rmd) explains
+the file layout and operator encoding, with an executable example.
 
 BDD reduction does not guarantee a shortest formula. Conversion uses classical
 Boolean logic and a total ordering for comparisons. Callers such as lintr decide

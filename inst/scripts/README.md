@@ -39,6 +39,9 @@ classical Boolean logic and total-order comparisons apply to their R code.
 
 ## Manual export and solver execution
 
+For the WCNF layout, SAT IDs and operator clauses, see
+`vignette("rwbo-wcnf", package = "Rcudd")` (German).
+
 Install Rcudd and a version of Rwbo whose `run_open_wbo()` preserves complete
 stdout lines and accepts an elapsed `timeout`. Rcudd strings use `&`, `|`, `^`
 (Boolean XOR), and `!`. Every operator costs one; repeated subexpressions are

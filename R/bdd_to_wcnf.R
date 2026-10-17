@@ -45,6 +45,9 @@
 #' problem[c("variables", "nvars", "nclauses")]
 #' unlink(path)
 #'
+#' @seealso `vignette("rwbo-wcnf", package = "Rcudd")` for the file format,
+#'   SAT variables and operator clauses.
+#'
 #' @export
 bdd_to_wcnf <- function(expr, wcnf_file = "formula.wcnf", max_operators = 8L,
                         max_variables = 10L, max_clauses = 2000000L, care = "true") {

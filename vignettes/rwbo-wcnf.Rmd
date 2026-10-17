@@ -24,14 +24,26 @@ dieselben Werte wie der BDD liefert.
 Dazu legt Rcudd höchstens `K = max_operators` Operatorplätze an. Der Solver
 bestimmt für jeden Platz den Operator und dessen Eingänge. Harte Klauseln
 erzwingen eine gültige, äquivalente Formel; weiche Klauseln bewerten ihre
-Operatoren. NOT (`!`) kostet eins, AND (`&`), OR (`|`) und XOR (`^`) kosten
-jeweils zwei. Variablen, Konstanten und Klammern kosten nichts.
-`max_operators` begrenzt weiterhin die Anzahl der Plätze, nicht deren Kosten.
+Operatoren. Standardmäßig gilt `prefer_negations = TRUE`: NOT (`!`) kostet
+eins, AND (`&`), OR (`|`) und XOR (`^`) kosten jeweils zwei. Mit
+`prefer_negations = FALSE` kosten alle Operatoren eins. Die Flag akzeptiert nur
+ein einzelnes, nicht fehlendes `TRUE` oder `FALSE`. Variablen, Konstanten und
+Klammern kosten nichts. `max_operators` begrenzt die Anzahl der Plätze,
+nicht deren Kosten.
 
 Der native Exporter `rcudd::write_bdd_wcnf()` arbeitet direkt auf einem bestehenden
 CUDD-BDD. `bdd_to_wcnf()` ist der R-Einstieg für einen manuellen Export.
 Die automatische Optimierung in `bdd_restrict_from_expressions()` verwendet
 denselben Encoder, während Ergebnis- und Kontext-BDD noch vorhanden sind.
+Dort wird die Gewichtung pro Aufruf über `rwbo_control` gewählt, zum Beispiel
+für einen lintr-Aufrufer mit gleichen Operatorenkosten:
+
+```r
+bdd_restrict_from_expressions(
+  "(a && !b) || (!a && b)", use_rwbo = 6L,
+  rwbo_control = list(prefer_negations = FALSE)
+)
+```
 
 Diese Vignette beschreibt das von Rcudd geschriebene **klassische WCNF-Format**
 und die dazugehörigen Metadaten. Alle ausgeführten Beispiele funktionieren
@@ -50,9 +62,11 @@ problem <- bdd_to_wcnf(
   max_operators = 1L
 )
 lines <- readLines(problem$wcnf_file)
-problem[c("variables", "max_operators", "binary_lower_bound", "nvars", "nclauses")]
+problem[c("variables", "max_operators", "prefer_negations",
+          "binary_lower_bound", "nvars", "nclauses")]
 stopifnot(problem$nvars == 25L, problem$nclauses == 133L,
-          problem$binary_lower_bound == 1L, length(problem$binary_auxiliary) == 0L,
+          isTRUE(problem$prefer_negations), problem$binary_lower_bound == 1L,
+          length(problem$binary_auxiliary) == 0L,
           "3 -5 0" %in% lines)
 ```
 
@@ -93,8 +107,9 @@ Beispielsweise bedeutet `3 -4 14 -18 22 0` bei `top = 3` die harte Klausel
 `!x4 | x14 | !x18 | x22`. Das erste `3` ist das Gewicht.
 Ein `3` an einer Literalposition wäre dagegen die SAT-Variable mit ID 3.
 
-Im regulären Encoding gibt es `2 * K` weiche Klauseln mit Gewicht eins.
-Deshalb setzt Rcudd `top = 2 * K + 1`. Damit ist das Gewicht jeder harten
+Im regulären Encoding gibt es standardmäßig `2 * K` weiche Klauseln mit
+Gewicht eins und `top = 2 * K + 1`. Bei `prefer_negations = FALSE` sind es
+`K` weiche Klauseln und `top = K + 1`. Damit ist das Gewicht jeder harten
 Klausel größer als die Summe aller weichen Gewichte.
 
 ## Eingangsvariablen und Belegungen
@@ -392,6 +407,36 @@ zwei. Alle weichen Klauseln behalten Gewicht eins; zusätzliche SAT-Variablen
 sind dafür nicht nötig. Das Optimum sind die minimalen gewichteten Kosten
 innerhalb der Operatorgrenze, nicht unbedingt die kleinste Operatorzahl.
 
+### Alle Operatoren gleich gewichten
+
+Mit `prefer_negations = FALSE` bleibt nur die weiche Klausel `unused` pro
+Platz. Jeder aktive Operator verletzt sie genau einmal und kostet eins.
+Die zusätzliche Klausel `unused | not` entfällt. Struktur, Semantik und
+binäre Untergrenze bleiben gleich; `top` wird entsprechend kleiner.
+
+```{r equal-costs}
+uniform_file <- tempfile(fileext = ".wcnf")
+uniform_problem <- bdd_to_wcnf(
+  "(a & !b) | (!a & b)", uniform_file,
+  max_operators = 1L, prefer_negations = FALSE
+)
+uniform_lines <- readLines(uniform_file)
+uniform_problem[c("prefer_negations", "nvars", "nclauses")]
+uniform_lines[c(1L, length(uniform_lines))]
+stopifnot(
+  identical(uniform_problem$prefer_negations, FALSE),
+  uniform_problem$nvars == 25L, uniform_problem$nclauses == 132L,
+  uniform_lines[[1L]] == "p wcnf 25 132 2",
+  tail(uniform_lines, 1L) == "1 1 0",
+  !("1 1 5 0" %in% uniform_lines)
+)
+```
+
+XOR bleibt hier eine optimale Formel mit einem Operator; ihre Kosten sind
+jetzt eins statt zwei. Das Gewichtungsmodell steht in
+`uniform_problem$prefer_negations` und muss bei der späteren Interpretation erhalten
+bleiben. Mit gleichen Kosten entspricht die Zielfunktion der Operatorzahl.
+
 ## Kontexte für if/else-Ketten
 
 `care` beschreibt, auf welchen Belegungen die Zielfunktion übereinstimmen muss.
@@ -427,7 +472,8 @@ Rcudd kann direkt eine Nullkosten-Konstante wählen.
 
 ## Vollständige Datei und Metadaten
 
-Die 133 Klauseln des Beispiels setzen sich wie folgt zusammen:
+Die 133 Klauseln des Hauptbeispiels mit `prefer_negations = TRUE` setzen sich
+wie folgt zusammen:
 
 | Gruppe | Anzahl |
 |:-------|-------:|
@@ -454,6 +500,7 @@ der SAT-IDs stehen in der von `bdd_to_wcnf()` zurückgegebenen Liste.
 | `inputs`, `target` | Belegungen und BDD-Zielwerte |
 | `care`, `care_expression` | Relevante Zeilen und deren Boolescher Kontext |
 | `gates` | SAT-IDs für Typ, Eingangswahl und Zeilenwerte jedes Platzes |
+| `prefer_negations` | TRUE: NOT kostet eins, binäre Operatoren zwei; FALSE: alle kosten eins |
 | `max_operators`, `lower_bound` | Obere Operatorschranke und Mindestzahl aktiver Plätze |
 | `binary_lower_bound`, `binary_auxiliary` | Mindestzahl binärer Operatoren und SAT-IDs der Zähler-Hilfsvariablen |
 | `nvars`, `nclauses`, `wcnf_file` | Headerangaben und Dateipfad |
@@ -575,9 +622,12 @@ result[c("expression", "operator_count", "cost", "verified", "optimal", "status"
 ```
 
 Ein validiertes `OPTIMUM FOUND` bestätigt das Kostenminimum innerhalb der
-`K` Operatorplätze. Bei unterschiedlichen Kosten kann eine billigere Formel
-mehr Plätze benötigen. Ein globaler Nachweis ist deshalb nur unter weiteren
-Bedingungen möglich. Beispielsweise reicht `result$cost <= K + 1`: Jeder
+`K` Operatorplätze. Bei gleichen Operatorenkosten ist dieses Minimum auch
+global: Jede billigere Formel hätte weniger Operatoren und würde ebenfalls
+in die Schranke passen. Bei unterschiedlichen Kosten kann eine billigere
+Formel mehr Plätze benötigen. Ein globaler Nachweis ist dann nur unter
+weiteren Bedingungen möglich. Beispielsweise reicht `result$cost <= K + 1`:
+Jeder
 Operator kostet mindestens eins, also passen dann alle strikt billigeren
 Formeln in die Schranke. Die Äquivalenz gilt gegebenenfalls nur auf `care`.
 Nullkosten-Abkürzungen werden direkt aus dem BDD bewiesen.
@@ -588,5 +638,5 @@ Beim manuellen Ablauf bleiben Datei und Metadaten bis zur Interpretation
 in der Verantwortung des Aufrufers.
 
 ```{r cleanup, include=FALSE}
-unlink(c(wcnf_file, context_file, trivial_file, impossible_file))
+unlink(c(wcnf_file, uniform_file, context_file, trivial_file, impossible_file))
 ```

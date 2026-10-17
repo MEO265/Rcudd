@@ -18,11 +18,14 @@ and \code{Inf} removes this filter. Logical values are rejected. Independent
 resource limits, including the native cap of 20 variables, still apply.}
 
 \item{rwbo_control}{Named list overriding \code{max_operators = 8L},
-\code{max_clauses = 2000000L} or \code{time_limit = 5L} (whole seconds shared across
-the call). The budget is checked between jobs; an active export and model
-validation finish. Solver timeouts round up to whole seconds. Operator
-bounds may be zero; clause and time limits must be positive whole numbers.
-The optional Rwbo package is required only for solver calls.}
+\code{max_clauses = 2000000L}, \code{time_limit = 5L} (whole seconds shared across
+the call), or \code{prefer_negations = TRUE}. The latter must be a single
+non-missing logical: \code{TRUE} gives \code{!} half the cost of binary operators;
+\code{FALSE} gives every operator the same cost. The budget is checked between
+jobs; an active export and model validation finish. Solver timeouts round
+up to whole seconds. Operator bounds may be zero; clause and time limits
+must be positive whole numbers. The optional Rwbo package is required only
+for solver calls.}
 }
 \value{
 A list with elements:

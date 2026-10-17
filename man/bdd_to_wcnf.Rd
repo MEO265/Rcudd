@@ -10,7 +10,8 @@ bdd_to_wcnf(
   max_operators = 8L,
   max_variables = 10L,
   max_clauses = 2000000L,
-  care = "true"
+  care = "true",
+  prefer_negations = TRUE
 )
 }
 \arguments{
@@ -26,10 +27,14 @@ bdd_to_wcnf(
 
 \item{care}{Boolean context in Rcudd syntax. The candidate must match \code{expr}
 only where this expression is true (default \code{"true"}).}
+
+\item{prefer_negations}{Logical scalar: \code{TRUE} (default) gives NOT half the
+cost of binary operators; \code{FALSE} gives every operator the same cost.}
 }
 \value{
 An \code{rwbo_formula_problem} list with the original expression,
-available \code{variables}, their zero-based CUDD \code{variable_indices}, logical
+selected \code{prefer_negations} cost model, available \code{variables}, their zero-based
+CUDD \code{variable_indices}, logical
 \code{inputs} data frame, \code{target} and \code{care} (empty means all rows), search bounds,
 \code{shortcut}, objective, active-gate \code{lower_bound}, \code{binary_lower_bound},
 \code{binary_auxiliary} SAT IDs (empty when no counter is needed), \code{gates} SAT-id
@@ -40,8 +45,9 @@ to avoid rendering a potentially very large expression.
 \description{
 Builds a BDD once and delegates to the native exporter, which evaluates the
 existing CUDD graph directly. It writes a weighted CNF problem minimizing the
-cost of a formula tree: unary NOT (\code{!}) costs one; binary AND (\code{&}), OR (\code{|})
-and XOR (\code{^}) cost two each. This function exports the problem; it does not
+cost of a formula tree. By default unary NOT (\code{!}) costs one and binary
+AND (\code{&}), OR (\code{|}) and XOR (\code{^}) cost two. With \code{prefer_negations = FALSE},
+all operators cost one. This function exports the problem; it does not
 run Rwbo.
 }
 \details{

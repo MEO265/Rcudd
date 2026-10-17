@@ -27,6 +27,13 @@ unsigned int bound(SEXP config, const char *name, unsigned int minimum) {
         throw std::invalid_argument(std::string("Invalid RWBO config bound: ") + name);
     return static_cast<unsigned int>(number);
 }
+bool flag(SEXP config, const char *name) {
+    SEXP value = field(config, name);
+    if (TYPEOF(value) != LGLSXP || Rf_isObject(value) || Rf_getAttrib(value, R_DimSymbol) != R_NilValue ||
+        XLENGTH(value) != 1 || LOGICAL(value)[0] == NA_LOGICAL)
+        throw std::invalid_argument(std::string("Invalid RWBO config flag: ") + name);
+    return LOGICAL(value)[0];
+}
 SEXP metadata(const char *status, const std::string &message, SEXP problem,
               int operators, int cost, bool optimal) {
     SEXP out = PROTECT(Rf_allocVector(VECSXP, 6));
@@ -68,10 +75,9 @@ RwboPreparation::RwboPreparation(SEXP config) : start(std::chrono::steady_clock:
     options.max_operators = bound(config, "max_operators", 0);
     options.max_clauses = bound(config, "max_clauses", 1);
     time_limit = bound(config, "time_limit", 1);
-    SEXP flag = field(config, "available"), path = field(config, "directory");
-    if (TYPEOF(flag) != LGLSXP || XLENGTH(flag) != 1 || LOGICAL(flag)[0] == NA_LOGICAL)
-        throw std::invalid_argument("Invalid RWBO availability flag.");
-    available = LOGICAL(flag)[0];
+    options.prefer_negations = flag(config, "prefer_negations");
+    available = flag(config, "available");
+    SEXP path = field(config, "directory");
     if (TYPEOF(path) != STRSXP || XLENGTH(path) != 1 || STRING_ELT(path, 0) == NA_STRING)
         throw std::invalid_argument("Invalid RWBO directory.");
     directory = Rf_translateChar(STRING_ELT(path, 0));
@@ -87,7 +93,7 @@ void RwboPreparation::attach(SEXP summary, const BDD &root, const BDD &care,
     for (char ch : baseline) {
         if (ch == '!' || ch == '&' || ch == '|' || ch == '^') {
             ++operators_wide;
-            cost_wide += ch == '!' ? 1 : 2;
+            cost_wide += !options.prefer_negations || ch == '!' ? 1 : 2;
         }
     }
     if (cost_wide > INT_MAX - 1)

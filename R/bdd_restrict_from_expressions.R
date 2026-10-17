@@ -75,7 +75,9 @@ bdd_restrict_from_expressions <- function(exprs, use_rwbo = 0L, rwbo_control = l
     if (is.null(chain[[i]]$optimization)) {
       chain[[i]]$optimization <- .rwbo_diagnostic(
         "disabled", .rwbo_operator_count(reduced_cpp[[i]]),
-        cost_before = .rwbo_operator_cost(reduced_cpp[[i]])
+        cost_before = .rwbo_operator_cost(
+          reduced_cpp[[i]], prefer_negations = !isFALSE(rwbo_control$prefer_negations)
+        )
       )
     }
     chain[[i]]$reduced_cpp_expression <- reduced_cpp[[i]]

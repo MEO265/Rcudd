@@ -24,6 +24,12 @@ unsigned int scalar_bound(SEXP value, const char *name, unsigned int minimum) {
         throw std::invalid_argument(std::string("'") + name + "' must be a whole number within integer limits.");
     return static_cast<unsigned int>(number);
 }
+bool scalar_flag(SEXP value, const char *name) {
+    if (TYPEOF(value) != LGLSXP || Rf_isObject(value) || Rf_getAttrib(value, R_DimSymbol) != R_NilValue ||
+        XLENGTH(value) != 1 || LOGICAL(value)[0] == NA_LOGICAL)
+        throw std::invalid_argument(std::string("'") + name + "' must be a single non-missing logical value.");
+    return LOGICAL(value)[0];
+}
 SEXP strings(const std::vector<std::string> &values) {
     SEXP out = PROTECT(Rf_allocVector(STRSXP, values.size()));
     for (std::size_t i = 0; i < values.size(); ++i)
@@ -45,11 +51,11 @@ void name_list(SEXP list, const std::vector<std::string> &names) {
 } // namespace
 namespace rcudd {
 SEXP as_r_problem(const WcnfProblem &p, SEXP expression, SEXP care_expression) {
-    SEXP result = PROTECT(Rf_allocVector(VECSXP, 20));
+    SEXP result = PROTECT(Rf_allocVector(VECSXP, 21));
     name_list(result, {"expression", "bdd_expression", "variables", "inputs", "target",
                        "max_operators", "shortcut", "objective", "lower_bound", "nvars",
                        "nclauses", "gates", "wcnf_file", "variable_indices", "encoding", "truth_table_rows",
-                       "care", "care_expression", "binary_lower_bound", "binary_auxiliary"});
+                       "care", "care_expression", "binary_lower_bound", "binary_auxiliary", "prefer_negations"});
     SET_VECTOR_ELT(result, 0, expression);
     SET_VECTOR_ELT(result, 1, R_NilValue); // avoid potentially exponential factored rendering
     SET_VECTOR_ELT(result, 2, strings(p.variables));
@@ -73,7 +79,8 @@ SEXP as_r_problem(const WcnfProblem &p, SEXP expression, SEXP care_expression) {
     SET_VECTOR_ELT(result, 4, target);
     SET_VECTOR_ELT(result, 5, Rf_ScalarInteger(p.max_operators));
     if (p.has_shortcut) SET_VECTOR_ELT(result, 6, strings({p.shortcut}));
-    SET_VECTOR_ELT(result, 7, Rf_mkString("weighted operator cost: ! = 1; &, | and ^ = 2"));
+    SET_VECTOR_ELT(result, 7, Rf_mkString(p.prefer_negations ?
+        "weighted operator cost: ! = 1; &, | and ^ = 2" : "operator count: !, &, | and ^ = 1"));
     SET_VECTOR_ELT(result, 8, Rf_ScalarInteger(p.lower_bound));
     SET_VECTOR_ELT(result, 9, Rf_ScalarInteger(p.nvars));
     SET_VECTOR_ELT(result, 10, Rf_ScalarInteger(static_cast<int>(p.nclauses)));
@@ -104,6 +111,7 @@ SEXP as_r_problem(const WcnfProblem &p, SEXP expression, SEXP care_expression) {
     SET_VECTOR_ELT(result, 17, care_expression);
     SET_VECTOR_ELT(result, 18, Rf_ScalarInteger(p.binary_lower_bound));
     SET_VECTOR_ELT(result, 19, integers(p.binary_auxiliary));
+    SET_VECTOR_ELT(result, 20, Rf_ScalarLogical(p.prefer_negations));
     SEXP klass = PROTECT(Rf_mkString("rwbo_formula_problem"));
     Rf_classgets(result, klass);
     UNPROTECT(8);
@@ -112,13 +120,14 @@ SEXP as_r_problem(const WcnfProblem &p, SEXP expression, SEXP care_expression) {
 } // namespace
 
 extern "C" SEXP bdd_wcnf_expression(SEXP expr_in, SEXP file_in, SEXP operators_in,
-                                     SEXP variables_in, SEXP clauses_in, SEXP care_in) {
+                                     SEXP variables_in, SEXP clauses_in, SEXP care_in, SEXP prefer_negations_in) {
     try {
         const std::string expression = scalar_string(expr_in, "expr");
         scalar_string(file_in, "wcnf_file");
         // std::ofstream uses native filesystem encoding on Windows.
         const std::string path(Rf_translateChar(STRING_ELT(file_in, 0)));
         rcudd::WcnfOptions options;
+        options.prefer_negations = scalar_flag(prefer_negations_in, "prefer_negations");
         options.max_operators = scalar_bound(operators_in, "max_operators", 0);
         options.max_variables = scalar_bound(variables_in, "max_variables", 0);
         options.max_clauses = scalar_bound(clauses_in, "max_clauses", 1);
@@ -166,6 +175,7 @@ std::vector<int> sat_ids(SEXP value, std::size_t expected, unsigned int nvars) {
 }
 rcudd::WcnfProblem from_r_problem(SEXP input) {
     rcudd::WcnfProblem p;
+    p.prefer_negations = scalar_flag(field(input, "prefer_negations"), "prefer_negations");
     p.max_operators = scalar_bound(field(input, "max_operators"), "max_operators", 0);
     p.lower_bound = scalar_bound(field(input, "lower_bound"), "lower_bound", 0);
     p.binary_lower_bound = scalar_bound(field(input, "binary_lower_bound"), "binary_lower_bound", 0);

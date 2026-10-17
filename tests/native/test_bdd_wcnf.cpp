@@ -215,6 +215,85 @@ int main(int argc, char **argv) {
     must_throw([&] { rcudd::write_bdd_wcnf(a, other_manager.bddOne(), names, fixture, options); });
     options.max_variables = 2;
     must_throw([&] { rcudd::write_bdd_wcnf(a & b, proxy_care, names, fixture, options); });
+    // Both cost modes describe the same gate assignments and Boolean
+    // functions. Only the objective clauses, top and resulting costs differ.
+    rcudd::WcnfProblem preferred_xor;
+    for (bool preference : {true, false}) {
+        rcudd::WcnfOptions mode;
+        mode.max_operators = 1;
+        mode.prefer_negations = preference;
+        const std::string mode_file = directory + (preference ? "/native-preferred.wcnf" : "/native-uniform.wcnf");
+        auto mode_not = rcudd::write_bdd_wcnf(!a, names, mode_file, mode);
+        assert(mode_not.prefer_negations == preference);
+        std::vector<bool> not_model(mode_not.nvars + 1, false);
+        const auto &not_ids = mode_not.gates[0];
+        for (int id : {not_ids.kind[4], not_ids.left[2], not_ids.left_value[1], not_ids.out[0]})
+            not_model[id] = true;
+        auto stdout_model = [](const std::vector<bool> &model, int cost) {
+            std::string text = "s OPTIMUM FOUND\no " + std::to_string(cost) + "\nv";
+            for (std::size_t id = 1; id < model.size(); ++id)
+                text += " " + std::to_string(model[id] ? static_cast<int>(id) : -static_cast<int>(id));
+            return text + " 0\n";
+        };
+        const auto not_solution = rcudd::interpret_rwbo_output(mode_not, stdout_model(not_model, 1));
+        assert(not_solution.verified && not_solution.optimal && not_solution.cost == 1 &&
+               not_solution.operator_count == 1 && not_solution.expression == "!a");
+
+        auto mode_xor = rcudd::write_bdd_wcnf(a ^ b, names, mode_file, mode);
+        assert(mode_xor.prefer_negations == preference && mode_xor.binary_lower_bound == 1);
+        assert(mode_xor.nvars == 25 && mode_xor.nclauses == (preference ? 133u : 132u));
+        const auto &ids = mode_xor.gates[0];
+        if (preference) preferred_xor = mode_xor;
+        else {
+            assert(ids.kind == preferred_xor.gates[0].kind && ids.left == preferred_xor.gates[0].left &&
+                   ids.right == preferred_xor.gates[0].right && ids.out == preferred_xor.gates[0].out);
+            assert(mode_xor.binary_auxiliary == preferred_xor.binary_auxiliary);
+        }
+        std::vector<bool> model(mode_xor.nvars + 1, false);
+        for (int id : {ids.kind[3], ids.left[2], ids.right[3]}) model[id] = true;
+        for (std::size_t row = 0; row < mode_xor.target.size(); ++row) {
+            model[ids.left_value[row]] = mode_xor.input(row, 0);
+            model[ids.right_value[row]] = mode_xor.input(row, 1);
+            model[ids.out[row]] = mode_xor.target[row];
+        }
+        const int mode_cost = preference ? 2 : 1;
+        const auto decoded = rcudd::interpret_rwbo_output(mode_xor, stdout_model(model, mode_cost));
+        assert(decoded.verified && decoded.optimal && decoded.expression == "a ^ b" &&
+               decoded.operator_count == 1 && decoded.cost == mode_cost);
+        must_throw([&] { rcudd::interpret_rwbo_output(mode_xor, stdout_model(model, preference ? 1 : 2)); });
+        auto wrong_mode = mode_xor; wrong_mode.prefer_negations = !preference;
+        must_throw([&] { rcudd::interpret_rwbo_output(wrong_mode, stdout_model(model, mode_cost)); });
+        std::ifstream mode_stream(mode_file);
+        std::getline(mode_stream, line);
+        assert(line == std::string("p wcnf 25 ") + (preference ? "133 3" : "132 2"));
+        mode_stream.close();
+        { std::ofstream sentinel(mode_file); sentinel << "sentinel\n"; }
+        mode.max_clauses = mode_xor.nclauses - 1;
+        must_throw([&] { rcudd::write_bdd_wcnf(a ^ b, names, mode_file, mode); });
+        { std::ifstream sentinel(mode_file); std::getline(sentinel, line); assert(line == "sentinel"); }
+        mode.max_clauses = mode_xor.nclauses;
+        assert(rcudd::write_bdd_wcnf(a ^ b, names, mode_file, mode).nclauses == mode_xor.nclauses);
+
+        mode.max_clauses = 2000000;
+        auto contextual_mode = rcudd::write_bdd_wcnf(a ^ b, c, names, mode_file, mode);
+        assert(contextual_mode.binary_lower_bound == 0 && contextual_mode.prefer_negations == preference);
+        const auto &context_ids = contextual_mode.gates[0];
+        model.assign(contextual_mode.nvars + 1, false);
+        for (int id : {context_ids.kind[3], context_ids.left[2], context_ids.right[3]}) model[id] = true;
+        for (std::size_t row = 0; row < contextual_mode.target.size(); ++row) {
+            model[context_ids.left_value[row]] = contextual_mode.input(row, 0);
+            model[context_ids.right_value[row]] = contextual_mode.input(row, 1);
+            model[context_ids.out[row]] = contextual_mode.target[row];
+        }
+        assert(rcudd::interpret_rwbo_output(contextual_mode, stdout_model(model, mode_cost)).verified);
+        mode.max_operators = 4;
+        auto mode_counter = rcudd::write_bdd_wcnf(a & b & c, names, mode_file, mode);
+        assert(mode_counter.binary_lower_bound == 2 && mode_counter.binary_auxiliary.size() == 6);
+        assert(!rcudd::interpret_rwbo_output(mode_counter, "s UNKNOWN").verified);
+        auto mode_shortcut = rcudd::write_bdd_wcnf(a, names, mode_file, mode);
+        assert(mode_shortcut.prefer_negations == preference && mode_shortcut.nclauses == 2);
+        assert(rcudd::interpret_rwbo_output(mode_shortcut, "").cost == 0);
+    }
     std::cout << "Native existing-BDD/reordering/complement/resource checks passed.\n";
     return 0;
 }

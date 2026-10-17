@@ -14,6 +14,7 @@ struct WcnfOptions {
     unsigned int max_operators = 8;
     unsigned int max_variables = 10;
     std::size_t max_clauses = 2000000;
+    bool prefer_negations = true; // ! costs 1, binary costs 2; false: all cost 1
 };
 
 // SAT ids are positive and 1-based. Kind order: unused, and, or, xor, not.
@@ -30,6 +31,7 @@ struct WcnfProblem {
     std::vector<bool> care; // empty: every row; otherwise only true rows constrain the root
     std::vector<WcnfGate> gates;
     unsigned int max_operators = 0;
+    bool prefer_negations = true;
     unsigned int lower_bound = 0;
     unsigned int binary_lower_bound = 0; // n-1 for unrestricted essential support
     std::vector<int> binary_auxiliary; // contiguous counter SAT ids after gates
@@ -51,8 +53,9 @@ struct WcnfProblem {
 // Essential names must be unique Rcudd tokens: nonempty, no whitespace or
 // ! & | ^ ( ), and not true/false (case insensitive).
 // Only essential variables are used, sorted by name. All 2^n assignments are
-// constrained. Each ! costs one and each &, |, ^ costs two, including repeated
-// subexpressions. max_operators still bounds the actual number of operators.
+// constrained. With prefer_negations=true, ! costs one and &, |, ^ cost two;
+// otherwise every operator costs one. Repeated subexpressions incur their full
+// cost. max_operators still bounds the actual number of operators.
 // Throws std::invalid_argument/runtime_error before large allocations when
 // bounds are invalid/exceeded. A hard safety cap of 20 essential variables
 // applies even when max_variables is raised. The caller keeps root/manager
@@ -75,7 +78,7 @@ struct WcnfSolution {
     bool has_expression = false;
     std::string expression;
     int operator_count = -1;
-    int cost = -1; // ! = 1; &, |, ^ = 2, independently of operator_count
+    int cost = -1; // respects problem.prefer_negations, independently of operator_count
     bool optimal = false;
     bool verified = false;
     std::string status = "UNKNOWN";

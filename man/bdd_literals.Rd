@@ -15,11 +15,14 @@ and \code{Inf} removes this filter. Logical values are rejected. Independent
 resource limits, including the native cap of 20 variables, still apply.}
 
 \item{rwbo_control}{Named list overriding \code{max_operators = 8L},
-\code{max_clauses = 2000000L} or \code{time_limit = 5L} (whole seconds shared across
-the call). The budget is checked between jobs; an active export and model
-validation finish. Solver timeouts round up to whole seconds. Operator
-bounds may be zero; clause and time limits must be positive whole numbers.
-The optional Rwbo package is required only for solver calls.}
+\code{max_clauses = 2000000L}, \code{time_limit = 5L} (whole seconds shared across
+the call), or \code{prefer_negations = TRUE}. The latter must be a single
+non-missing logical: \code{TRUE} gives \code{!} half the cost of binary operators;
+\code{FALSE} gives every operator the same cost. The budget is checked between
+jobs; an active export and model validation finish. Solver timeouts round
+up to whole seconds. Operator bounds may be zero; clause and time limits
+must be positive whole numbers. The optional Rwbo package is required only
+for solver calls.}
 }
 \value{
 A list with these elements:
@@ -43,8 +46,8 @@ interface also returns this list with status \code{disabled} when RWBO is off.
 \item \code{applied}: whether a solver formula replaced the BDD result.
 \item \code{operator_count_before}, \code{operator_count_after}: numbers of Boolean operators
 in the BDD expression and the returned formula.
-\item \code{cost_before}, \code{cost_after}: weighted costs with unary \code{!} costing 1 and
-binary operators costing 2.
+\item \code{cost_before}, \code{cost_after}: costs under the selected \code{prefer_negations}
+setting; with \code{FALSE}, these equal the respective operator counts.
 \item \code{verified}, \code{optimal}: validity and minimality established by a checked
 model or a direct BDD proof. Solver minimality is within \code{max_operators};
 a verified candidate need not be optimal.
@@ -67,11 +70,12 @@ syntax as the input. It represents the same boolean function, but is not
 guaranteed to be the shortest expression. Rendering can expand a compact BDD
 into a larger string.
 
-Optional synthesis assigns cost 1 to unary \code{!} and cost 2 to binary \code{&}, \code{|}
-and \code{^} in a formula tree, including repeated subexpressions. It searches for strictly
-cheaper formulas within the operator bound. Proven minima are skipped;
-without a context, other formulas without repeated variables are also
-skipped as a heuristic. Resource limits, missing Rwbo and solver failures
+Optional synthesis uses the per-call \code{rwbo_control$prefer_negations} setting.
+By default, unary \code{!} costs 1 and binary \code{&}, \code{|} and \code{^} cost 2; with \code{FALSE},
+all operators cost 1. Repeated subexpressions incur their complete formula-tree
+cost. The search accepts strictly cheaper formulas within the operator bound.
+Proven minima are skipped; without a context, formulas without repeated
+variables are also skipped as a heuristic. Resource limits, missing Rwbo and solver failures
 retain the BDD expression. Heuristic and resource skips do not claim a minimum.
 }
 \examples{

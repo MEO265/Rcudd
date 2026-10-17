@@ -92,6 +92,7 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
     WcnfProblem p;
     p.wcnf_file = path;
     p.max_operators = options.max_operators;
+    p.prefer_negations = options.prefer_negations;
     p.variable_indices = root.SupportIndices();
     if (contextual) {
         for (unsigned int index : care->SupportIndices())
@@ -122,6 +123,7 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
     }
     const Count n = p.variables.size(), k = options.max_operators;
     const Count rows = Count(1) << n, inputs = n + 2;
+    const Count soft_per_gate = p.prefer_negations ? 2 : 1;
     const bool constant = root.IsOne() || root.IsZero();
     const bool positive_variable = n == 1 && !bdd_value(root, 0, p.variable_indices) &&
                                   bdd_value(root, 1, p.variable_indices);
@@ -158,12 +160,12 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
         // A cheap lower bound rejects huge k before a gate-count loop/allocation.
         const Count per_rows = add(mul(12, k), add(mul(mul(2, inputs), k),
                                                 mul(mul(2, k), k - 1)));
-        check_clauses(add(add(mul(rows, per_rows), cared_rows), mul(2, k)), options.max_clauses);
+        check_clauses(add(add(mul(rows, per_rows), cared_rows), mul(soft_per_gate, k)), options.max_clauses);
         const BinaryLowerBound binary_bound(k, p.binary_lower_bound);
         variables = add(add(mul(k, add(5 + 2 * inputs, mul(3, rows))), mul(k, k - 1)),
                         binary_bound.auxiliary_count());
         if (variables > sat_limit) throw std::runtime_error("SAT variable limit exceeded.");
-        clauses = add(add(add(cared_rows, mul(2, k)), p.lower_bound),
+        clauses = add(add(add(cared_rows, mul(soft_per_gate, k)), p.lower_bound),
                       binary_bound.clause_count()); // root, soft, lower bounds
         for (Count i = 0; i < k; ++i) {
             const Count sources = inputs + i, remaining = k - i - 1;
@@ -208,7 +210,7 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
     const BinaryLowerBound binary_bound(k, p.binary_lower_bound);
     p.binary_auxiliary = fresh(static_cast<std::size_t>(binary_bound.auxiliary_count()));
     if (next_id != p.nvars) throw std::runtime_error("Internal SAT variable-count mismatch.");
-    Writer out(path, p.nvars, clauses, 2 * k + 1);
+    Writer out(path, p.nvars, clauses, soft_per_gate * k + 1);
     for (std::size_t i = 0; i < p.gates.size(); ++i) {
         const WcnfGate &g = p.gates[i];
         const int unused = g.kind[0];
@@ -269,10 +271,10 @@ static WcnfProblem write_problem(const BDD &root, const BDD *care,
     for (std::size_t row = 0; row < rows; ++row)
         if (p.care.empty() || p.care[row]) out.hard({p.target[row] ? root_out[row] : -root_out[row]});
     for (const WcnfGate &g : p.gates) {
-        // Every active operator costs one; binary operators cost one more.
-        // Unit-weight clauses retain the unweighted MaxSAT formulation.
+        // Every active operator costs one. Optionally charge binary operators
+        // one more, keeping all soft-clause weights equal to one.
         out.soft(g.kind[0]);
-        out.soft({g.kind[0], g.kind[4]});
+        if (p.prefer_negations) out.soft({g.kind[0], g.kind[4]});
     }
     out.finish(clauses);
     return p;

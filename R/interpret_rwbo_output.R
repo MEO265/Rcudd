@@ -16,9 +16,11 @@
 #' complete physical lines, as returned by the corrected Rwbo wrapper.
 #'
 #' `OPTIMUM FOUND` becomes `optimal = TRUE` only with a validated model and
-#' equivalent formula, and proves minimum weighted cost within `max_operators`.
-#' Unary `!` costs 1 and each binary operator costs 2. `SATISFIABLE` can return
-#' a verified, unproven candidate.
+#' equivalent formula, and proves minimum cost within `max_operators` under
+#' `problem$prefer_negations`. With `TRUE` (the default), unary `!` costs 1 and
+#' each binary operator costs 2; with `FALSE`, every operator costs 1.
+#' Keep this setting with the original problem metadata when interpreting output.
+#' `SATISFIABLE` can return a verified, unproven candidate.
 #' `UNSATISFIABLE`, `UNKNOWN` and missing models return no expression and do
 #' not claim verification or optimality. Invalid metadata, incomplete or
 #' conflicting models, bad objectives and violated hard clauses raise errors.

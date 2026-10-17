@@ -15,11 +15,14 @@
 #'   and `Inf` removes this filter. Logical values are rejected. Independent
 #'   resource limits, including the native cap of 20 variables, still apply.
 #' @param rwbo_control Named list overriding `max_operators = 8L`,
-#'   `max_clauses = 2000000L` or `time_limit = 5L` (whole seconds shared across
-#'   the call). The budget is checked between jobs; an active export and model
-#'   validation finish. Solver timeouts round up to whole seconds. Operator
-#'   bounds may be zero; clause and time limits must be positive whole numbers.
-#'   The optional Rwbo package is required only for solver calls.
+#'   `max_clauses = 2000000L`, `time_limit = 5L` (whole seconds shared across
+#'   the call), or `prefer_negations = TRUE`. The latter must be a single
+#'   non-missing logical: `TRUE` gives `!` half the cost of binary operators;
+#'   `FALSE` gives every operator the same cost. The budget is checked between
+#'   jobs; an active export and model validation finish. Solver timeouts round
+#'   up to whole seconds. Operator bounds may be zero; clause and time limits
+#'   must be positive whole numbers. The optional Rwbo package is required only
+#'   for solver calls.
 #'
 #' @details
 #' The reduced expression uses the original variable names and the same C++
@@ -27,11 +30,12 @@
 #' guaranteed to be the shortest expression. Rendering can expand a compact BDD
 #' into a larger string.
 #'
-#' Optional synthesis assigns cost 1 to unary `!` and cost 2 to binary `&`, `|`
-#' and `^` in a formula tree, including repeated subexpressions. It searches for strictly
-#' cheaper formulas within the operator bound. Proven minima are skipped;
-#' without a context, other formulas without repeated variables are also
-#' skipped as a heuristic. Resource limits, missing Rwbo and solver failures
+#' Optional synthesis uses the per-call `rwbo_control$prefer_negations` setting.
+#' By default, unary `!` costs 1 and binary `&`, `|` and `^` cost 2; with `FALSE`,
+#' all operators cost 1. Repeated subexpressions incur their complete formula-tree
+#' cost. The search accepts strictly cheaper formulas within the operator bound.
+#' Proven minima are skipped; without a context, formulas without repeated
+#' variables are also skipped as a heuristic. Resource limits, missing Rwbo and solver failures
 #' retain the BDD expression. Heuristic and resource skips do not claim a minimum.
 #'
 #' @return A list with these elements:
@@ -53,8 +57,8 @@
 #' * `applied`: whether a solver formula replaced the BDD result.
 #' * `operator_count_before`, `operator_count_after`: numbers of Boolean operators
 #'   in the BDD expression and the returned formula.
-#' * `cost_before`, `cost_after`: weighted costs with unary `!` costing 1 and
-#'   binary operators costing 2.
+#' * `cost_before`, `cost_after`: costs under the selected `prefer_negations`
+#'   setting; with `FALSE`, these equal the respective operator counts.
 #' * `verified`, `optimal`: validity and minimality established by a checked
 #'   model or a direct BDD proof. Solver minimality is within `max_operators`;
 #'   a verified candidate need not be optimal.

@@ -30,9 +30,11 @@ Solver output must preserve
 complete physical lines, as returned by the corrected Rwbo wrapper.
 
 \verb{OPTIMUM FOUND} becomes \code{optimal = TRUE} only with a validated model and
-equivalent formula, and proves minimum weighted cost within \code{max_operators}.
-Unary \code{!} costs 1 and each binary operator costs 2. \code{SATISFIABLE} can return
-a verified, unproven candidate.
+equivalent formula, and proves minimum cost within \code{max_operators} under
+\code{problem$prefer_negations}. With \code{TRUE} (the default), unary \code{!} costs 1 and
+each binary operator costs 2; with \code{FALSE}, every operator costs 1.
+Keep this setting with the original problem metadata when interpreting output.
+\code{SATISFIABLE} can return a verified, unproven candidate.
 \code{UNSATISFIABLE}, \code{UNKNOWN} and missing models return no expression and do
 not claim verification or optimality. Invalid metadata, incomplete or
 conflicting models, bad objectives and violated hard clauses raise errors.

@@ -105,7 +105,7 @@ void validate_problem(const WcnfProblem &p) {
     if (next != p.nvars) invalid("SAT-variable count does not match gate metadata.");
     const std::uint64_t k = p.gates.size(), rows = p.target.size(), inputs = n + 2;
     const auto cared_rows = p.care.empty() ? rows : std::count(p.care.begin(), p.care.end(), true);
-    std::uint64_t clauses = cared_rows + 2 * k + p.lower_bound + binary_bound.clause_count();
+    std::uint64_t clauses = cared_rows + (p.prefer_negations ? 2 : 1) * k + p.lower_bound + binary_bound.clause_count();
     auto pairs = [](std::uint64_t count) { return count < 2 ? 0 : count * (count - 1) / 2; };
     for (std::uint64_t i = 0; i < k; ++i) {
         const std::uint64_t sources = inputs + i, remaining = k - i - 1;
@@ -178,7 +178,8 @@ int check_wcnf(const WcnfProblem &problem, const std::vector<std::int8_t> &value
             if (!(tokens >> token >> format >> nv >> nc >> weight) || token != "p" || format != "wcnf" ||
                 (tokens >> extra)) invalid("Invalid WCNF header.");
             top = number(weight);
-            const long long expected_top = problem.gates.empty() ? 2 : 2 * static_cast<long long>(problem.max_operators) + 1;
+            const long long expected_top = problem.gates.empty() ? 2 :
+                (problem.prefer_negations ? 2 : 1) * static_cast<long long>(problem.max_operators) + 1;
             if (number(nv) != problem.nvars || number(nc) != static_cast<long long>(problem.nclauses) || top != expected_top)
                 invalid("The WCNF does not match the saved problem.");
             header = true;
@@ -228,7 +229,7 @@ std::vector<DecodedGate> decode(const WcnfProblem &problem, const std::vector<st
         item.left = selected(gate.left, item.op == 0 ? 0 : 1);
         item.right = selected(gate.right, item.op == 0 || item.op == 4 ? 0 : 1);
         if (item.op == 0) { if (used) invalid("Unused gates do not form a prefix."); continue; }
-        used = true; decoded_cost += item.op == 4 ? 1 : 2;
+        used = true; decoded_cost += !problem.prefer_negations || item.op == 4 ? 1 : 2;
         if (item.op != 4 && item.left > item.right) invalid("Commutative gate sources are not ordered.");
         auto consume = [&](std::size_t source) {
             if (source >= inputs) {

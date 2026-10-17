@@ -12,6 +12,14 @@
   value
 }
 
+.rwbo_flag <- function(value, name) {
+  if (!is.logical(value) || is.object(value) || !is.null(dim(value)) ||
+      length(value) != 1L || is.na(value)) {
+    stop("'", name, "' must be a single non-missing logical value.", call. = FALSE)
+  }
+  unname(value)
+}
+
 .rwbo_elapsed <- function() unname(proc.time()[["elapsed"]])
 
 .rwbo_available <- function() requireNamespace("Rwbo", quietly = TRUE)
@@ -23,16 +31,19 @@
   if (!is.list(rwbo_control) || is.object(rwbo_control)) {
     stop("'rwbo_control' must be a named list.", call. = FALSE)
   }
-  defaults <- list(max_operators = 8L, max_clauses = 2000000L, time_limit = 5L)
+  defaults <- list(max_operators = 8L, max_clauses = 2000000L, time_limit = 5L,
+                   prefer_negations = TRUE)
   keys <- names(rwbo_control)
   if (length(rwbo_control) &&
       (is.null(keys) || anyNA(keys) || any(!nzchar(keys)) || anyDuplicated(keys) ||
        any(!keys %in% names(defaults)))) {
-    stop("'rwbo_control' accepts unique names: max_operators, max_clauses, time_limit.",
+    stop("'rwbo_control' accepts unique names: max_operators, max_clauses, time_limit, prefer_negations.",
          call. = FALSE)
   }
   for (key in keys) defaults[key] <- rwbo_control[key]
-  for (key in names(defaults)) {
+  defaults$prefer_negations <- .rwbo_flag(defaults$prefer_negations,
+                                           "rwbo_control$prefer_negations")
+  for (key in c("max_operators", "max_clauses", "time_limit")) {
     minimum <- if (key == "max_operators") 0L else 1L
     value <- .rwbo_scalar(defaults[[key]], paste0("rwbo_control$", key), minimum)
     maximum <- .Machine$integer.max - if (key == "max_operators") 2L else 1L
@@ -43,7 +54,7 @@
     defaults[[key]] <- as.integer(value)
   }
   state <- list(start = .rwbo_elapsed(), time_limit = defaults$time_limit,
-                directory = NULL, config = NULL)
+                prefer_negations = defaults$prefer_negations, directory = NULL, config = NULL)
   if (limit == 0) return(state)
 
   directory <- tempfile("rcudd-rwbo-")
@@ -62,10 +73,10 @@
   if (hits[[1L]] == -1L) 0L else length(hits)
 }
 
-.rwbo_operator_cost <- function(expr) {
+.rwbo_operator_cost <- function(expr, prefer_negations = TRUE) {
   operators <- regmatches(expr, gregexpr("[!&|^]", expr, perl = TRUE))[[1L]]
   # Use doubles for arithmetic: a long formula's weighted cost can exceed an R integer.
-  sum(ifelse(operators == "!", 1, 2))
+  sum(ifelse(!prefer_negations | operators == "!", 1, 2))
 }
 
 .rwbo_diagnostic <- function(status, before, after = before, applied = FALSE,
@@ -97,10 +108,11 @@
   attr(entry, "rwbo") <- NULL
   if (is.null(prepared)) return(entry)
 
+  prefer_negations <- !isFALSE(state$prefer_negations)
   before <- prepared$operator_count
   if (is.null(before)) before <- .rwbo_operator_count(entry$reduced_expression)
   cost_before <- prepared$cost
-  if (is.null(cost_before)) cost_before <- .rwbo_operator_cost(entry$reduced_expression)
+  if (is.null(cost_before)) cost_before <- .rwbo_operator_cost(entry$reduced_expression, prefer_negations)
   message <- prepared$message
   entry$optimization <- .rwbo_diagnostic(
     prepared$status, before, verified = isTRUE(prepared$optimal),
@@ -150,7 +162,7 @@
       !is.character(result$expression) || length(result$expression) != 1L ||
       is.na(result$expression) || !nzchar(result$expression) ||
       count != .rwbo_operator_count(result$expression) ||
-      cost != .rwbo_operator_cost(result$expression)) {
+      cost != .rwbo_operator_cost(result$expression, prefer_negations)) {
     entry$optimization$status <- "invalid_output"
     entry$optimization$message <- "The verified result has invalid formula metadata."
     return(entry)

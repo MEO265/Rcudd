@@ -13,16 +13,19 @@ expect_error <- function(expr, pattern) {
   error <- tryCatch(force(expr), error = identity)
   stopifnot(inherits(error, "error"), grepl(pattern, conditionMessage(error), fixed = TRUE))
 }
-solve_case <- function(expr, expected, bound = max(3L, expected), expected_cost = 2L * expected) {
-  problem <- Rcudd::bdd_to_wcnf(expr, tempfile(tmpdir = test_dir, fileext = ".wcnf"), bound)
+solve_case <- function(expr, expected, bound = max(3L, expected), expected_cost = if (prefer_negations) 2L * expected else expected,
+                       prefer_negations = TRUE) {
+  problem <- Rcudd::bdd_to_wcnf(expr, tempfile(tmpdir = test_dir, fileext = ".wcnf"), bound,
+                                prefer_negations = prefer_negations)
   result <- solve_rwbo(problem, time_limit = 60L)
-  stopifnot(result$verified, result$optimal)
+  stopifnot(result$verified, result$optimal, identical(problem$prefer_negations, prefer_negations))
   if (!is.null(expected)) stopifnot(identical(result$operator_count, as.integer(expected)))
   stopifnot(identical(result$cost, as.integer(expected_cost)))
   operators <- gregexpr("[&|^!]", result$expression)[[1L]]
   count <- if (operators[[1L]] == -1L) 0L else length(operators)
   stopifnot(count == result$operator_count)
   weighted <- 2L * count - lengths(regmatches(result$expression, gregexpr("!", result$expression, fixed = TRUE)))
+  if (!prefer_negations) weighted <- count
   stopifnot(weighted == result$cost)
   cat("PASS: ", expr, " -> ", result$expression, " (operators=", count, ", cost=", result$cost, ")\n", sep = "")
   invisible(list(problem = problem, result = result))
@@ -32,35 +35,39 @@ solve_case <- function(expr, expected, bound = max(3L, expected), expected_cost 
 # vectors, rather than expression rewriting, determine the reference minima.
 inputs <- expand.grid(a = c(FALSE, TRUE), b = c(FALSE, TRUE))
 signature <- function(bits) paste(as.integer(bits), collapse = "")
-levels <- list(list(rep(FALSE, 4L), rep(TRUE, 4L), inputs$a, inputs$b))
-minimum <- setNames(rep(0L, 4L), vapply(levels[[1L]], signature, character(1L)))
-for (cost in 1:3) {
-  candidates <- lapply(levels[[cost]], `!`)
-  if (cost >= 2L) for (left_cost in 0:(cost - 2L)) {
-    right_cost <- cost - 2L - left_cost
-    for (a in levels[[left_cost + 1L]]) {
-      for (b in levels[[right_cost + 1L]]) candidates <- c(candidates, list(a & b, a | b, xor(a, b)))
+for (prefer_negations in c(TRUE, FALSE)) {
+  levels <- list(list(rep(FALSE, 4L), rep(TRUE, 4L), inputs$a, inputs$b))
+  minimum <- setNames(rep(0L, 4L), vapply(levels[[1L]], signature, character(1L)))
+  binary_cost <- if (prefer_negations) 2L else 1L
+  for (cost in 1:3) {
+    candidates <- lapply(levels[[cost]], `!`)
+    if (cost >= binary_cost) for (left_cost in 0:(cost - binary_cost)) {
+      right_cost <- cost - binary_cost - left_cost
+      for (a in levels[[left_cost + 1L]]) {
+        for (b in levels[[right_cost + 1L]]) candidates <- c(candidates, list(a & b, a | b, xor(a, b)))
+      }
     }
-  }
-  new <- list()
-  for (candidate in candidates) {
-    key <- signature(candidate)
-    if (!key %in% names(minimum)) {
-      minimum[[key]] <- cost
-      new[[length(new) + 1L]] <- candidate
+    new <- list()
+    for (candidate in candidates) {
+      key <- signature(candidate)
+      if (!key %in% names(minimum)) {
+        minimum[[key]] <- cost
+        new[[length(new) + 1L]] <- candidate
+      }
     }
+    levels[[cost + 1L]] <- new
   }
-  levels[[cost + 1L]] <- new
-}
-stopifnot(length(minimum) == 16L)
-for (mask in 0:15) {
-  bits <- as.logical(as.integer(intToBits(mask))[1:4])
-  terms <- vapply(which(bits), function(row) {
-    paste0("(", if (inputs$a[[row]]) "a" else "!a", " & ",
-           if (inputs$b[[row]]) "b" else "!b", ")")
-  }, character(1L))
-  expr <- if (length(terms)) paste(terms, collapse = " | ") else "false"
-  solve_case(expr, NULL, bound = 3L, expected_cost = minimum[[signature(bits)]])
+  stopifnot(length(minimum) == 16L)
+  for (mask in 0:15) {
+    bits <- as.logical(as.integer(intToBits(mask))[1:4])
+    terms <- vapply(which(bits), function(row) {
+      paste0("(", if (inputs$a[[row]]) "a" else "!a", " & ",
+             if (inputs$b[[row]]) "b" else "!b", ")")
+    }, character(1L))
+    expr <- if (length(terms)) paste(terms, collapse = " | ") else "false"
+    solve_case(expr, NULL, bound = 3L, expected_cost = minimum[[signature(bits)]],
+               prefer_negations = prefer_negations)
+  }
 }
 
 example <- solve_case(rwbo_example_expression(), 5L, 8L)

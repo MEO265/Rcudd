@@ -35,14 +35,15 @@ count_xor <- function(expression) {
   count(str2lang(expression))
 }
 
-check_solver_case <- function(variables, target, minimum) {
+check_solver_case <- function(variables, target, minimum, prefer_negations = TRUE) {
   inputs <- truth_inputs(variables)
   expected <- target(inputs)
   expression <- as_dnf(inputs, expected)
   stopifnot(!grepl("xor", expression, fixed = TRUE))
   result <- bdd_restrict_from_expressions(
     list(expression), use_rwbo = Inf,
-    rwbo_control = list(time_limit = 30L, max_operators = minimum)
+    rwbo_control = list(time_limit = 30L, max_operators = minimum,
+                        prefer_negations = prefer_negations)
   )$chain[[1L]]
   stopifnot(
     identical(evaluate_rows(result$reduced_expression, inputs), expected),
@@ -50,7 +51,7 @@ check_solver_case <- function(variables, target, minimum) {
     isTRUE(result$optimization$verified),
     isTRUE(result$optimization$optimal),
     result$optimization$operator_count_after == minimum,
-    result$optimization$cost_after == 2L * minimum,
+    result$optimization$cost_after == (if (prefer_negations) 2L else 1L) * minimum,
     result$optimization$cost_after < result$optimization$cost_before,
     count_xor(result$reduced_expression) == 2L,
     identical(result$variables, bdd_literals(result$reduced_cpp_expression)$variables)
@@ -59,16 +60,18 @@ check_solver_case <- function(variables, target, minimum) {
   invisible(list(expression = expression, inputs = inputs, target = expected))
 }
 
-parity <- check_solver_case(
-  c("a", "b", "c"),
-  function(inputs) rowSums(inputs) %% 2L == 1L,
-  2L
-)
-check_solver_case(
-  c("a", "b", "c", "d"),
-  function(inputs) (inputs$a != inputs$b) & (inputs$c != inputs$d),
-  3L
-)
+for (prefer_negations in c(TRUE, FALSE)) {
+  parity <- check_solver_case(
+    c("a", "b", "c"),
+    function(inputs) rowSums(inputs) %% 2L == 1L,
+    2L, prefer_negations
+  )
+  check_solver_case(
+    c("a", "b", "c", "d"),
+    function(inputs) (inputs$a != inputs$b) & (inputs$c != inputs$d),
+    3L, prefer_negations
+  )
+}
 
 # A failed resource-bounded search must leave the valid BDD formula available.
 fallback <- bdd_restrict_from_expressions(

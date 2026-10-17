@@ -1,82 +1,77 @@
 # RWBO-Laufzeiten
 
-Die erste Tabelle wurde vor der Kostenumstellung gemessen: Jeder Operator
-kostete eins. Messung am 17.10.2026 auf diesem Rechner, R 4.5.3 und
-Rwbo 0.1.2.9000.
-Median aus drei Aufrufen je Fall; R-Prozessstart und nachträgliche exhaustive
-Kontrolle sind ausgeschlossen. Die Gesamtzeit umfasst den öffentlichen
-Rcudd-Aufruf mit BDD, WCNF, Solver, Prüfung und Rückübersetzung.
+Erneut gemessen am 17.10.2026 unter Windows 11 mit R 4.5.3 und Rwbo
+0.1.2.9000. Verglichen werden zwei getrennt installierte Rcudd-Stände:
 
-| Variablen | Zielformel | Max. Operatoren | Gesamt | Davon Solver | Ergebnis |
-|---:|---|---:|---:|---:|---|
-| 4 | 2 XOR-Paare mit AND | 8 | 0,17 s | 0,02 s | Optimum: 3 Operatoren |
-| 6 | 3 XOR-Paare mit AND | 8 | 0,63 s | 0,45 s | Optimum: 5 Operatoren |
-| 8 | 4 XOR-Paare mit AND | 8 | 1,08 s | 0,89 s | Optimum: 7 Operatoren |
-| 9 | 4 XOR-Paare mit AND, zusätzlich i | 8 | 6,55 s | 6,33 s | Optimum: 8 Operatoren |
-| 10 | 5 XOR-Paare mit AND | 9 | 10,20 s | 10,09 s | Zeitlimit: BDD-Fallback |
+- `654c526`: alle Operatoren kosten eins.
+- `9465ada`: NOT kostet eins, AND, OR und XOR kosten zwei.
 
-Zeitbudget: zehn Sekunden pro Aufruf; Klausellimit: unverändert zwei Millionen.
-Für zehn Variablen wurde die Operatorschranke auf neun erhöht, damit die bekannte
-neun Operatoren lange Lösung überhaupt im Suchraum liegt. Der reine BDD-Weg
-ohne RWBO dauerte bei diesen Fällen jeweils etwa 0,05 bis 0,06 Sekunden.
+Die Eingaben enthalten nur `&&`, `||` und `!`; die XORs entstehen erst durch
+Optimierung. Ein XOR-Paar ist `((a && !b) || (!a && b))`. Mehrere Paare werden
+mit AND verknüpft; bei neun Variablen kommt die Bedingung `i` hinzu.
 
-Das Neun-Variablen-Beispiel erreicht mit dem Standardbudget von fünf Sekunden
-das Zeitlimit (gemessen 5,19 s) und behält die BDD-Formel. Mit zehn Sekunden
-Budget wurde das Optimum in allen drei Läufen bewiesen.
+## Wiederholter Vergleich
 
-Die Struktur spielt ebenfalls eine Rolle: Eine reine Parität über acht
-Variablen brauchte in einem zusätzlichen Einzelversuch nur 0,50 s, während
-vier XOR-Paare mit AND etwa eine Sekunde brauchten. Diese Werte sind Beispiele,
-keine allgemeine Laufzeitgrenze.
+Je fünf Läufe pro Beispiel und Kostenmodell, abwechselnd AB/BA. Die Reihenfolge
+der Beispiele wird in jeder zweiten Runde umgekehrt. Jeder Lauf verwendet
+einen eigenen R-Prozess und einen nicht mitgemessenen Aufwärmlauf.
+Beide Varianten verwenden dieselbe Rwbo-Installation, `-algorithm=1`,
+zwei Millionen als Klausellimit und zehn Sekunden Zeitbudget.
 
-## Vergleich nach der Kostenumstellung
+Die Tabelle zeigt Mediane der Gesamtzeit des öffentlichen Rcudd-Aufrufs:
+BDD, WCNF, Solver, native Prüfung und Rückübersetzung. Prozessstart,
+Aufwärmlauf und die zusätzliche exhaustive Belegungsprüfung sind ausgeschlossen.
 
-NOT kostet nun eins, AND, OR und XOR kosten zwei. Die WCNF verwendet weiterhin
-nur weiche Klauseln mit Gewicht eins: eine pro aktivem Operator und eine weitere
-pro bin�rem Operator. Die Zahl der Slots und der Wahrheitstabellenzeilen bleibt
-bei diesem Vergleich gleich.
+| Beispiel | Variablen | Slots | Alle Kosten 1 | NOT 1, binär 2 |
+|---|---:|---:|---:|---:|
+| Zwei XORs als Parität | 3 | 4 | 0,19 s | 0,19 s |
+| Zwei XOR-Paare | 4 | 8 | 0,19 s | 0,19 s |
+| Drei XOR-Paare | 6 | 8 | 0,63 s | 1,56 s |
+| Vier XOR-Paare | 8 | 8 | 1,07 s | Zeitlimit in 5/5 Läufen |
+| Vier XOR-Paare und `i` | 9 | 8 | 6,36 s | Zeitlimit in 5/5 Läufen |
 
-Beide Versionen wurden am selben Rechner erneut mit denselben Eingaben,
-`max_operators = 8`, zehn Sekunden Budget und drei L�ufen je Fall gemessen.
-Die Werte sind Mediane der Gesamtzeit:
+Die Gesamtzeiten bei den neuen Zeitlimit-Fällen betrugen im Median 10,10 s
+(acht Variablen) und 10,11 s (neun Variablen). Das sind Abbruchzeiten, keine
+Lösungszeiten. Rcudd behält dann die BDD-Formel.
 
-| Variablen | Vorher: alle Kosten 1 | Jetzt: NOT 1, bin�r 2 | Neues Ergebnis |
-|---:|---:|---:|---|
-| 4 | 0,17 s | 0,18 s | Bewiesenes Optimum: 3 Operatoren, Kosten 6 |
-| 6 | 0,63 s | 1,56 s | Bewiesenes Optimum: 5 Operatoren, Kosten 10 |
-| 8 | 1,11 s | 10,09 s | Zeitlimit in allen drei L�ufen, BDD-Fallback |
-| 9 | 6,56 s | 10,12 s | Zeitlimit in allen drei L�ufen, BDD-Fallback |
+Bei sechs Variablen lag die reine Solverzeit bei 0,45 s gegenüber 1,39 s.
+Die zusätzliche Zeit entfällt somit nahezu vollständig auf den Solver.
 
-Ein zus�tzlicher Test f�r OR �ber acht Variablen mit acht Slots erreichte das
-Solverlimit von 60 Sekunden. Die kleinen Zusatzkosten in der WCNF sagen somit
-wenig �ber den Aufwand des Optimalit�tsnachweises aus. Die Gewichtung kann die
-Laufzeit deutlich erh�hen; die bestehenden Zeitlimits bleiben wichtig.
+## Zusätzliche Läufe mit 30 Sekunden Budget
 
-`optimal` bezeichnet das bewiesene Kostenminimum innerhalb der Operatorschranke.
-Die Grenze z�hlt weiterhin Operatoren, unabh�ngig von deren Kosten.
+Je ein weiterer Lauf pro Variante und Beispiel, bei gleicher Slotgrenze:
 
-## Wiederholen
+| Beispiel | Alle Kosten 1 | NOT 1, binär 2 |
+|---|---:|---:|
+| Vier XOR-Paare, acht Variablen | 1,08 s, Optimum | Zeitlimit nach 30,11 s |
+| Vier XOR-Paare und `i`, neun Variablen | 6,60 s, Optimum | Zeitlimit nach 30,18 s |
 
-Diese Rcudd-Version und die gefixte Rwbo-Version müssen installiert sein:
+Die Verschlechterung bestätigt sich damit auch bei abwechselnder Reihenfolge
+und höherem Budget. Kleine Zusatzkosten in der WCNF erlauben keine verlässliche
+Laufzeitprognose. In beiden Varianten haben alle weichen Klauseln Gewicht eins.
 
-```r
-source("dev/benchmark_rwbo.R")
-zeiten <- benchmark_rwbo() # fünf Fälle, je drei Läufe, maximal zehn Sekunden
+## Kontrollen und Wiederholen
+
+Das [Vergleichsskript](compare_rwbo_costs.R) kontrolliert das installierte
+Kostenmodell anhand einer gelösten XOR-Probe. Pro Paar werden identische
+BDD-Ausgangsformeln, tatsächliche Slots und SAT-Variablenzahlen geprüft.
+Die neue Datei enthält genau eine zusätzliche weiche Klausel pro Slot.
+Sämtliche zurückgegebenen Formeln wurden zusätzlich auf allen Belegungen
+gegen die Eingabe geprüft, einschließlich der BDD-Fallbacks bei Zeitlimits.
+
+Insgesamt: 54 Läufe, davon 42 mit bewiesenem Optimum und zwölf Zeitlimits.
+`optimal` bezeichnet das Kostenminimum innerhalb der Operatorschranke.
+Die [Einzelmessungen](benchmarks/rwbo-costs-2026-10-17.csv) enthalten auch
+Reihenfolge, reine Solverzeit, Anzahl der SAT-Variablen und Klauseln,
+Paket-Commits und Prüfsummen der verwendeten Rcudd-DLLs.
+
+Zum Wiederholen müssen die beiden genannten Stände in getrennten
+R-Bibliotheken liegen. Dann vom Rcudd-Verzeichnis aus:
+
+```text
+Rscript --vanilla dev/compare_rwbo_costs.R UNIT_LIBRARY WEIGHTED_LIBRARY OUTPUT_DIR
 ```
 
-Der Input enthält kein xor(), sondern pro Paar dieses ausgeschriebene Muster:
-`((a && !b) || (!a && b))`. Die Muster werden mit AND verknüpft; bei ungerader
-Variablenzahl kommt eine weitere Bedingung hinzu.
-
-```r
-formel <- rwbo_pair_example(9L)
-ergebnis <- Rcudd::bdd_restrict_from_expressions(
-  formel, use_rwbo = Inf, rwbo_control = list(time_limit = 10L)
-)$chain[[1L]]
-ergebnis$reduced_expression
-# z.B. i && xor(g, h) && xor(c, d) && xor(e, f) && xor(a, b)
-```
-
-Das Benchmarkscript misst den Solver durch einen temporären Trace innerhalb
-dieses R-Prozesses. Es prüft jede zurückgegebene Formel zusätzlich auf allen
-Belegungen und entfernt den Trace beim Verlassen der Funktion.
+Das Skript speichert jeden Lauf und die Zusammenfassung als CSV sowie
+RDS-Dateien mit Eingaben und geprüften Ergebnissen. Für Messungen nur der
+aktuellen Version bleibt [benchmark_rwbo.R](benchmark_rwbo.R) verfügbar.
